@@ -21,10 +21,14 @@ NETWORK="fta-client-${CLIENT_ID}"
 mkdir -p "${CLIENT_DIR}/data/results"
 
 cp "${TEMPLATE_DIR}/docker-compose.client.yml" "${CLIENT_DIR}/docker-compose.yml"
+cp "${TEMPLATE_DIR}/docker-compose.job.yml" "${CLIENT_DIR}/docker-compose.job.yml"
 cp "${TEMPLATE_DIR}/client.env.example" "${CLIENT_DIR}/.env"
 cp "${TEMPLATE_DIR}/config.json.template" "${CLIENT_DIR}/data/config.json"
 
-sed -i "s/CLIENT_ID_PLACEHOLDER/${CLIENT_ID}/g" "${CLIENT_DIR}/docker-compose.yml" "${CLIENT_DIR}/data/config.json"
+sed -i "s/CLIENT_ID_PLACEHOLDER/${CLIENT_ID}/g" \
+  "${CLIENT_DIR}/docker-compose.yml" \
+  "${CLIENT_DIR}/docker-compose.job.yml" \
+  "${CLIENT_DIR}/data/config.json"
 
 if ! docker network ls --format '{{.Name}}' | grep -q "^${NETWORK}$"; then
   docker network create "${NETWORK}" >/dev/null
