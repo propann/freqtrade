@@ -1,11 +1,24 @@
 # Portail (placeholder)
 
-Le portail est un service minimal permettant de gérer les environnements clients (provisionnement, démarrage, suspension). 
-Pour le MVP, il s'agit d'une image placeholder (`ghcr.io/dummy/portal-placeholder`) qui expose un serveur HTTP sur le port 8080.
+Portail Node/Express minimal pour le MVP PAYANT. Il expose des endpoints stub et applique un gating basique sur l'état d'abonnement (`active | past_due | canceled`).
 
-Principes de sécurité :
-- Bind uniquement sur `127.0.0.1:${PORTAL_HTTP_PORT}` (via le `docker-compose` racine).
-- Accès au Docker API via `docker-socket-proxy` uniquement, pas d'accès direct au socket.
-- Conteneur durci : `read_only`, `cap_drop: ["ALL"]`, `no-new-privileges`.
+- Bind uniquement sur `127.0.0.1:${PORTAL_HTTP_PORT}` (via le docker-compose racine).
+- Accès Docker uniquement via `docker-socket-proxy` (pas d'accès direct au socket).
+- Conteneur durci : `read_only`, `cap_drop: ["ALL"]`, `no-new-privileges`, `tmpfs`.
+- Base Postgres pour stocker tenants/subscriptions/audit logs (voir `db.sql`).
 
-Remplacer l'image placeholder par le vrai portail applicatif lors de la phase suivante.
+## Endpoints exposés (stub)
+- `GET /health`
+- `GET /api/clients`
+- `POST /api/clients/:id/provision`
+- `POST /api/clients/:id/backtest` (refus si `status != active`)
+- `POST /api/billing/webhook/paypal`
+
+## Build local
+```bash
+cd portal/placeholder
+npm ci --ignore-scripts   # nécessite l'accès au registre npm
+npm start
+```
+
+Remplacer progressivement ce placeholder par le vrai portail applicatif.
