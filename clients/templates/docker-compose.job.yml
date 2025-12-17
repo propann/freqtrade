@@ -16,7 +16,7 @@ services:
       - no-new-privileges:true
     read_only: true
     tmpfs:
-      - /tmp
+      - /tmp:rw,size=64m
     cap_drop:
       - ALL
     restart: "no"

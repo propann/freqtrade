@@ -22,14 +22,25 @@ echo "[+] Vérification santé Postgres"
 docker compose -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" ps postgres
 
 PORTAL_PORT="${PORTAL_HTTP_PORT:-8088}"
-echo "[+] Attente de la santé du portail sur 127.0.0.1:${PORTAL_PORT}/health ..."
-for _ in {1..20}; do
-  if curl -fsS "http://127.0.0.1:${PORTAL_PORT}/health" >/dev/null 2>&1; then
-    echo "[+] Portail opérationnel sur 127.0.0.1:${PORTAL_PORT} (via Nginx)."
-    exit 0
-  fi
-  sleep 2
-done
+PORTAL_HEALTH="http://127.0.0.1:${PORTAL_PORT}/health"
 
-echo "[!] Le portail ne répond pas encore sur /health. Vérifiez les logs docker compose." >&2
-exit 1
+if command -v curl >/dev/null 2>&1; then
+  echo "[+] Vérification du portail sur ${PORTAL_HEALTH}"
+  healthy=false
+  for _ in {1..10}; do
+    if curl --fail --silent --max-time 3 "${PORTAL_HEALTH}" >/dev/null; then
+      healthy=true
+      echo "[+] Portail OK (healthcheck réussi)"
+      break
+    fi
+    sleep 3
+  done
+  if [[ "${healthy}" != true ]]; then
+    echo "[!] Portail non joignable après déploiement" >&2
+    exit 1
+  fi
+else
+  echo "[!] curl indisponible : vérifiez manuellement ${PORTAL_HEALTH}" >&2
+fi
+
+echo "[+] Portail disponible sur 127.0.0.1:${PORTAL_PORT} (via Nginx)."

@@ -1,27 +1,22 @@
-# Pricing model (MVP)
+# Pricing (MVP)
 
-Objectif : facturer de façon prévisible tout en restant simple pour le MVP PayPal.
+Objectif : garder un modèle simple pendant la phase MVP payante, sans publier de coûts cloud précis. La facturation repose sur la consommation technique et une marge fixe.
 
 ## Méthode de calcul
-- **Compute** : comptabiliser le CPU et la RAM réservés par job (quanta horaires) et le temps d'exécution effectif.
-- **Stockage** : mesurer l'espace occupé par `clients/<id>/data` (datasets, résultats) et appliquer un palier (inclus + dépassement).
-- **Durée des jobs** : tracer chaque backtest/hyperopt/dry-run et agréger le temps total consommé par mois.
-- **Marge** : ajouter une marge opérateur fixe pour couvrir le support et la maintenance (sans détailler les coûts cloud internes).
-- **Seuils de sécurité** : inclure des limites par défaut (CPU=1.0, RAM=1024m, PIDs=256) pour éviter les abus et garder la facture maîtrisée.
+1) **CPU/RAM** : nombre de vCPU réservés par job + limite mémoire appliquée via Docker (`cpus`, `mem_limit`).
+2) **Durée des jobs** : temps d'exécution cumulé (par backtest ou stratégie) calculé à partir des logs de lancement/fin.
+3) **Stockage** : volume persistant par client (`clients/<id>/data`) + répertoire des résultats (`results/<job_id>`).
+4) **Marge** : pour couvrir support/maintenance et réserve de capacité (appliquée sur le total CPU/RAM/stockage).
 
-## Plans exemples (indicatifs)
-Ces plans sont purement illustratifs : ils n'incluent pas de prix ni de coûts AWS détaillés.
-
+## Exemples de plans (indicatifs)
 ### BASIC
-- 1 vCPU logique, 1 Go RAM par job.
-- Quota mensuel de jobs courts (backtests DRY-RUN only pour la phase test) avec stockage modeste.
-- Support email standard.
+- 1 vCPU, 1 Go RAM, `pids_limit=256`.
+- Jobs DRY-RUN uniquement pendant la phase de test.
+- Stockage persistant limité (quelques Go) pour les résultats.
 
 ### PRO
-- Jusqu'à 2 vCPU logiques et 2 Go RAM par job.
-- Quotas de jobs plus longs + davantage de stockage pour les datasets/résultats.
-- Priorité de support et possibilité d'élargir les quotas sur demande.
+- 2 vCPU, 2-3 Go RAM, `pids_limit` ajusté si besoin.
+- Files d'attente de jobs plus larges (plusieurs backtests parallèles quand l'orchestrateur sera branché).
+- Stockage de résultats plus généreux et rétention plus longue.
 
-## Notes de gating
-- Le portail refuse toute action provision/start/backtest si `subscriptions.status != active`.
-- L'état d'abonnement est piloté par PayPal (abonnement mensuel) et stocké en base Postgres.
+Les plafonds exacts (CPU/RAM/stockage) sont paramétrés côté Docker/Fargate et peuvent être ajustés avant ouverture générale.

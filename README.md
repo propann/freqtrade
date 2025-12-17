@@ -1,6 +1,6 @@
-# freqtrade-aws (Service PAYANT)
+# freqtrade-aws (Service payant)
 
-Service de bots Freqtrade multi-clients sur AWS. Priorité : sécurité/isolation, déploiement simple (EC2 + Docker Compose), gating par abonnement (service payant via PayPal mensuel).
+Service de bots Freqtrade multi-clients sur AWS. Priorité : sécurité/isolation, déploiement simple (EC2 + Docker Compose), gating par abonnement PayPal (service payant avec facturation mensuelle). Les phases de test utilisent toujours des jobs en mode **DRY-RUN only**.
 
 ## Déploiement sur EC2 (Ubuntu)
 1) Préparer l'hôte (root/sudo) :
@@ -50,11 +50,14 @@ CLIENTS_DIR=$(pwd)/clients infra/scripts/list-jobs.sh client1
 - Conteneurs durcis : `cap_drop: ["ALL"]`, `no-new-privileges`, quotas par défaut (`cpu=1.0`, `mem=1024m`, `pids=256`).
 - Pas de secrets en clair dans les logs.
 
-## Facturation PayPal (MVP gating)
+## Billing (MVP gating)
 - Tables `tenants`, `subscriptions`, `audit_logs` (voir `portal/placeholder/db.sql`).
-- `subscriptions.status` doit être `active` pour autoriser provision/backtest/provision/start.
-- Endpoints stubs : `/api/billing/webhook/paypal`, `/api/clients/:id/backtest` (refus si status != active).
-- Voir `docs/paypal.md` pour le détail du gating MVP et le mapping des statuts PayPal.
+- `subscriptions.status` par défaut = `inactive`; l'accès provision/backtest est refusé tant que le statut n'est pas `active`.
+- Webhook PayPal stub : `/api/billing/webhook/paypal` pour mettre à jour les statuts.
+- Notes détaillées dans `docs/paypal.md`.
+
+## Pricing notes
+Méthode de calcul et exemples de plans BASIC/PRO dans `docs/pricing.md`.
 
 ## Migration Fargate (préparation)
 - Modèle job éphémère conservé (1 tâche Fargate par job).

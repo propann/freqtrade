@@ -1,15 +1,19 @@
-# PayPal gating (MVP)
+# PayPal (MVP gating)
 
-## MVP : subscription_status
-- Chaque client possède une ligne `subscriptions` avec `tenant_id`, `plan`, `status` (`inactive|active|past_due|canceled`).
-- Le portail refuse provision/start/backtest tant que le statut n'est pas `active` (HTTP 402 Payment Required avec message explicite).
-- La mise à jour du statut peut être manuelle dans le MVP (back-office ou requête SQL) tant que le paiement PayPal n'est pas branché.
+## MVP : statut stocké et vérifié
+- Chaque tenant possède une entrée `subscriptions` avec un champ `status` (default `inactive`).
+- L'API du portail bloque les actions sensibles (provision/start/backtest) si `status != active`.
+- Le champ `plan` sert à différencier BASIC/PRO mais ne débloque rien tant que le statut n'est pas `active`.
 
-## Futur : webhook PayPal
-- Brancher le webhook PayPal de facturation récurrente et mapper les évènements vers `subscriptions.status`.
-- Mapping attendu :
+## Webhook (évolution)
+- Point d'entrée : `POST /api/billing/webhook/paypal` (payload PayPal à mapper vers un `subscription_id` interne).
+- Mapping d'état recommandé :
   - `ACTIVE` -> `active`
-  - `PAST_DUE` -> `past_due`
-  - `CANCELLED`/`SUSPENDED` -> `canceled`
-- Stocker l'horodatage de mise à jour (`updated_at`) et un log d'audit (`audit_logs`) pour chaque changement.
-- Conserver le même gating métier : toute action sensible reste bloquée si le statut n'est pas `active`.
+  - `SUSPENDED` ou facture impayée -> `past_due`
+  - `CANCELLED` -> `canceled`
+- En cas de webhook valide : mise à jour de `subscriptions.status` + horodatage `updated_at` + ligne d'audit (`audit_logs`).
+
+## Points de vigilance
+- Ne jamais exposer les credentials PayPal dans les logs ou réponses HTTP.
+- Refuser par défaut si le statut est inconnu ou manquant.
+- Prévoir une tâche périodique qui vérifie les statuts PayPal vs base locale avant ouverture générale.

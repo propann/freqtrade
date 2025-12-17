@@ -1,12 +1,12 @@
 CREATE TABLE IF NOT EXISTS tenants (
     id VARCHAR(64) PRIMARY KEY,
-    email TEXT,
+    email TEXT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS subscriptions (
     tenant_id VARCHAR(64) PRIMARY KEY REFERENCES tenants(id) ON DELETE CASCADE,
-    status VARCHAR(16) NOT NULL DEFAULT 'inactive',
+    status VARCHAR(32) NOT NULL DEFAULT 'inactive',
     plan VARCHAR(32) NOT NULL DEFAULT 'BASIC',
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
