@@ -37,6 +37,7 @@ fi
 
 JOB_ID="$(date +%s)-${RANDOM}"
 RESULT_DIR="${DATA_DIR}/results/${JOB_ID}"
+RESULT_FILE="${RESULT_DIR}/backtest.json"
 CONTAINER_NAME="fta-job-${CLIENT_ID}-${JOB_ID}"
 
 mkdir -p "${RESULT_DIR}" "${DATA_DIR}/tmp"
@@ -46,6 +47,8 @@ if docker ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
 fi
 
 BACKTEST_CMD=("backtesting" "--config" "/freqtrade/user_data/config.json" "--strategy" "${STRATEGY}" "--export" "trades" "--export-filename" "results/${JOB_ID}/backtest.json" "--timerange" "${TIMERANGE}")
+
+echo "[+] Lancement du job ${CONTAINER_NAME} (client=${CLIENT_ID}, job=${JOB_ID})"
 
 docker run --rm \
   --name "${CONTAINER_NAME}" \
@@ -61,4 +64,4 @@ docker run --rm \
   freqtradeorg/freqtrade:stable \
   "${BACKTEST_CMD[@]}"
 
-echo "Résultats enregistrés dans ${RESULT_DIR}/backtest.json"
+echo "Résultats enregistrés dans ${RESULT_FILE}"

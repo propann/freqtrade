@@ -25,6 +25,55 @@ function subscriptionActive(subscription) {
   return subscription && subscription.status === 'active';
 }
 
+async function findTenant(tenantId) {
+  const { rows } = await pool.query('SELECT id, email FROM tenants WHERE id = $1 LIMIT 1', [tenantId]);
+  return rows[0];
+}
+
+async function ensureSubscription(tenantId) {
+  await pool.query(
+    'INSERT INTO subscriptions(tenant_id) VALUES($1) ON CONFLICT (tenant_id) DO NOTHING',
+    [tenantId]
+  );
+  const { rows } = await pool.query(
+    'SELECT tenant_id, status, plan, updated_at FROM subscriptions WHERE tenant_id = $1 LIMIT 1',
+    [tenantId]
+  );
+  return rows[0];
+}
+
+async function requireActiveSubscription(req, res, next) {
+  const tenantId = req.params.id;
+  if (!tenantId) {
+    return res.status(400).json({ error: 'missing_tenant', message: 'Tenant id is required' });
+  }
+
+  try {
+    const tenant = await findTenant(tenantId);
+    if (!tenant) {
+      return res.status(404).json({ error: 'tenant_not_found', message: `Tenant ${tenantId} not found` });
+    }
+
+    const subscription = await ensureSubscription(tenantId);
+    if (!subscriptionActive(subscription)) {
+      await pool.query('INSERT INTO audit_logs(tenant_id, action, meta) VALUES($1, $2, $3)', [
+        tenantId,
+        'gating_blocked',
+        { path: req.path, status: subscription?.status || 'missing' },
+      ]);
+      return res.status(402).json({
+        error: 'subscription_inactive',
+        message: `Subscription for ${tenantId} is missing or inactive`,
+        status: subscription?.status || 'missing',
+      });
+    }
+    req.subscription = subscription;
+    return next();
+  } catch (error) {
+    return res.status(500).json({ error: 'subscription_check_failed', detail: error.message });
+  }
+}
+
 app.get('/health', async (_req, res) => {
   try {
     await pool.query('SELECT 1');
@@ -37,7 +86,10 @@ app.get('/health', async (_req, res) => {
 app.get('/api/clients', async (_req, res) => {
   try {
     const result = await pool.query(
-      'SELECT tenants.id, tenants.name, subscriptions.status FROM tenants LEFT JOIN subscriptions ON subscriptions.tenant_id = tenants.id ORDER BY tenants.id'
+      `SELECT tenants.id, tenants.email, subscriptions.status, subscriptions.plan
+       FROM tenants
+       LEFT JOIN subscriptions ON subscriptions.tenant_id = tenants.id
+       ORDER BY tenants.id`
     );
     res.json({
       clients: result.rows,
@@ -49,46 +101,54 @@ app.get('/api/clients', async (_req, res) => {
   }
 });
 
-app.post('/api/clients/:id/provision', async (req, res) => {
+app.post('/api/clients/:id/provision', async (req, res, next) => {
   const clientId = req.params.id;
-  const adminActor = req.headers['x-admin-user'] || 'unknown';
+  const email = req.body?.email;
+  if (!email) {
+    return res.status(400).json({ error: 'missing_email', message: 'Email requis pour provisionner un tenant.' });
+  }
+
   try {
-    const { rowCount } = await pool.query(
-      'INSERT INTO tenants(id, name) VALUES($1, $1) ON CONFLICT (id) DO NOTHING',
-      [clientId]
-    );
     await pool.query(
-      'INSERT INTO audit_logs(actor, action, target) VALUES($1, $2, $3)',
-      [adminActor, 'provision', clientId]
+      'INSERT INTO tenants(id, email) VALUES($1, $2) ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email',
+      [clientId, email]
     );
-    res.status(rowCount ? 201 : 200).json({ status: 'provisioned', id: clientId });
+    await ensureSubscription(clientId);
+    return next();
   } catch (error) {
-    res.status(500).json({ error: 'provision_failed', detail: error.message });
+    return res.status(500).json({ error: 'provision_failed', detail: error.message });
+  }
+}, requireActiveSubscription, async (req, res) => {
+  try {
+    await pool.query('INSERT INTO audit_logs(tenant_id, action, meta) VALUES($1, $2, $3)', [
+      req.params.id,
+      'provision_attempt',
+      { email: req.body?.email, status: req.subscription.status },
+    ]);
+    res.status(200).json({ status: 'provision_allowed', id: req.params.id, plan: req.subscription.plan });
+  } catch (error) {
+    res.status(500).json({ error: 'audit_failed', detail: error.message });
   }
 });
 
-app.post('/api/clients/:id/backtest', async (req, res) => {
+app.post('/api/clients/:id/backtest', requireActiveSubscription, async (req, res) => {
   const clientId = req.params.id;
+  const timerange = req.body?.timerange || '20230101-20230201';
+  const strategy = req.body?.strategy || 'SampleStrategy';
+
   try {
-    const { rows } = await pool.query(
-      'SELECT subscriptions.status FROM subscriptions WHERE tenant_id = $1 LIMIT 1',
-      [clientId]
-    );
-    const subscription = rows[0];
-    if (!subscriptionActive(subscription)) {
-      return res.status(402).json({ error: 'subscription_inactive', status: subscription?.status || 'unknown' });
-    }
-    await pool.query(
-      'INSERT INTO audit_logs(actor, action, target) VALUES($1, $2, $3)',
-      [clientId, 'backtest_requested', clientId]
-    );
-    const timerange = req.body?.timerange || '20230101-20230201';
+    await pool.query('INSERT INTO audit_logs(tenant_id, action, meta) VALUES($1, $2, $3)', [
+      clientId,
+      'backtest_requested',
+      { timerange, strategy },
+    ]);
     res.json({
       status: 'accepted',
       job: {
         clientId,
         mode: 'backtest',
         timerange,
+        strategy,
         quotas,
       },
       note: 'Ce placeholder ne déclenche pas réellement de conteneur. Brancher docker-socket-proxy ici.',
@@ -98,20 +158,45 @@ app.post('/api/clients/:id/backtest', async (req, res) => {
   }
 });
 
+app.post('/api/clients/:id/start', requireActiveSubscription, async (req, res) => {
+  const clientId = req.params.id;
+  try {
+    await pool.query('INSERT INTO audit_logs(tenant_id, action, meta) VALUES($1, $2, $3)', [
+      clientId,
+      'start_requested',
+      { source: 'api', status: req.subscription.status },
+    ]);
+    res.json({
+      status: 'accepted',
+      message: 'Start job placeholder : brancher l’orchestration de conteneur ici.',
+      plan: req.subscription.plan,
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'start_failed', detail: error.message });
+  }
+});
+
 app.post('/api/billing/webhook/paypal', async (req, res) => {
-  const { subscription_id: subscriptionId, status } = req.body || {};
-  if (!subscriptionId || !status) {
+  const { subscription_id: subscriptionId, status, tenant_id: tenantIdFromHook } = req.body || {};
+  const tenantId = tenantIdFromHook || subscriptionId;
+
+  if (!tenantId || !status) {
     return res.status(400).json({ error: 'invalid_payload' });
   }
   try {
+    const tenant = await findTenant(tenantId);
+    if (!tenant) {
+      return res.status(404).json({ error: 'tenant_not_found', message: `Tenant ${tenantId} not found` });
+    }
     await pool.query(
-      'UPDATE subscriptions SET status = $1, updated_at = NOW() WHERE id = $2',
-      [status.toLowerCase(), subscriptionId]
+      'INSERT INTO subscriptions(tenant_id, status, updated_at) VALUES($1, $2, NOW()) ON CONFLICT (tenant_id) DO UPDATE SET status = EXCLUDED.status, updated_at = EXCLUDED.updated_at',
+      [tenantId, status.toLowerCase()]
     );
-    await pool.query(
-      'INSERT INTO audit_logs(actor, action, target) VALUES($1, $2, $3)',
-      ['paypal-webhook', 'subscription_update', subscriptionId]
-    );
+    await pool.query('INSERT INTO audit_logs(tenant_id, action, meta) VALUES($1, $2, $3)', [
+      tenantId,
+      'subscription_update',
+      { status: status.toLowerCase(), source: 'paypal-webhook' },
+    ]);
     res.json({ status: 'ack' });
   } catch (error) {
     res.status(500).json({ error: 'webhook_failed', detail: error.message });
