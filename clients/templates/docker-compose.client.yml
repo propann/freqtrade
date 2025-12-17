@@ -7,11 +7,14 @@ services:
       - .env
     volumes:
       - ./data:/freqtrade/user_data
-      - ./config.json:/freqtrade/user_data/config.json:ro
+      - ./data/config.json:/freqtrade/user_data/config.json:ro
     command: ["trade", "--config", "/freqtrade/user_data/config.json", "--dry-run"]
     restart: unless-stopped
     networks:
       - client
+    mem_limit: 1024m
+    cpus: "1.0"
+    pids_limit: 256
     security_opt:
       - no-new-privileges:true
     read_only: true

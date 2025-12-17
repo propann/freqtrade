@@ -30,6 +30,18 @@ services:
       INFO: 1
       PING: 1
       EVENTS: 1
+      VERSION: 1
+      AUTH: 0
+      SECRETS: 0
+      SERVICES: 0
+      TASKS: 0
+      NODES: 0
+      SWARM: 0
+      EXEC: 0
+      BUILD: 0
+      DISTRIBUTION: 0
+      POST: 0
+      PLUGINS: 0
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
