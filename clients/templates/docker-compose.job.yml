@@ -1,0 +1,16 @@
+version: "3.9"
+services:
+  freqtrade-job:
+    image: freqtradeorg/freqtrade:stable
+    container_name: fta-job-CLIENT_ID_PLACEHOLDER-JOB_ID_PLACEHOLDER
+    volumes:
+      - ./data:/freqtrade/user_data
+    command: ["backtesting", "--config", "/freqtrade/user_data/config.json"]
+    mem_limit: 1024m
+    cpus: "1.0"
+    pids_limit: 256
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    cap_drop:
+      - ALL

@@ -23,11 +23,11 @@ mkdir -p "${CLIENT_DIR}/data"
 # Copie les templates
 cp "${TEMPLATE_DIR}/docker-compose.client.yml" "${CLIENT_DIR}/docker-compose.yml"
 cp "${TEMPLATE_DIR}/client.env.example" "${CLIENT_DIR}/.env"
-cp "${TEMPLATE_DIR}/config.json.template" "${CLIENT_DIR}/config.json"
+cp "${TEMPLATE_DIR}/config.json.template" "${CLIENT_DIR}/data/config.json"
 
 # Substitue le CLIENT_ID dans les fichiers
 sed -i "s/CLIENT_ID_PLACEHOLDER/${CLIENT_ID}/g" "${CLIENT_DIR}/docker-compose.yml"
-sed -i "s/CLIENT_ID_PLACEHOLDER/${CLIENT_ID}/g" "${CLIENT_DIR}/config.json"
+sed -i "s/CLIENT_ID_PLACEHOLDER/${CLIENT_ID}/g" "${CLIENT_DIR}/data/config.json"
 
 # Crée le réseau dédié si absent
 if ! docker network ls --format '{{.Name}}' | grep -q "^${NETWORK}$"; then
