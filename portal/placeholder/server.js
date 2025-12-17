@@ -29,39 +29,6 @@ async function ensureTenant(tenantId, email) {
 }
 
 async function ensureSubscription(tenantId) {
-  await pool.query('INSERT INTO subscriptions(tenant_id) VALUES($1) ON CONFLICT (tenant_id) DO NOTHING', [tenantId]);
-}
-
-async function getSubscriptionStatus(tenantId) {
-  const { rows } = await pool.query('SELECT status FROM subscriptions WHERE tenant_id = $1 LIMIT 1', [tenantId]);
-  return rows[0]?.status;
-}
-
-async function requireActiveSubscription(tenantId, res) {
-  const status = (await getSubscriptionStatus(tenantId)) || 'inactive';
-  if (status !== 'active') {
-    res
-      .status(402)
-      .json({
-        error: 'subscription_inactive',
-        status,
-        message: 'Subscription must be active to provision or start jobs.',
-      });
-    return false;
-  }
-  return true;
-}
-
-async function recordAudit(tenantId, action, meta = {}) {
-  await pool.query('INSERT INTO audit_logs(tenant_id, action, meta) VALUES($1, $2, $3)', [tenantId, action, meta]);
-}
-
-async function findTenant(tenantId) {
-  const { rows } = await pool.query('SELECT id, email FROM tenants WHERE id = $1 LIMIT 1', [tenantId]);
-  return rows[0];
-}
-
-async function ensureSubscription(tenantId) {
   await pool.query(
     'INSERT INTO subscriptions(tenant_id) VALUES($1) ON CONFLICT (tenant_id) DO NOTHING',
     [tenantId]
@@ -71,6 +38,15 @@ async function ensureSubscription(tenantId) {
     [tenantId]
   );
   return rows[0];
+}
+
+async function findTenant(tenantId) {
+  const { rows } = await pool.query('SELECT id, email FROM tenants WHERE id = $1 LIMIT 1', [tenantId]);
+  return rows[0];
+}
+
+function subscriptionActive(subscription) {
+  return subscription?.status === 'active';
 }
 
 async function requireActiveSubscription(req, res, next) {
@@ -156,7 +132,12 @@ app.post('/api/clients/:id/provision', async (req, res, next) => {
       'provision_attempt',
       { email: req.body?.email, status: req.subscription.status },
     ]);
-    res.status(200).json({ status: 'provision_allowed', id: req.params.id, plan: req.subscription.plan });
+    res.status(200).json({
+      status: 'provision_allowed',
+      id: req.params.id,
+      plan: req.subscription.plan,
+      subscription_status: req.subscription.status,
+    });
   } catch (error) {
     res.status(500).json({ error: 'audit_failed', detail: error.message });
   }
@@ -182,6 +163,7 @@ app.post('/api/clients/:id/backtest', requireActiveSubscription, async (req, res
         strategy,
         quotas,
       },
+      subscription_status: req.subscription.status,
       note: 'Ce placeholder ne déclenche pas réellement de conteneur. Brancher docker-socket-proxy ici.',
     });
   } catch (error) {
@@ -201,6 +183,7 @@ app.post('/api/clients/:id/start', requireActiveSubscription, async (req, res) =
       status: 'accepted',
       message: 'Start job placeholder : brancher l’orchestration de conteneur ici.',
       plan: req.subscription.plan,
+      subscription_status: req.subscription.status,
     });
   } catch (error) {
     res.status(500).json({ error: 'start_failed', detail: error.message });
