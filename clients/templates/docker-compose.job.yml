@@ -2,9 +2,9 @@ version: "3.9"
 services:
   freqtrade-job:
     image: freqtradeorg/freqtrade:stable
-    container_name: fta-job-CLIENT_ID_PLACEHOLDER-JOB_ID_PLACEHOLDER
+    container_name: "fta-job-CLIENT_ID_PLACEHOLDER-${JOB_ID}"
     command:
-      ["backtesting", "--config", "/freqtrade/user_data/config.json", "--timerange", "20230101-20230201"]
+      ["backtesting", "--config", "/freqtrade/user_data/config.json", "--strategy", "${STRATEGY}", "--export", "trades", "--export-filename", "results/${JOB_ID}/backtest.json", "--timerange", "${TIMERANGE}"]
     volumes:
       - ./data:/freqtrade/user_data
     networks:
