@@ -21,8 +21,39 @@ const pool = new Pool({
   max: 2,
 });
 
-function subscriptionActive(subscription) {
-  return subscription && subscription.status === 'active';
+async function ensureTenant(tenantId, email) {
+  await pool.query(
+    'INSERT INTO tenants(id, email) VALUES($1, $2) ON CONFLICT (id) DO UPDATE SET email = COALESCE($2, tenants.email)',
+    [tenantId, email || null]
+  );
+}
+
+async function ensureSubscription(tenantId) {
+  await pool.query('INSERT INTO subscriptions(tenant_id) VALUES($1) ON CONFLICT (tenant_id) DO NOTHING', [tenantId]);
+}
+
+async function getSubscriptionStatus(tenantId) {
+  const { rows } = await pool.query('SELECT status FROM subscriptions WHERE tenant_id = $1 LIMIT 1', [tenantId]);
+  return rows[0]?.status;
+}
+
+async function requireActiveSubscription(tenantId, res) {
+  const status = (await getSubscriptionStatus(tenantId)) || 'inactive';
+  if (status !== 'active') {
+    res
+      .status(402)
+      .json({
+        error: 'subscription_inactive',
+        status,
+        message: 'Subscription must be active to provision or start jobs.',
+      });
+    return false;
+  }
+  return true;
+}
+
+async function recordAudit(tenantId, action, meta = {}) {
+  await pool.query('INSERT INTO audit_logs(tenant_id, action, meta) VALUES($1, $2, $3)', [tenantId, action, meta]);
 }
 
 app.get('/health', async (_req, res) => {
@@ -37,7 +68,7 @@ app.get('/health', async (_req, res) => {
 app.get('/api/clients', async (_req, res) => {
   try {
     const result = await pool.query(
-      'SELECT tenants.id, tenants.name, subscriptions.status FROM tenants LEFT JOIN subscriptions ON subscriptions.tenant_id = tenants.id ORDER BY tenants.id'
+      'SELECT tenants.id, tenants.email, subscriptions.status, subscriptions.plan, subscriptions.updated_at FROM tenants LEFT JOIN subscriptions ON subscriptions.tenant_id = tenants.id ORDER BY tenants.id'
     );
     res.json({
       clients: result.rows,
@@ -51,17 +82,17 @@ app.get('/api/clients', async (_req, res) => {
 
 app.post('/api/clients/:id/provision', async (req, res) => {
   const clientId = req.params.id;
-  const adminActor = req.headers['x-admin-user'] || 'unknown';
+  const email = req.body?.email || null;
   try {
-    const { rowCount } = await pool.query(
-      'INSERT INTO tenants(id, name) VALUES($1, $1) ON CONFLICT (id) DO NOTHING',
-      [clientId]
-    );
-    await pool.query(
-      'INSERT INTO audit_logs(actor, action, target) VALUES($1, $2, $3)',
-      [adminActor, 'provision', clientId]
-    );
-    res.status(rowCount ? 201 : 200).json({ status: 'provisioned', id: clientId });
+    await ensureTenant(clientId, email);
+    await ensureSubscription(clientId);
+
+    if (!(await requireActiveSubscription(clientId, res))) {
+      return;
+    }
+
+    await recordAudit(clientId, 'provision', { email });
+    res.status(201).json({ status: 'provisioned', id: clientId });
   } catch (error) {
     res.status(500).json({ error: 'provision_failed', detail: error.message });
   }
@@ -70,18 +101,17 @@ app.post('/api/clients/:id/provision', async (req, res) => {
 app.post('/api/clients/:id/backtest', async (req, res) => {
   const clientId = req.params.id;
   try {
-    const { rows } = await pool.query(
-      'SELECT subscriptions.status FROM subscriptions WHERE tenant_id = $1 LIMIT 1',
-      [clientId]
-    );
-    const subscription = rows[0];
-    if (!subscriptionActive(subscription)) {
-      return res.status(402).json({ error: 'subscription_inactive', status: subscription?.status || 'unknown' });
+    await ensureTenant(clientId, req.body?.email || null);
+    await ensureSubscription(clientId);
+
+    if (!(await requireActiveSubscription(clientId, res))) {
+      return;
     }
-    await pool.query(
-      'INSERT INTO audit_logs(actor, action, target) VALUES($1, $2, $3)',
-      [clientId, 'backtest_requested', clientId]
-    );
+
+    await recordAudit(clientId, 'backtest_requested', {
+      timerange: req.body?.timerange,
+      strategy: req.body?.strategy,
+    });
     const timerange = req.body?.timerange || '20230101-20230201';
     res.json({
       status: 'accepted',
@@ -104,14 +134,13 @@ app.post('/api/billing/webhook/paypal', async (req, res) => {
     return res.status(400).json({ error: 'invalid_payload' });
   }
   try {
+    await ensureTenant(subscriptionId, null);
+    await ensureSubscription(subscriptionId);
     await pool.query(
-      'UPDATE subscriptions SET status = $1, updated_at = NOW() WHERE id = $2',
+      'UPDATE subscriptions SET status = $1, updated_at = NOW() WHERE tenant_id = $2',
       [status.toLowerCase(), subscriptionId]
     );
-    await pool.query(
-      'INSERT INTO audit_logs(actor, action, target) VALUES($1, $2, $3)',
-      ['paypal-webhook', 'subscription_update', subscriptionId]
-    );
+    await recordAudit(subscriptionId, 'subscription_update', { status: status.toLowerCase(), source: 'paypal-webhook' });
     res.json({ status: 'ack' });
   } catch (error) {
     res.status(500).json({ error: 'webhook_failed', detail: error.message });
