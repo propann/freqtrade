@@ -5,6 +5,7 @@ set -euo pipefail
 # - Installe Docker + plugin compose
 # - Active un pare-feu UFW minimal
 # - Prépare le dossier /opt/freqtrade-aws
+# - Active le démarrage automatique de Docker (service + socket)
 
 if [[ "${EUID}" -ne 0 ]]; then
   echo "[!] Ce script doit être exécuté en root (sudo)." >&2
@@ -25,7 +26,7 @@ echo \
 apt-get update -y
 apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
-systemctl enable docker
+systemctl enable docker.service docker.socket containerd.service
 systemctl start docker
 
 ufw default deny incoming
