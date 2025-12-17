@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Lance un backtest dans un conteneur éphémère dédié à un client.
+# Lance un backtest Freqtrade dans un conteneur éphémère isolé pour un client donné.
+# Chaque job est limité en CPU/Mem/PIDs et écrit ses résultats dans clients/<id>/data/results/<job_id>/.
 
 if [[ $# -lt 1 ]]; then
   echo "Usage: $0 <client_id> [strategy] [timerange]" >&2
@@ -10,46 +11,42 @@ fi
 
 CLIENT_ID="$1"
 STRATEGY="${2:-SampleStrategy}"
-TIMERANGE="${3:-}"
-ROOT_DIR="${CLIENTS_DIR:-./clients}"
+TIMERANGE="${3:-20220101-20220201}"
+ROOT_DIR="${CLIENTS_DIR:-$(pwd)/clients}"
 CLIENT_DIR="${ROOT_DIR}/${CLIENT_ID}"
-DATA_DIR="${CLIENT_DIR}/data"
-CONFIG_FILE="${DATA_DIR}/config.json"
-
-if [[ ! -d "${CLIENT_DIR}" ]]; then
-  echo "Client ${CLIENT_ID} introuvable" >&2
-  exit 1
-fi
+CONFIG_FILE="${CLIENT_DIR}/data/config.json"
+TEMPLATE_FILE="${CLIENT_DIR}/docker-compose.job.yml"
+CLIENT_ENV_FILE="${CLIENT_DIR}/.env"
 
 if [[ ! -f "${CONFIG_FILE}" ]]; then
-  echo "Fichier de configuration manquant: ${CONFIG_FILE}" >&2
+  echo "Configuration manquante: ${CONFIG_FILE}" >&2
   exit 1
 fi
 
-JOB_ID="$(date +%s)-${RANDOM}"
-RESULT_DIR="${DATA_DIR}/results/${JOB_ID}"
-CONTAINER_NAME="fta-job-${CLIENT_ID}-${JOB_ID}"
+if [[ ! -f "${TEMPLATE_FILE}" ]]; then
+  echo "Template manquant: ${TEMPLATE_FILE}" >&2
+  exit 1
+fi
 
+set -a
+[[ -f .env ]] && source .env
+[[ -f "${CLIENT_ENV_FILE}" ]] && source "${CLIENT_ENV_FILE}"
+set +a
+
+JOB_ID="$(date +%s)-$RANDOM"
+RESULT_DIR="${CLIENT_DIR}/data/results/${JOB_ID}"
 mkdir -p "${RESULT_DIR}"
 
-# Nettoie un conteneur résiduel éventuel avant de relancer un job.
-if docker ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
-  docker rm -f "${CONTAINER_NAME}" >/dev/null
-fi
+TMP_COMPOSE=$(mktemp)
+sed "s/STRATEGY_PLACEHOLDER/${STRATEGY}/g; s/TIMERANGE_PLACEHOLDER/${TIMERANGE}/g; s/JOB_ID_PLACEHOLDER/${JOB_ID}/g" \
+  "${TEMPLATE_FILE}" > "${TMP_COMPOSE}"
 
-BACKTEST_CMD=("backtesting" "--config" "/freqtrade/user_data/config.json" "--strategy" "${STRATEGY}" "--export" "trades" "--export-filename" "results/${JOB_ID}/backtest.json")
+export JOB_CPU="${JOB_CPU:-${DEFAULT_CPU:-1.0}}"
+export JOB_MEM_LIMIT="${JOB_MEM_LIMIT:-${DEFAULT_MEM_LIMIT:-1024m}}"
+export JOB_PIDS_LIMIT="${JOB_PIDS_LIMIT:-${DEFAULT_PIDS_LIMIT:-256}}"
 
-if [[ -n "${TIMERANGE}" ]]; then
-  BACKTEST_CMD+=("--timerange" "${TIMERANGE}")
-fi
+echo "Lancement du backtest pour ${CLIENT_ID} (job ${JOB_ID})..."
+docker compose -f "${TMP_COMPOSE}" --env-file "${CLIENT_ENV_FILE}" up --abort-on-container-exit --force-recreate
 
-docker run --rm \
-  --name "${CONTAINER_NAME}" \
-  --cpus "1.0" \
-  --memory 1024m \
-  --pids-limit 256 \
-  -v "${DATA_DIR}:/freqtrade/user_data" \
-  freqtradeorg/freqtrade:stable \
-  "${BACKTEST_CMD[@]}"
-
+rm -f "${TMP_COMPOSE}"
 echo "Résultats enregistrés dans ${RESULT_DIR}/backtest.json"

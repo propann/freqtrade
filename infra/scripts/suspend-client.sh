@@ -1,22 +1,23 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Arrête le bot d'un client sans supprimer les données.
-
 if [[ $# -lt 1 ]]; then
   echo "Usage: $0 <client_id>" >&2
   exit 1
 fi
 
 CLIENT_ID="$1"
-ROOT_DIR="${CLIENTS_DIR:-./clients}"
-CLIENT_DIR="${ROOT_DIR}/${CLIENT_ID}"
+PREFIX="fta-job-${CLIENT_ID}-"
 
-if [[ ! -d "${CLIENT_DIR}" ]]; then
-  echo "Client ${CLIENT_ID} introuvable" >&2
-  exit 1
+mapfile -t CONTAINERS < <(docker ps --format '{{.Names}}' | grep "^${PREFIX}" || true)
+
+if [[ ${#CONTAINERS[@]} -eq 0 ]]; then
+  echo "Aucun job en cours pour ${CLIENT_ID}."
+  exit 0
 fi
 
-docker compose -f "${CLIENT_DIR}/docker-compose.yml" --env-file "${CLIENT_DIR}/.env" down
-
-echo "Client ${CLIENT_ID} suspendu"
+echo "Arrêt des conteneurs en cours pour ${CLIENT_ID}..."
+for c in "${CONTAINERS[@]}"; do
+  docker stop "$c" >/dev/null && docker rm "$c" >/dev/null
+  echo " - $c stoppé"
+done

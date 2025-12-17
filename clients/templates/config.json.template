@@ -1,21 +1,22 @@
 {
   "dry_run": true,
+  "dry_run_wallet": 1000,
+  "stake_currency": "USDT",
+  "stake_amount": "unlimited",
+  "timeframe": "1h",
+  "max_open_trades": 2,
   "exchange": {
     "name": "binance",
-    "key": "placeholder",
-    "secret": "placeholder"
+    "key": "",
+    "secret": "",
+    "ccxt_config": {
+      "enableRateLimit": true
+    }
   },
-  "runmode": "dry_run",
-  "max_open_trades": 1,
-  "stake_currency": "USDT",
-  "stake_amount": 10,
-  "pair_whitelist": ["BTC/USDT"],
-  "pair_blacklist": [],
-  "telegram": {
+  "pairlists": [
+    { "method": "StaticPairList" }
+  ],
+  "edge": {
     "enabled": false
-  },
-  "api_server": {
-    "enabled": false
-  },
-  "bot_name": "fta-client-CLIENT_ID_PLACEHOLDER"
+  }
 }

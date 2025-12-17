@@ -1,16 +1,24 @@
 version: "3.9"
+
 services:
   freqtrade-job:
     image: freqtradeorg/freqtrade:stable
     container_name: fta-job-CLIENT_ID_PLACEHOLDER-JOB_ID_PLACEHOLDER
+    command: ["backtesting", "--config", "/freqtrade/user_data/config.json", "--strategy", "STRATEGY_PLACEHOLDER", "--timerange", "TIMERANGE_PLACEHOLDER", "--export", "trades", "--export-filename", "results/JOB_ID_PLACEHOLDER/backtest.json"]
     volumes:
-      - ./data:/freqtrade/user_data
-    command: ["backtesting", "--config", "/freqtrade/user_data/config.json"]
-    mem_limit: 1024m
-    cpus: "1.0"
-    pids_limit: 256
+      - ./data:/freqtrade/user_data:rw
+    networks:
+      - client
+    mem_limit: ${JOB_MEM_LIMIT}
+    cpus: "${JOB_CPU}"
+    pids_limit: ${JOB_PIDS_LIMIT}
     security_opt:
       - no-new-privileges:true
     read_only: true
     cap_drop:
       - ALL
+
+networks:
+  client:
+    external: true
+    name: fta-client-CLIENT_ID_PLACEHOLDER

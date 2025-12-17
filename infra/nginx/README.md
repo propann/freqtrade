@@ -1,8 +1,6 @@
-# Nginx reverse proxy
+# Nginx
 
-Ce répertoire contient la configuration Nginx servant de frontal au portail.
+Reverse-proxy minimal pour exposer le portail uniquement via `127.0.0.1:${PORTAL_HTTP_PORT}`. Le domaine public attendu est `freqtrade-aws.${PUBLIC_DOMAIN}`.
 
-- Le serveur écoute sur le port 80 uniquement (loopback côté host si possible via la publication Docker).
-- Proxy vers `127.0.0.1:${PORTAL_HTTP_PORT}` où tourne le portail.
-- Ajouter TLS via certbot/ACME en production si nécessaire.
-- Ne jamais exposer les services clients : seuls le portail et l'API interne sont derrière Nginx.
+- Ajouter les certificats Let's Encrypt si besoin (voir commentaires dans `conf.d/freqtrade-aws.conf`).
+- Aucune exposition directe des bots ou jobs clients ; seul le portail est routé.
