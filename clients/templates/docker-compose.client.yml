@@ -1,0 +1,24 @@
+version: "3.9"
+services:
+  freqtrade:
+    image: freqtradeorg/freqtrade:stable
+    container_name: fta-client-CLIENT_ID_PLACEHOLDER
+    env_file:
+      - .env
+    volumes:
+      - ./data:/freqtrade/user_data
+      - ./config.json:/freqtrade/user_data/config.json:ro
+    command: ["trade", "--config", "/freqtrade/user_data/config.json", "--dry-run"]
+    restart: unless-stopped
+    networks:
+      - client
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    cap_drop:
+      - ALL
+
+networks:
+  client:
+    external: true
+    name: fta-client-CLIENT_ID_PLACEHOLDER
