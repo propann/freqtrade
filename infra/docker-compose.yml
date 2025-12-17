@@ -22,26 +22,27 @@ services:
     image: tecnativa/docker-socket-proxy:0.1.1
     container_name: freqtradeaws-docker-proxy
     environment:
-      # Limite strictement les endpoints exposés au portail
       CONTAINERS: 1
       IMAGES: 1
       NETWORKS: 1
       VOLUMES: 1
-      INFO: 1
-      PING: 1
       EVENTS: 1
+      PING: 1
       VERSION: 1
+      INFO: 1
       AUTH: 0
+      BUILD: 0
+      CONFIGS: 0
+      DISTRIBUTION: 0
+      EXEC: 0
+      NODES: 0
+      PLUGINS: 0
+      POST: 0
       SECRETS: 0
       SERVICES: 0
-      TASKS: 0
-      NODES: 0
       SWARM: 0
-      EXEC: 0
-      BUILD: 0
-      DISTRIBUTION: 0
-      POST: 0
-      PLUGINS: 0
+      SYSTEM: 0
+      TASKS: 0
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
@@ -51,7 +52,9 @@ services:
     read_only: true
 
   portal:
-    image: ghcr.io/dummy/portal-placeholder:latest
+    build:
+      context: ../portal/placeholder
+    image: freqtradeaws/portal-placeholder:latest
     container_name: freqtradeaws-portal
     environment:
       PORT: 8080
@@ -63,6 +66,12 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       DOCKER_HOST: tcp://docker-socket-proxy:2375
       CLIENTS_DIR: ${CLIENTS_DIR}
+      DEFAULT_CPU: ${DEFAULT_CPU}
+      DEFAULT_MEM_LIMIT: ${DEFAULT_MEM_LIMIT}
+      DEFAULT_PIDS_LIMIT: ${DEFAULT_PIDS_LIMIT}
+      PAYPAL_CLIENT_ID: ${PAYPAL_CLIENT_ID}
+      PAYPAL_CLIENT_SECRET: ${PAYPAL_CLIENT_SECRET}
+      PAYPAL_WEBHOOK_ID: ${PAYPAL_WEBHOOK_ID}
     depends_on:
       postgres:
         condition: service_healthy
@@ -79,7 +88,6 @@ services:
       - /tmp
     cap_drop:
       - ALL
-    user: "1000:1000"
 
   nginx:
     image: nginx:1.27-alpine

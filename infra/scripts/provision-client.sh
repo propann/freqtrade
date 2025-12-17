@@ -3,8 +3,8 @@ set -euo pipefail
 
 # Provisionne un environnement isolé pour un client.
 # - Crée un réseau dédié fta-client-<id>
-# - Génère les fichiers de config depuis templates
-# - Prépare les volumes de données
+# - Copie les templates et force le mode dry_run
+# - Prépare un espace data dédié
 
 if [[ $# -lt 1 ]]; then
   echo "Usage: $0 <client_id>" >&2
@@ -18,18 +18,14 @@ TEMPLATE_DIR="${SCRIPT_DIR}/../../clients/templates"
 CLIENT_DIR="${ROOT_DIR}/${CLIENT_ID}"
 NETWORK="fta-client-${CLIENT_ID}"
 
-mkdir -p "${CLIENT_DIR}/data"
+mkdir -p "${CLIENT_DIR}/data/results"
 
-# Copie les templates
 cp "${TEMPLATE_DIR}/docker-compose.client.yml" "${CLIENT_DIR}/docker-compose.yml"
 cp "${TEMPLATE_DIR}/client.env.example" "${CLIENT_DIR}/.env"
 cp "${TEMPLATE_DIR}/config.json.template" "${CLIENT_DIR}/data/config.json"
 
-# Substitue le CLIENT_ID dans les fichiers
-sed -i "s/CLIENT_ID_PLACEHOLDER/${CLIENT_ID}/g" "${CLIENT_DIR}/docker-compose.yml"
-sed -i "s/CLIENT_ID_PLACEHOLDER/${CLIENT_ID}/g" "${CLIENT_DIR}/data/config.json"
+sed -i "s/CLIENT_ID_PLACEHOLDER/${CLIENT_ID}/g" "${CLIENT_DIR}/docker-compose.yml" "${CLIENT_DIR}/data/config.json"
 
-# Crée le réseau dédié si absent
 if ! docker network ls --format '{{.Name}}' | grep -q "^${NETWORK}$"; then
   docker network create "${NETWORK}" >/dev/null
   echo "Réseau ${NETWORK} créé"
@@ -37,4 +33,4 @@ else
   echo "Réseau ${NETWORK} déjà présent"
 fi
 
-echo "Client ${CLIENT_ID} provisionné dans ${CLIENT_DIR}"
+echo "Client ${CLIENT_ID} provisionné dans ${CLIENT_DIR}" && exit 0

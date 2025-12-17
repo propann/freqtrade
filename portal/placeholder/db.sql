@@ -1,0 +1,23 @@
+CREATE TABLE IF NOT EXISTS tenants (
+    id VARCHAR(64) PRIMARY KEY,
+    name TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS subscriptions (
+    id VARCHAR(128) PRIMARY KEY,
+    tenant_id VARCHAR(64) REFERENCES tenants(id) ON DELETE CASCADE,
+    status VARCHAR(16) NOT NULL DEFAULT 'past_due',
+    plan VARCHAR(32) NOT NULL DEFAULT 'BASIC',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS audit_logs (
+    id SERIAL PRIMARY KEY,
+    actor TEXT NOT NULL,
+    action TEXT NOT NULL,
+    target TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    metadata JSONB DEFAULT '{}'::JSONB
+);

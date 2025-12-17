@@ -1,14 +1,14 @@
 {
   "dry_run": true,
-  "exchange": {
-    "name": "binance",
-    "key": "placeholder",
-    "secret": "placeholder"
-  },
   "runmode": "dry_run",
   "max_open_trades": 1,
   "stake_currency": "USDT",
   "stake_amount": 10,
+  "exchange": {
+    "name": "binance",
+    "key": "",
+    "secret": ""
+  },
   "pair_whitelist": ["BTC/USDT"],
   "pair_blacklist": [],
   "telegram": {

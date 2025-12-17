@@ -1,29 +1,55 @@
-# freqtrade-aws (MVP Bot-as-a-Service)
+# freqtrade-aws (Service PAYANT)
 
-MVP gratuit pour opérer des bots Freqtrade en **DRY-RUN uniquement**, avec un focus sécurité/isolation. Infrastructure basée sur Docker Compose (EC2) et prête à migrer vers ECS/Fargate.
+Service de bots Freqtrade multi-clients sur AWS. Priorité : sécurité/isolation, déploiement simple (EC2 + Docker Compose), gating par abonnement (PayPal en MVP).
 
-## Démarrage rapide
-1. Copier `.env.example` vers `.env` et adapter les valeurs (pas de secrets réels dans le repo).
-2. Démarrer l'infra de contrôle :
-   ```bash
-   docker compose -f infra/docker-compose.yml --env-file .env up -d
-   ```
-3. Provisionner un client :
-   ```bash
-   CLIENTS_DIR=$(pwd)/clients infra/scripts/provision-client.sh client1
-   ```
-4. Démarrer le bot du client (DRY-RUN) :
-   ```bash
-   CLIENTS_DIR=$(pwd)/clients infra/scripts/start-client.sh client1
-   ```
+## Déploiement sur EC2 (Ubuntu)
+1) Préparer l'hôte (root/sudo) :
+```bash
+cd /opt
+# Cloner le dépôt (ne jamais commiter de secrets)
+# git clone <repo> freqtrade-aws && cd freqtrade-aws
+infra/scripts/install-ec2.sh
+```
+2) Copier la configuration :
+```bash
+cp .env.example .env
+# Éditer .env pour PUBLIC_DOMAIN, PORTAL_HTTP_PORT, POSTGRES_*, PAYPAL_*, JWT...
+```
+3) Démarrer l'infra :
+```bash
+infra/scripts/deploy.sh
+```
+4) Vérifier :
+```bash
+infra/scripts/status.sh
+```
+Le portail écoute sur `127.0.0.1:${PORTAL_HTTP_PORT}` et est publié via Nginx sur `freqtrade-aws.${PUBLIC_DOMAIN}`.
 
-Le portail (placeholder) écoute sur `127.0.0.1:${PORTAL_HTTP_PORT}` et est publié par Nginx sur `freqtrade-aws.${PUBLIC_DOMAIN}` (port 80). Aucun port des clients n'est exposé.
+## Provisionner un client et lancer un backtest
+```bash
+CLIENTS_DIR=$(pwd)/clients infra/scripts/provision-client.sh client1
+CLIENTS_DIR=$(pwd)/clients infra/scripts/run-backtest.sh client1 SampleStrategy 20230101-20230201
+CLIENTS_DIR=$(pwd)/clients infra/scripts/list-jobs.sh client1
+```
+- Les jobs sont éphémères (1 job = 1 conteneur) et écrivent dans `clients/<id>/data/results/`.
+- Aucun port client n'est exposé; réseau dédié `fta-client-<id>`.
 
 ## Sécurité et isolation
-- DRY-RUN forcé dans les templates clients.
-- Un réseau Docker dédié par client (`fta-client-<id>`).
-- Accès Docker filtré via `docker-socket-proxy` (pas de socket brut exposé).
-- Conteneurs durcis (`read_only`, `cap_drop ALL`, `no-new-privileges`).
+- docker-socket-proxy avec permissions minimales (aucun accès build/exec/etc.).
+- Portail bindé en loopback + Nginx en frontal.
+- Conteneurs durcis : `cap_drop: ["ALL"]`, `no-new-privileges`, quotas par défaut (`cpu=1.0`, `mem=1024m`, `pids=256`).
+- Pas de secrets en clair dans les logs.
 
-## Migration future
-- Architecture conçue pour être portée sur ECS/Fargate (réseaux isolés par tâche, stockage EFS/volumes par client, ALB interne pour le portail).
+## Facturation PayPal (MVP gating)
+- Tables `tenants`, `subscriptions`, `audit_logs` (voir `portal/placeholder/db.sql`).
+- `subscriptions.status` doit être `active` pour autoriser provision/backtest.
+- Endpoints stubs : `/api/billing/webhook/paypal`, `/api/clients/:id/backtest` (refus si status != active).
+- Voir `infra/docs/paypal-integration.md` pour brancher l'API PayPal.
+
+## Notes de pricing
+Méthode de calcul et paliers indicatifs dans `infra/docs/pricing-notes.md`.
+
+## Migration Fargate (préparation)
+- Modèle job éphémère conservé (1 tâche Fargate par job).
+- docker-socket-proxy remplacé par IAM Task Role + API ECS.
+- Volumes EFS/FSx par client pour persister les résultats.

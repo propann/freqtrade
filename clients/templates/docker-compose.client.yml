@@ -12,12 +12,14 @@ services:
     restart: unless-stopped
     networks:
       - client
-    mem_limit: 1024m
-    cpus: "1.0"
-    pids_limit: 256
+    mem_limit: ${DEFAULT_MEM_LIMIT:-1024m}
+    cpus: "${DEFAULT_CPU:-1.0}"
+    pids_limit: ${DEFAULT_PIDS_LIMIT:-256}
     security_opt:
       - no-new-privileges:true
     read_only: true
+    tmpfs:
+      - /tmp
     cap_drop:
       - ALL
 

@@ -3,14 +3,23 @@ services:
   freqtrade-job:
     image: freqtradeorg/freqtrade:stable
     container_name: fta-job-CLIENT_ID_PLACEHOLDER-JOB_ID_PLACEHOLDER
+    command:
+      ["backtesting", "--config", "/freqtrade/user_data/config.json", "--timerange", "20230101-20230201"]
     volumes:
       - ./data:/freqtrade/user_data
-    command: ["backtesting", "--config", "/freqtrade/user_data/config.json"]
-    mem_limit: 1024m
-    cpus: "1.0"
-    pids_limit: 256
+    networks:
+      - fta-client-CLIENT_ID_PLACEHOLDER
+    cpus: "${DEFAULT_CPU:-1.0}"
+    mem_limit: ${DEFAULT_MEM_LIMIT:-1024m}
+    pids_limit: ${DEFAULT_PIDS_LIMIT:-256}
     security_opt:
       - no-new-privileges:true
     read_only: true
+    tmpfs:
+      - /tmp
     cap_drop:
       - ALL
+    restart: "no"
+networks:
+  fta-client-CLIENT_ID_PLACEHOLDER:
+    external: true
