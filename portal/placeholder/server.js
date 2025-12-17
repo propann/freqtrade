@@ -21,8 +21,39 @@ const pool = new Pool({
   max: 2,
 });
 
-function subscriptionActive(subscription) {
-  return subscription && subscription.status === 'active';
+async function ensureTenant(tenantId, email) {
+  await pool.query(
+    'INSERT INTO tenants(id, email) VALUES($1, $2) ON CONFLICT (id) DO UPDATE SET email = COALESCE($2, tenants.email)',
+    [tenantId, email || null]
+  );
+}
+
+async function ensureSubscription(tenantId) {
+  await pool.query('INSERT INTO subscriptions(tenant_id) VALUES($1) ON CONFLICT (tenant_id) DO NOTHING', [tenantId]);
+}
+
+async function getSubscriptionStatus(tenantId) {
+  const { rows } = await pool.query('SELECT status FROM subscriptions WHERE tenant_id = $1 LIMIT 1', [tenantId]);
+  return rows[0]?.status;
+}
+
+async function requireActiveSubscription(tenantId, res) {
+  const status = (await getSubscriptionStatus(tenantId)) || 'inactive';
+  if (status !== 'active') {
+    res
+      .status(402)
+      .json({
+        error: 'subscription_inactive',
+        status,
+        message: 'Subscription must be active to provision or start jobs.',
+      });
+    return false;
+  }
+  return true;
+}
+
+async function recordAudit(tenantId, action, meta = {}) {
+  await pool.query('INSERT INTO audit_logs(tenant_id, action, meta) VALUES($1, $2, $3)', [tenantId, action, meta]);
 }
 
 async function findTenant(tenantId) {

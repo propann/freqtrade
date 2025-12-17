@@ -15,7 +15,7 @@ infra/scripts/install-ec2.sh
 cp .env.example .env
 # Éditer .env pour PUBLIC_DOMAIN, PORTAL_HTTP_PORT, POSTGRES_*, PAYPAL_*, JWT...
 ```
-3) Démarrer l'infra :
+3) Démarrer l'infra (produit PAYANT, phase test en mode DRY-RUN only) :
 ```bash
 infra/scripts/deploy.sh
 ```
@@ -25,7 +25,7 @@ infra/scripts/status.sh
 ```
 Le portail écoute sur `127.0.0.1:${PORTAL_HTTP_PORT}` et est publié via Nginx sur `freqtrade-aws.${PUBLIC_DOMAIN}`.
 
-## Provisionner un client et lancer un backtest
+## Provisionner un client et lancer un backtest (MVP payant)
 ```bash
 CLIENTS_DIR=$(pwd)/clients infra/scripts/provision-client.sh client1
 CLIENTS_DIR=$(pwd)/clients infra/scripts/run-backtest.sh client1 SampleStrategy 20230101-20230201
@@ -33,6 +33,16 @@ CLIENTS_DIR=$(pwd)/clients infra/scripts/list-jobs.sh client1
 ```
 - Les jobs sont éphémères (1 job = 1 conteneur) et écrivent dans `clients/<id>/data/results/`.
 - Aucun port client n'est exposé; réseau dédié `fta-client-<id>`.
+
+## Billing (MVP gating)
+- Le produit est payant dès le MVP : l'accès aux actions sensibles (provision/start/backtest) requiert `subscriptions.status = active`.
+- Le portail applique un refus clair (`HTTP 402 Payment Required`) si l'abonnement n'est pas actif.
+- PayPal mensuel est le moyen de paiement MVP (gating via `subscription_status`).
+
+## Pricing notes
+- Calcul basé sur la consommation (CPU/RAM/temps des jobs) + stockage + marge opérateur.
+- Exemples de paliers BASIC/PRO disponibles dans `docs/pricing.md` (sans coûts cloud détaillés).
+- Voir `docs/paypal.md` pour la mise en place du gating PayPal et le mapping des statuts.
 
 ## Sécurité et isolation
 - docker-socket-proxy avec permissions minimales (aucun accès build/exec/etc.).
