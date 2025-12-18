@@ -2,3 +2,7 @@
 # Local env (secrets)
 .env
 **/.env
+
+# Local env (secrets)
+.env
+**/.env
