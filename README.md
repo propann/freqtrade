@@ -1,64 +1,61 @@
-# freqtrade-aws (Service payant)
+# freqtrade-aws (SaaS multi-tenant)
 
-Service PAYANT par abonnement PayPal mensuel. AWS est en phase free-tier/crédit pour nous au début. Priorité : sécurité/isolation, déploiement simple (EC2 + Docker Compose), gating par abonnement PayPal. Les phases de test utilisent toujours des jobs en mode **DRY-RUN only**.
+Service payant par abonnement (PayPal en MVP) basé sur Freqtrade, opéré sur **EC2 + Docker Compose** avec trajectoire vers ECS/Fargate. Le dépôt ne modifie pas le cœur de Freqtrade : seules des surcouches et templates sont fournis. Aucune promesse ou garantie de gains financiers.
 
-## Déploiement sur EC2 (Ubuntu)
-1) Préparer l'hôte (root/sudo) :
+## Arborescence
+- `orchestrator/` : API FastAPI multi-tenant (création/start/pause/restart/status/logs/audit).
+- `console/` : UI Next.js dark mode pour piloter les bots.
+- `infra/` : compose EC2, scripts, Nginx, docker-socket-proxy, utilitaires backup/restore/onboarding.
+- `templates/` : modèles de config Freqtrade + validateurs de risque/quotas.
+- `docs/` : architecture, sécurité, opérations, légal, coûts AWS, plan d'exécution.
+- `clients/` : dossiers générés par tenant (configs, données, logs).
+
+## Déploiement EC2 (Ubuntu)
+1. Préparer l'hôte :
 ```bash
 cd /opt
-# Cloner le dépôt (ne jamais commiter de secrets)
-# git clone <repo> freqtrade-aws && cd freqtrade-aws
+git clone <repo> freqtrade-aws && cd freqtrade-aws
 infra/scripts/install-ec2.sh
 ```
-2) Copier la configuration :
+2. Copier la configuration :
 ```bash
 cp .env.example .env
-# Éditer .env pour PUBLIC_DOMAIN, PORTAL_HTTP_PORT, POSTGRES_*, PAYPAL_*, JWT...
+# Renseigner PUBLIC_DOMAIN, PORTAL_HTTP_PORT, POSTGRES_*, PAYPAL_* (placeholders uniquement), JWT...
 ```
-3) Démarrer l'infra (produit PAYANT, phase test en mode DRY-RUN only) :
+3. Démarrer l'infra :
 ```bash
 infra/scripts/deploy.sh
 ```
-4) Vérifier :
+4. Vérifier :
 ```bash
 infra/scripts/status.sh
 ```
-Le portail écoute sur `127.0.0.1:${PORTAL_HTTP_PORT}` et est publié via Nginx sur `freqtrade-aws.${PUBLIC_DOMAIN}`.
+Le portail reste bindé en loopback (`127.0.0.1:${PORTAL_HTTP_PORT}`) et passe par Nginx.
 
-## Provisionner un client et lancer un backtest (MVP payant)
+## Orchestrateur FastAPI
 ```bash
-CLIENTS_DIR=$(pwd)/clients infra/scripts/provision-client.sh client1
-CLIENTS_DIR=$(pwd)/clients infra/scripts/run-backtest.sh client1 SampleStrategy 20230101-20230201
-CLIENTS_DIR=$(pwd)/clients infra/scripts/list-jobs.sh client1
+cd orchestrator
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements-dev.txt
+uvicorn orchestrator.app.main:app --reload --port 9000
 ```
-- Les jobs sont éphémères (1 job = 1 conteneur) et écrivent dans `clients/<id>/data/results/`.
-- Aucun port client n'est exposé; réseau dédié `fta-client-<id>`.
+Endpoints clés : création de tenant/bot, start/pause/restart, statut, logs, audit. Les actions sensibles exigent `subscription_status=active`.
 
-Commandes de vérification rapide :
-- Provision : `CLIENTS_DIR=$(pwd)/clients infra/scripts/provision-client.sh <client_id>`
-- Backtest : `CLIENTS_DIR=$(pwd)/clients infra/scripts/run-backtest.sh <client_id> [strategie] [timerange]`
-- Jobs : `CLIENTS_DIR=$(pwd)/clients infra/scripts/list-jobs.sh <client_id>`
+## Console Next.js
+```bash
+cd console
+npm install
+npm run dev
+```
+La console consomme l'API orchestrateur, affiche Overview/Performance/Risk/Events/Actions sans exposer de secrets ni promettre de gains.
 
-## Billing (MVP gating)
-- Le produit est payant dès le MVP : l'accès aux actions sensibles (provision/start/backtest) requiert `subscriptions.status = active`.
-- Le portail applique un refus clair (`HTTP 402 Payment Required`) si l'abonnement n'est pas actif (402/403 selon contexte d'erreur).
-- PayPal mensuel est le moyen de paiement MVP (gating via `subscription_status`).
-- Schéma minimal : tables `tenants`, `subscriptions`, `audit_logs` (voir `portal/placeholder/db.sql`).
-- Webhook PayPal stub : `/api/billing/webhook/paypal` pour mettre à jour les statuts.
-- Notes détaillées dans `docs/paypal.md`.
+## Scripts utilitaires
+- `infra/scripts/onboard-tenant.sh <id> <email>` : bootstrap tenant + appel API.
+- `infra/scripts/backup-client.sh <id>` : archive `clients/<id>` + dump ciblé Postgres (sans secrets).
+- `infra/scripts/restore-client.sh <id> <archive>` : restaure les fichiers + option de réimport meta.
 
-## Pricing (méthode consommation)
-- Calcul basé sur la consommation (CPU/RAM/temps des jobs) + stockage + marge opérateur.
-- Exemples de paliers indicatifs (Plan 20/30/+) dans `docs/pricing.md`, sans coûts AWS détaillés.
-- `clients/<id>/data` contient les configs et résultats; la facturation stockage se base sur ce dossier.
-
-## Sécurité et isolation
-- docker-socket-proxy avec permissions minimales (aucun accès build/exec/etc.).
-- Portail bindé en loopback + Nginx en frontal.
-- Conteneurs durcis : `cap_drop: ["ALL"]`, `no-new-privileges`, quotas par défaut (`cpu=1.0`, `mem=1024m`, `pids=256`).
-- Pas de secrets en clair dans les logs.
-
-## Migration Fargate (préparation)
-- Modèle job éphémère conservé (1 tâche Fargate par job).
-- docker-socket-proxy remplacé par IAM Task Role + API ECS.
-- Volumes EFS/FSx par client pour persister les résultats.
+## Rappels sécurité
+- Aucun secret réel dans Git; utiliser AWS SSM/Secrets Manager pour injecter au runtime.
+- Conteneurs durcis (`cap_drop: ["ALL"]`, `no-new-privileges`, quotas CPU/RAM/PIDs).
+- Pas d'accès direct au socket Docker (utiliser docker-socket-proxy).
+- Toujours privilégier le **dry-run** par défaut.
