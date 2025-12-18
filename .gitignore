@@ -6,3 +6,21 @@
 # Local env (secrets)
 .env
 **/.env
+
+# Local env (secrets)
+.env
+**/.env
+
+# Local env (secrets)
+.env
+**/.env
+
+.env
+.env.*
+*.sqlite
+*.db
+user_data/
+logs/
+*.log
+__pycache__/
+.DS_Store
