@@ -1,0 +1,23 @@
+{
+  "dry_run": true,
+  "exchange": {
+    "name": "binance",
+    "key": "{{AWS_SSM:/freqtrade/{{tenant_id}}/{{bot_id}}/api_key}}",
+    "secret": "{{AWS_SSM:/freqtrade/{{tenant_id}}/{{bot_id}}/api_secret}}",
+    "ccxt_config": {
+      "enableRateLimit": true
+    }
+  },
+  "stake_currency": "USDT",
+  "timeframe": "5m",
+  "max_open_trades": {{max_concurrent_pairs}},
+  "max_drawdown_percent": {{max_drawdown_percent}},
+  "amend_last": false,
+  "force_entry_enable": false,
+  "strategy": "{{strategy}}",
+  "runmode": "dry_run",
+  "telegram": {
+    "enabled": false,
+    "token": "{{AWS_SECRETSMGR:freqtrade/telegram/token}}"
+  }
+}
