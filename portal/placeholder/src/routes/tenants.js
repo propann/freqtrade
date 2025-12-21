@@ -1,53 +1,16 @@
 const express = require('express');
-const { Pool } = require('pg');
+const { pool } = require('../services/db');
+const { ensureTenant, ensureSubscription, findTenant, findTenantWithSubscription, subscriptionActive } = require('../services/tenants');
+const adminAuth = require('../middlewares/adminAuth');
 
-const app = express();
-app.use(express.json());
+const router = express.Router();
 
-const port = process.env.PORT || 8080;
 const clientDir = process.env.CLIENTS_DIR || '/data/clients';
 const quotas = {
   cpu: process.env.DEFAULT_CPU || '1.0',
   mem: process.env.DEFAULT_MEM_LIMIT || '1024m',
   pids: parseInt(process.env.DEFAULT_PIDS_LIMIT || '256', 10),
 };
-
-const pool = new Pool({
-  host: process.env.POSTGRES_HOST,
-  port: Number(process.env.POSTGRES_PORT || 5432),
-  database: process.env.POSTGRES_DB,
-  user: process.env.POSTGRES_USER,
-  password: process.env.POSTGRES_PASSWORD,
-  max: 2,
-});
-
-async function ensureTenant(tenantId, email) {
-  await pool.query(
-    'INSERT INTO tenants(id, email) VALUES($1, $2) ON CONFLICT (id) DO UPDATE SET email = COALESCE($2, tenants.email)',
-    [tenantId, email || null]
-  );
-}
-
-async function ensureSubscription(tenantId) {
-  await pool.query(
-    'INSERT INTO subscriptions(tenant_id) VALUES($1) ON CONFLICT (tenant_id) DO NOTHING',
-    [tenantId]
-  );
-  const { rows } = await pool.query(
-    'SELECT tenant_id, status, plan, updated_at FROM subscriptions WHERE tenant_id = $1 LIMIT 1',
-    [tenantId]
-  );
-  return rows[0];
-}
-
-async function findTenant(tenantId) {
-  const { rows } = await pool.query('SELECT id, email FROM tenants WHERE id = $1 LIMIT 1', [tenantId]);
-  return rows[0];
-}
-
-function subscriptionActive(subscription) {
-  return subscription?.status === 'active';
-}
 
 async function requireActiveSubscription(req, res, next) {
   const tenantId = req.params.id;
@@ -81,16 +44,50 @@ async function requireActiveSubscription(req, res, next) {
   }
 }
 
-app.get('/health', async (_req, res) => {
+router.post('/tenants', adminAuth, async (req, res) => {
+  const { id, email } = req.body || {};
+  if (!id || typeof id !== 'string') {
+    return res.status(400).json({ error: 'invalid_tenant', message: 'Tenant id is required' });
+  }
+  if (!email || typeof email !== 'string') {
+    return res.status(400).json({ error: 'invalid_email', message: 'Email is required' });
+  }
+
   try {
-    await pool.query('SELECT 1');
-    res.json({ status: 'ok' });
+    await ensureTenant(id, email);
+    const subscription = await ensureSubscription(id);
+    return res.status(201).json({
+      status: 'created',
+      tenant: { id, email },
+      subscription,
+    });
   } catch (error) {
-    res.status(500).json({ status: 'error', error: error.message });
+    return res.status(500).json({ error: 'tenant_upsert_failed', detail: error.message });
   }
 });
 
-app.get('/api/clients', async (_req, res) => {
+router.get('/tenants/:id', adminAuth, async (req, res) => {
+  const tenantId = req.params.id;
+  try {
+    const tenant = await findTenantWithSubscription(tenantId);
+    if (!tenant) {
+      return res.status(404).json({ error: 'tenant_not_found', message: `Tenant ${tenantId} not found` });
+    }
+    return res.json({
+      tenant: {
+        id: tenant.id,
+        email: tenant.email,
+      },
+      subscription: tenant.status
+        ? { status: tenant.status, plan: tenant.plan, updated_at: tenant.updated_at }
+        : null,
+    });
+  } catch (error) {
+    return res.status(500).json({ error: 'tenant_lookup_failed', detail: error.message });
+  }
+});
+
+router.get('/clients', adminAuth, async (_req, res) => {
   try {
     const result = await pool.query(
       `SELECT tenants.id, tenants.email, subscriptions.status, subscriptions.plan
@@ -108,7 +105,7 @@ app.get('/api/clients', async (_req, res) => {
   }
 });
 
-app.post('/api/clients/:id/provision', async (req, res, next) => {
+router.post('/clients/:id/provision', adminAuth, async (req, res, next) => {
   const clientId = req.params.id;
   const email = req.body?.email;
   if (!email) {
@@ -116,10 +113,7 @@ app.post('/api/clients/:id/provision', async (req, res, next) => {
   }
 
   try {
-    await pool.query(
-      'INSERT INTO tenants(id, email) VALUES($1, $2) ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email',
-      [clientId, email]
-    );
+    await ensureTenant(clientId, email);
     await ensureSubscription(clientId);
     return next();
   } catch (error) {
@@ -143,7 +137,7 @@ app.post('/api/clients/:id/provision', async (req, res, next) => {
   }
 });
 
-app.post('/api/clients/:id/backtest', requireActiveSubscription, async (req, res) => {
+router.post('/clients/:id/backtest', adminAuth, requireActiveSubscription, async (req, res) => {
   const clientId = req.params.id;
   const timerange = req.body?.timerange || '20230101-20230201';
   const strategy = req.body?.strategy || 'SampleStrategy';
@@ -171,7 +165,7 @@ app.post('/api/clients/:id/backtest', requireActiveSubscription, async (req, res
   }
 });
 
-app.post('/api/clients/:id/start', requireActiveSubscription, async (req, res) => {
+router.post('/clients/:id/start', adminAuth, requireActiveSubscription, async (req, res) => {
   const clientId = req.params.id;
   try {
     await pool.query('INSERT INTO audit_logs(tenant_id, action, meta) VALUES($1, $2, $3)', [
@@ -181,7 +175,7 @@ app.post('/api/clients/:id/start', requireActiveSubscription, async (req, res) =
     ]);
     res.json({
       status: 'accepted',
-      message: 'Start job placeholder : brancher l’orchestration de conteneur ici.',
+      message: "Start job placeholder : brancher l’orchestration de conteneur ici.",
       plan: req.subscription.plan,
       subscription_status: req.subscription.status,
     });
@@ -190,7 +184,7 @@ app.post('/api/clients/:id/start', requireActiveSubscription, async (req, res) =
   }
 });
 
-app.post('/api/billing/webhook/paypal', async (req, res) => {
+router.post('/billing/webhook/paypal', async (req, res) => {
   const { subscription_id: subscriptionId, status, tenant_id: tenantIdFromHook } = req.body || {};
   const tenantId = tenantIdFromHook || subscriptionId;
 
@@ -217,11 +211,4 @@ app.post('/api/billing/webhook/paypal', async (req, res) => {
   }
 });
 
-app.use((_req, res) => {
-  res.status(404).json({ error: 'not_found' });
-});
-
-app.listen(port, '0.0.0.0', () => {
-  // eslint-disable-next-line no-console
-  console.log(`Portal placeholder listening on ${port}`);
-});
+module.exports = router;

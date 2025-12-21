@@ -1,10 +1,10 @@
 {
-  "name": "freqtrade-aws-portal-placeholder",
-  "version": "0.1.0",
-  "description": "Portal placeholder for freqtrade-aws paid service",
-  "main": "server.js",
+  "name": "freqtrade-aws-portal",
+  "version": "0.2.0",
+  "description": "Portal for freqtrade-aws paid service",
+  "main": "src/server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node src/server.js"
   },
   "dependencies": {
     "express": "^4.19.2",
