@@ -5,9 +5,11 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --only=production
 
-COPY server.js db.sql ./
+COPY src ./src
+COPY public ./public
+COPY db.sql ./db.sql
 
 USER node
 EXPOSE 8080
 
-CMD ["node", "server.js"]
+CMD ["node", "src/server.js"]
