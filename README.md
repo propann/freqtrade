@@ -59,3 +59,12 @@ La console consomme l'API orchestrateur, affiche Overview/Performance/Risk/Event
 - Conteneurs durcis (`cap_drop: ["ALL"]`, `no-new-privileges`, quotas CPU/RAM/PIDs).
 - Pas d'accès direct au socket Docker (utiliser docker-socket-proxy).
 - Toujours privilégier le **dry-run** par défaut.
+
+## Documentation détaillée (français)
+- `docs/ARCHITECTURE.md` : vue d'ensemble des composants (orchestrateur, console Next.js, Postgres, docker-socket-proxy) et options ECS/Fargate.
+- `docs/OPERATIONS.md` : prérequis EC2, déploiement Compose, gestion des bots et procédures de backup/restore.
+- `docs/SECURITY.md` : principes d'isolation réseau, gestion des secrets AWS, durcissement des conteneurs et journalisation.
+- `docs/AWS_COSTS.md` : estimation indicative des coûts (EC2, EBS, S3, Secrets Manager, SSM) et pistes d'optimisation.
+- `docs/EXECUTION_PLAN.md` : feuille de route par étapes (baseline infra, orchestrateur, console, billing PayPal, migration Fargate).
+- `docs/paypal.md` : statut d'abonnement, contrôle d'accès et webhook de synchronisation.
+- `docs/pricing.md` : principes de tarification MVP et quotas associés aux plans 20/30/+.
