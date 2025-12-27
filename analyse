@@ -1,0 +1,101 @@
+# Rapport projet — freqtrade-aws
+
+## 1) Résumé exécutif
+Ce dépôt met en place une **plateforme SaaS multi‑tenant** pour opérer des bots Freqtrade **sans modifier le cœur** de Freqtrade. L’approche actuelle privilégie **EC2 + Docker Compose**, avec une trajectoire documentée vers **ECS/Fargate**. Le projet fournit des surcouches (orchestrateur, console web, templates, scripts infra) et ne promet **aucun gain financier**.
+
+Objectif principal : industrialiser l’onboarding et l’exploitation de plusieurs bots isolés, avec **contrôle d’accès**, **quotas**, **audit** et **protection des secrets**.
+
+## 2) Où on en est (état du projet)
+Le dépôt contient déjà les composants et la documentation d’architecture/opérations. Le plan d’exécution est formalisé et séquence l’industrialisation.
+
+Étapes identifiées (d’après `docs/EXECUTION_PLAN.md`) :
+1. Baseline infra (EC2/Compose) : scripts et services de base.
+2. Orchestrateur FastAPI : API de gestion bots.
+3. Templates/validators : limites de risque.
+4. Intégration AWS SSM/Secrets Manager.
+5. Console Next.js + auth JWT.
+6. Billing PayPal + restrictions d’actions.
+7. Backup/restore testés.
+8. Durcissement conteneurs.
+9. Option ECS/Fargate.
+
+Cela donne une vision claire de la **maturité** : architecture définie, socle infra et code d’orchestration/console présents, et plusieurs étapes de durcissement/intégration encore à finaliser ou valider.
+
+## 3) Comment ça marche (vue d’ensemble)
+### 3.1 Composants principaux
+- **Orchestrateur FastAPI** (`orchestrator/`) : API multi‑tenant de gestion des bots (création/start/pause/restart/status/logs/audit), génération de configs depuis templates et application des validateurs de risque.
+- **Console web Next.js** (`console/`) : UI dark mode pour piloter les bots via l’API, sans exposer de secrets ni faire de promesses de gains.
+- **Infra EC2 + Docker Compose** (`infra/`) : composition Postgres, Nginx, docker-socket-proxy, scripts d’installation/déploiement/backup.
+- **Templates Freqtrade** (`templates/`) : modèles de configs + validateurs de risques/quotas.
+- **Docs** (`docs/`) : architecture, sécurité, opérations, coûts AWS, plan d’exécution, Paypal.
+- **Clients** (`clients/`) : dossiers isolés par tenant (configs, données, logs).
+
+### 3.2 Flux opérationnel (principal)
+1. **Onboarding tenant** : création dans Postgres et via l’orchestrateur.
+2. **Vérification d’abonnement** : blocage des actions sensibles si `subscription_status != active`.
+3. **Création de bot** : génération de config depuis `templates/`, validation risque/quotas, écriture dans l’espace isolé du tenant.
+4. **Démarrage** : exécution du conteneur Freqtrade dans un réseau dédié, avec quotas CPU/RAM/PIDs et secrets injectés au runtime.
+5. **Supervision** : logs filtrés, audit trail stocké, métriques via REST.
+6. **Jobs éphémères** : backtests/hyperopt en conteneurs jetables, résultats persistés.
+
+### 3.3 Sécurité & isolation
+- **Pas de secret en Git** : injection runtime via AWS SSM/Secrets Manager.
+- **Isolation réseau** : réseau `control` pour portail + proxy, réseaux par tenant `fta-client-<id>`.
+- **docker-socket-proxy** : surface minimale pour piloter Docker sans accès brut au socket.
+- **Durcissement conteneurs** : `cap_drop: ["ALL"]`, `no-new-privileges`, quotas CPU/RAM/PIDs, tendance à `read_only`.
+
+## 4) Détails techniques par domaine
+### 4.1 Orchestrateur (FastAPI)
+- Rôle : gestion multi‑tenant des bots (cycle de vie, logs, audit).
+- Exposition : `uvicorn orchestrator.app.main:app` (port 9000).
+- Spécificité : actions sensibles bloquées sans abonnement actif.
+
+### 4.2 Console (Next.js)
+- Rôle : interface de pilotage (Overview/Performance/Risk/Events/Actions).
+- Sécurité : consommation de l’API orchestrateur, pas d’exfiltration de secrets.
+
+### 4.3 Infra & opérations
+- Déploiement EC2 (Ubuntu) via scripts (`infra/scripts/install-ec2.sh`, `deploy.sh`, `status.sh`).
+- Nginx en frontal, portail bindé en loopback.
+- Scripts utilitaires : onboarding tenant, backup/restore ciblés.
+
+### 4.4 Templates & validators
+- Génération de config Freqtrade standardisée et encadrée par des limites de risque/quotas.
+- Source : `templates/` + `templates/validators.yaml`.
+
+## 5) Contrats d’usage / Compliance
+- **Aucune promesse de gains** : explicitement rappelé dans la doc.
+- **Actions gated par abonnement** : logique d’accès à l’exécution.
+
+## 6) Pour un dev senior : points d’entrée rapides
+- **Architecture globale** : `docs/ARCHITECTURE.md`
+- **Exécution/déploiement** : `docs/OPERATIONS.md` + scripts `infra/scripts/`
+- **Sécurité** : `docs/SECURITY.md`
+- **Plan d’exécution** : `docs/EXECUTION_PLAN.md`
+- **Orchestrateur** : `orchestrator/` (FastAPI)
+- **Console** : `console/` (Next.js)
+- **Templates** : `templates/`
+
+## 7) Risques & angles à valider
+- **Intégration SSM/Secrets Manager** : s’assurer que la chaîne runtime ne loggue jamais les secrets.
+- **Stabilité multi‑tenant** : quotas CPU/RAM/PIDs et isolation réseau à valider en charge.
+- **Backup/restore** : tests end‑to‑end pour garantir l’intégrité des données.
+- **Billing** : webhook PayPal robuste + gestion d’états d’abonnement.
+- **Migration Fargate** (option) : prise en compte d’EFS, IAM Task Role et EventBridge.
+
+## 8) Recommandations immédiates
+1. **Valider le pipeline de secret injection** (SSM/Secrets Manager) avec tests de non‑fuite.
+2. **Automatiser la validation des quotas** dans l’orchestrateur (tests unitaires + intégration).
+3. **Mettre en place un smoke test** après déploiement (API + console).
+4. **Formaliser des runbooks** (incidents, perte de données, rotation de secrets).
+
+## 9) Glossaire
+- **Tenant** : client isolé (données + conteneurs dédiés).
+- **Orchestrateur** : API de contrôle du cycle de vie des bots.
+- **docker-socket-proxy** : proxy limitant l’accès Docker.
+- **SSM/Secrets Manager** : services AWS de gestion de secrets.
+
+---
+
+### Passe de correction
+- Corrections orthographiques/typos appliquées dans ce document (français standard, accents, ponctuation).
