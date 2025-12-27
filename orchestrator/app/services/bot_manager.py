@@ -16,19 +16,47 @@ from ..models import (
     BotStatus,
     CreateBotRequest,
     Tenant,
+    TenantPlan,
+    TenantQuotas,
 )
 from ..utils.secrets import vault
+from .quota_manager import QuotaManager
 from .state import StateStore
 
 
 class BotManager:
     """Coordinator responsible for tenant isolation and lifecycle transitions."""
 
+    PLAN_QUOTAS: dict[TenantPlan, TenantQuotas] = {
+        TenantPlan.basic: TenantQuotas(
+            max_bots=1,
+            cpu_limit=0.5,
+            mem_limit="512m",
+            allow_hyperopt=False,
+            allow_backtest=False,
+        ),
+        TenantPlan.pro: TenantQuotas(
+            max_bots=3,
+            cpu_limit=1.0,
+            mem_limit="1024m",
+            allow_hyperopt=True,
+            allow_backtest=True,
+        ),
+        TenantPlan.whale: TenantQuotas(
+            max_bots=10,
+            cpu_limit=2.0,
+            mem_limit="4096m",
+            allow_hyperopt=True,
+            allow_backtest=True,
+        ),
+    }
+
     def __init__(self, base_dir: Path):
         self.base_dir = base_dir
         self.state = StateStore(base_dir / "state")
         self.clients_dir = base_dir / ".." / "clients"
         self.clients_dir.mkdir(parents=True, exist_ok=True)
+        self.quota_manager = QuotaManager(self.state)
 
     def create_tenant(self, tenant_id: str, email: str) -> Tenant:
         tenant = Tenant(tenant_id=tenant_id, email=email)
@@ -87,25 +115,71 @@ class BotManager:
         )
         return ActionResponse(bot_id=bot_id, status=instance.status, message="Bot created", audit_ref=str(audit.ts))
 
-    def _transition(self, bot_id: str, status: BotStatus, actor: str, message: str) -> ActionResponse:
+    def _transition(
+        self,
+        bot_id: str,
+        status: BotStatus,
+        actor: str,
+        message: str,
+        metadata: dict[str, str] | None = None,
+    ) -> ActionResponse:
         bot = self.state.get_bot(bot_id)
         if not bot:
             raise HTTPException(status_code=404, detail="Bot not found")
         updated = self.state.set_bot_status(bot_id, status)
         audit = self.state.add_audit(
-            AuditEntry(tenant_id=bot.tenant_id, bot_id=bot.bot_id, action=status.value, performed_by=actor)
+            AuditEntry(
+                tenant_id=bot.tenant_id,
+                bot_id=bot.bot_id,
+                action=status.value,
+                performed_by=actor,
+                metadata=metadata or {},
+            )
         )
         return ActionResponse(bot_id=bot_id, status=updated.status, message=message, audit_ref=str(audit.ts))
 
+    def get_tenant_quotas(self, tenant_id: str) -> TenantQuotas:
+        tenants = {t.tenant_id: t for t in self.state.list_tenants()}
+        tenant = tenants.get(tenant_id)
+        if not tenant:
+            raise HTTPException(status_code=404, detail="Tenant not found")
+        return self.PLAN_QUOTAS.get(tenant.plan, self.PLAN_QUOTAS[TenantPlan.basic])
+
+    def _enforce_quota_for_bot(self, bot_id: str) -> tuple[BotInstance, TenantQuotas]:
+        bot = self.state.get_bot(bot_id)
+        if not bot:
+            raise HTTPException(status_code=404, detail="Bot not found")
+        if bot.status != BotStatus.running:
+            quotas = self.get_tenant_quotas(bot.tenant_id)
+            self.quota_manager.validate_spawn_request(bot.tenant_id, quotas)
+            return bot, quotas
+        return bot, self.get_tenant_quotas(bot.tenant_id)
+
     def start_bot(self, bot_id: str, actor: str) -> ActionResponse:
+        bot, quotas = self._enforce_quota_for_bot(bot_id)
+        resource_limits = self.quota_manager.get_docker_resource_config(quotas)
         self.prepare_bot_config(bot_id)
-        return self._transition(bot_id, BotStatus.running, actor, "Bot started")
+        return self._transition(
+            bot_id,
+            BotStatus.running,
+            actor,
+            "Bot started",
+            metadata={"resource_limits": json.dumps(resource_limits)},
+        )
 
     def pause_bot(self, bot_id: str, actor: str) -> ActionResponse:
         return self._transition(bot_id, BotStatus.paused, actor, "Bot paused")
 
     def restart_bot(self, bot_id: str, actor: str) -> ActionResponse:
-        return self._transition(bot_id, BotStatus.running, actor, "Bot restarted")
+        bot, quotas = self._enforce_quota_for_bot(bot_id)
+        resource_limits = self.quota_manager.get_docker_resource_config(quotas)
+        return self._transition(
+            bot_id,
+            BotStatus.running,
+            actor,
+            "Bot restarted",
+            metadata={"resource_limits": json.dumps(resource_limits)},
+        )
 
     def status(self, bot_id: str) -> BotInstance:
         bot = self.state.get_bot(bot_id)
