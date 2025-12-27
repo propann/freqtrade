@@ -8,10 +8,17 @@ from pydantic import BaseModel, Field, validator
 
 
 class SubscriptionStatus(str, Enum):
-    inactive = "inactive"
     active = "active"
-    past_due = "past_due"
-    canceled = "canceled"
+    suspended = "suspended"
+    cancelled = "cancelled"
+    expired = "expired"
+
+
+class TenantBilling(BaseModel):
+    tenant_id: str
+    subscription_id: str
+    status: SubscriptionStatus
+    plan_id: str
 
 
 class TenantPlan(str, Enum):
@@ -31,8 +38,9 @@ class TenantQuotas(BaseModel):
 class Tenant(BaseModel):
     tenant_id: str
     email: str
-    subscription_status: SubscriptionStatus = SubscriptionStatus.inactive
-    plan: TenantPlan = TenantPlan.basic
+    subscription_id: Optional[str] = None
+    plan_id: Optional[str] = None
+    subscription_status: SubscriptionStatus = SubscriptionStatus.suspended
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 

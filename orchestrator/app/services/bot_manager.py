@@ -15,12 +15,13 @@ from ..models import (
     BotRiskLimits,
     BotStatus,
     CreateBotRequest,
+    SubscriptionStatus,
     Tenant,
     TenantPlan,
     TenantQuotas,
 )
 from ..utils.secrets import vault
-from .quota_manager import QuotaManager
+from ..utils.guards import ensure_active_subscription
 from .state import StateStore
 
 
@@ -58,8 +59,21 @@ class BotManager:
         self.clients_dir.mkdir(parents=True, exist_ok=True)
         self.quota_manager = QuotaManager(self.state)
 
-    def create_tenant(self, tenant_id: str, email: str) -> Tenant:
-        tenant = Tenant(tenant_id=tenant_id, email=email)
+    def create_tenant(
+        self,
+        tenant_id: str,
+        email: str,
+        subscription_id: str | None = None,
+        plan_id: str | None = None,
+        subscription_status: SubscriptionStatus = SubscriptionStatus.suspended,
+    ) -> Tenant:
+        tenant = Tenant(
+            tenant_id=tenant_id,
+            email=email,
+            subscription_id=subscription_id,
+            plan_id=plan_id,
+            subscription_status=subscription_status,
+        )
         return self.state.upsert_tenant(tenant)
 
     def _tenant_dir(self, tenant_id: str) -> Path:
@@ -156,8 +170,10 @@ class BotManager:
         return bot, self.get_tenant_quotas(bot.tenant_id)
 
     def start_bot(self, bot_id: str, actor: str) -> ActionResponse:
-        bot, quotas = self._enforce_quota_for_bot(bot_id)
-        resource_limits = self.quota_manager.get_docker_resource_config(quotas)
+        bot = self.state.get_bot(bot_id)
+        if not bot:
+            raise HTTPException(status_code=404, detail="Bot not found")
+        self.enforce_subscription(bot.tenant_id)
         self.prepare_bot_config(bot_id)
         return self._transition(
             bot_id,
@@ -171,15 +187,11 @@ class BotManager:
         return self._transition(bot_id, BotStatus.paused, actor, "Bot paused")
 
     def restart_bot(self, bot_id: str, actor: str) -> ActionResponse:
-        bot, quotas = self._enforce_quota_for_bot(bot_id)
-        resource_limits = self.quota_manager.get_docker_resource_config(quotas)
-        return self._transition(
-            bot_id,
-            BotStatus.running,
-            actor,
-            "Bot restarted",
-            metadata={"resource_limits": json.dumps(resource_limits)},
-        )
+        bot = self.state.get_bot(bot_id)
+        if not bot:
+            raise HTTPException(status_code=404, detail="Bot not found")
+        self.enforce_subscription(bot.tenant_id)
+        return self._transition(bot_id, BotStatus.running, actor, "Bot restarted")
 
     def status(self, bot_id: str) -> BotInstance:
         bot = self.state.get_bot(bot_id)
@@ -218,14 +230,9 @@ class BotManager:
         return self.state.list_audit(tenant_id=tenant_id, bot_id=bot_id)
 
     def enforce_subscription(self, tenant_id: str) -> None:
-        tenants = {t.tenant_id: t for t in self.state.list_tenants()}
-        tenant = tenants.get(tenant_id)
-        if not tenant:
-            raise HTTPException(status_code=404, detail="Tenant not found")
-        if tenant.subscription_status != Tenant.__fields__["subscription_status"].type_.active:
-            raise HTTPException(status_code=402, detail="Subscription not active")
+        ensure_active_subscription(self.state, tenant_id)
 
     def seed_demo(self) -> None:
         """Preload a demo tenant for local development."""
-        tenant = Tenant(tenant_id="demo", email="demo@example.com", subscription_status=Tenant.__fields__["subscription_status"].type_.active)
+        tenant = Tenant(tenant_id="demo", email="demo@example.com", subscription_status=SubscriptionStatus.active)
         self.state.upsert_tenant(tenant)
