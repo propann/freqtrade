@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+import json
 from pathlib import Path
 from typing import List
 
@@ -16,6 +17,7 @@ from ..models import (
     CreateBotRequest,
     Tenant,
 )
+from ..utils.secrets import vault
 from .state import StateStore
 
 
@@ -96,6 +98,7 @@ class BotManager:
         return ActionResponse(bot_id=bot_id, status=updated.status, message=message, audit_ref=str(audit.ts))
 
     def start_bot(self, bot_id: str, actor: str) -> ActionResponse:
+        self.prepare_bot_config(bot_id)
         return self._transition(bot_id, BotStatus.running, actor, "Bot started")
 
     def pause_bot(self, bot_id: str, actor: str) -> ActionResponse:
@@ -109,6 +112,25 @@ class BotManager:
         if not bot:
             raise HTTPException(status_code=404, detail="Bot not found")
         return bot
+
+    def prepare_bot_config(self, bot_id: str) -> dict:
+        bot = self.state.get_bot(bot_id)
+        if not bot:
+            raise HTTPException(status_code=404, detail="Bot not found")
+        config_path = Path(bot.config.config_path)
+        if not config_path.exists():
+            raise HTTPException(status_code=404, detail="Config template not found")
+        base_template = json.loads(config_path.read_text())
+        keys = vault.get_exchange_keys(bot.tenant_id)
+        if not keys:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Impossible de démarrer le bot : Clés manquantes pour le tenant {bot.tenant_id}",
+            )
+        exchange_config = base_template.setdefault("exchange", {})
+        exchange_config["key"] = keys["api_key"]
+        exchange_config["secret"] = keys["api_secret"]
+        return base_template
 
     def logs(self, bot_id: str) -> List[str]:
         bot = self.state.get_bot(bot_id)
