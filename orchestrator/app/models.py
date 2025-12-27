@@ -21,6 +21,20 @@ class TenantBilling(BaseModel):
     plan_id: str
 
 
+class TenantPlan(str, Enum):
+    basic = "basic"
+    pro = "pro"
+    whale = "whale"
+
+
+class TenantQuotas(BaseModel):
+    max_bots: int = Field(..., ge=1)
+    cpu_limit: float = Field(..., gt=0)
+    mem_limit: str
+    allow_hyperopt: bool = False
+    allow_backtest: bool = False
+
+
 class Tenant(BaseModel):
     tenant_id: str
     email: str
