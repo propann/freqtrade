@@ -6,6 +6,7 @@ from pathlib import Path
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
+from .api.v1.logs import router as logs_router
 from .api.v1.webhooks import router as webhooks_router
 from .models import ActionResponse, AuditResponse, BotInstance, CreateBotRequest, LogResponse, Tenant
 from .services.bot_manager import BotManager
@@ -17,6 +18,7 @@ BASE_DIR = Path(os.environ.get("ORCHESTRATOR_ROOT", Path(__file__).resolve().par
 manager = BotManager(base_dir=BASE_DIR)
 manager.seed_demo()
 app.state.store = manager.state
+app.state.manager = manager
 
 
 def require_tenant(tenant_id: str) -> Tenant:
@@ -40,6 +42,7 @@ app.add_middleware(
 )
 
 app.include_router(webhooks_router)
+app.include_router(logs_router)
 
 
 @app.get("/health")
