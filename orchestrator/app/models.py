@@ -14,13 +14,6 @@ class SubscriptionStatus(str, Enum):
     expired = "expired"
 
 
-class TenantBilling(BaseModel):
-    tenant_id: str
-    subscription_id: str
-    status: SubscriptionStatus
-    plan_id: str
-
-
 class TenantPlan(str, Enum):
     basic = "basic"
     pro = "pro"
@@ -39,9 +32,16 @@ class Tenant(BaseModel):
     tenant_id: str
     email: str
     subscription_id: Optional[str] = None
-    plan_id: Optional[str] = None
     subscription_status: SubscriptionStatus = SubscriptionStatus.suspended
+    plan: TenantPlan = TenantPlan.basic
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class TenantBilling(BaseModel):
+    tenant_id: str
+    subscription_id: str
+    status: SubscriptionStatus
+    plan_id: str
 
 
 class BotRiskLimits(BaseModel):

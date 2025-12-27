@@ -16,7 +16,7 @@ app = FastAPI(title="Freqtrade SaaS Orchestrator", version="0.1.0")
 BASE_DIR = Path(os.environ.get("ORCHESTRATOR_ROOT", Path(__file__).resolve().parent.parent))
 manager = BotManager(base_dir=BASE_DIR)
 manager.seed_demo()
-app.state.manager = manager
+app.state.store = manager.state
 
 
 def require_tenant(tenant_id: str) -> Tenant:
@@ -53,8 +53,8 @@ def create_tenant(tenant: Tenant, mgr: BotManager = Depends(get_manager)) -> Ten
         tenant.tenant_id,
         tenant.email,
         subscription_id=tenant.subscription_id,
-        plan_id=tenant.plan_id,
         subscription_status=tenant.subscription_status,
+        plan=tenant.plan,
     )
 
 

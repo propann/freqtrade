@@ -20,6 +20,7 @@ from ..models import (
     TenantPlan,
     TenantQuotas,
 )
+from ..utils.guards import ensure_active_subscription
 from ..utils.secrets import vault
 from ..utils.guards import ensure_active_subscription
 from .state import StateStore
@@ -64,15 +65,15 @@ class BotManager:
         tenant_id: str,
         email: str,
         subscription_id: str | None = None,
-        plan_id: str | None = None,
-        subscription_status: SubscriptionStatus = SubscriptionStatus.suspended,
+        subscription_status: Tenant.__fields__["subscription_status"].type_ | None = None,
+        plan: TenantPlan | None = None,
     ) -> Tenant:
         tenant = Tenant(
             tenant_id=tenant_id,
             email=email,
             subscription_id=subscription_id,
-            plan_id=plan_id,
-            subscription_status=subscription_status,
+            subscription_status=subscription_status or Tenant.__fields__["subscription_status"].type_.suspended,
+            plan=plan or TenantPlan.basic,
         )
         return self.state.upsert_tenant(tenant)
 
@@ -163,6 +164,7 @@ class BotManager:
         bot = self.state.get_bot(bot_id)
         if not bot:
             raise HTTPException(status_code=404, detail="Bot not found")
+        self.enforce_subscription(bot.tenant_id)
         if bot.status != BotStatus.running:
             quotas = self.get_tenant_quotas(bot.tenant_id)
             self.quota_manager.validate_spawn_request(bot.tenant_id, quotas)
@@ -230,9 +232,17 @@ class BotManager:
         return self.state.list_audit(tenant_id=tenant_id, bot_id=bot_id)
 
     def enforce_subscription(self, tenant_id: str) -> None:
-        ensure_active_subscription(self.state, tenant_id)
+        tenants = {t.tenant_id: t for t in self.state.list_tenants()}
+        tenant = tenants.get(tenant_id)
+        if not tenant:
+            raise HTTPException(status_code=404, detail="Tenant not found")
+        ensure_active_subscription(tenant)
 
     def seed_demo(self) -> None:
         """Preload a demo tenant for local development."""
-        tenant = Tenant(tenant_id="demo", email="demo@example.com", subscription_status=SubscriptionStatus.active)
+        tenant = Tenant(
+            tenant_id="demo",
+            email="demo@example.com",
+            subscription_status=Tenant.__fields__["subscription_status"].type_.active,
+        )
         self.state.upsert_tenant(tenant)

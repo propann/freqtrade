@@ -1,9 +1,8 @@
 from __future__ import annotations
 
+import hashlib
 import hmac
 import os
-from hashlib import sha256
-from typing import Optional
 
 from fastapi import HTTPException
 
@@ -11,12 +10,12 @@ from ..models import SubscriptionStatus, Tenant
 from .state import StateStore
 
 
-def verify_paypal_signature(payload: bytes, signature: Optional[str]) -> bool:
+def verify_paypal_signature(raw_body: bytes, signature: str | None) -> bool:
     secret = os.environ.get("PAYPAL_WEBHOOK_SECRET")
     if not secret or not signature:
         return False
-    digest = hmac.new(secret.encode("utf-8"), msg=payload, digestmod=sha256).hexdigest()
-    return hmac.compare_digest(digest, signature)
+    computed = hmac.new(secret.encode("utf-8"), raw_body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(computed, signature)
 
 
 def update_tenant_subscription(
@@ -24,8 +23,8 @@ def update_tenant_subscription(
     subscription_id: str,
     status: SubscriptionStatus,
 ) -> Tenant:
-    tenant = next((t for t in state.list_tenants() if t.subscription_id == subscription_id), None)
+    tenant = state.get_tenant_by_subscription_id(subscription_id)
     if not tenant:
-        raise HTTPException(status_code=404, detail="Tenant subscription not found")
-    updated = tenant.copy(update={"subscription_status": status})
-    return state.upsert_tenant(updated)
+        raise HTTPException(status_code=404, detail="Subscription not linked to any tenant")
+    tenant.subscription_status = status
+    return state.upsert_tenant(tenant)
