@@ -19,6 +19,7 @@ from ..models import (
     TenantPlan,
     TenantQuotas,
 )
+from ..utils.guards import ensure_active_subscription
 from ..utils.secrets import vault
 from .quota_manager import QuotaManager
 from .state import StateStore
@@ -58,8 +59,21 @@ class BotManager:
         self.clients_dir.mkdir(parents=True, exist_ok=True)
         self.quota_manager = QuotaManager(self.state)
 
-    def create_tenant(self, tenant_id: str, email: str) -> Tenant:
-        tenant = Tenant(tenant_id=tenant_id, email=email)
+    def create_tenant(
+        self,
+        tenant_id: str,
+        email: str,
+        subscription_id: str | None = None,
+        subscription_status: Tenant.__fields__["subscription_status"].type_ | None = None,
+        plan: TenantPlan | None = None,
+    ) -> Tenant:
+        tenant = Tenant(
+            tenant_id=tenant_id,
+            email=email,
+            subscription_id=subscription_id,
+            subscription_status=subscription_status or Tenant.__fields__["subscription_status"].type_.suspended,
+            plan=plan or TenantPlan.basic,
+        )
         return self.state.upsert_tenant(tenant)
 
     def _tenant_dir(self, tenant_id: str) -> Path:
@@ -149,6 +163,7 @@ class BotManager:
         bot = self.state.get_bot(bot_id)
         if not bot:
             raise HTTPException(status_code=404, detail="Bot not found")
+        self.enforce_subscription(bot.tenant_id)
         if bot.status != BotStatus.running:
             quotas = self.get_tenant_quotas(bot.tenant_id)
             self.quota_manager.validate_spawn_request(bot.tenant_id, quotas)
@@ -222,10 +237,13 @@ class BotManager:
         tenant = tenants.get(tenant_id)
         if not tenant:
             raise HTTPException(status_code=404, detail="Tenant not found")
-        if tenant.subscription_status != Tenant.__fields__["subscription_status"].type_.active:
-            raise HTTPException(status_code=402, detail="Subscription not active")
+        ensure_active_subscription(tenant)
 
     def seed_demo(self) -> None:
         """Preload a demo tenant for local development."""
-        tenant = Tenant(tenant_id="demo", email="demo@example.com", subscription_status=Tenant.__fields__["subscription_status"].type_.active)
+        tenant = Tenant(
+            tenant_id="demo",
+            email="demo@example.com",
+            subscription_status=Tenant.__fields__["subscription_status"].type_.active,
+        )
         self.state.upsert_tenant(tenant)

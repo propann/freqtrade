@@ -43,6 +43,9 @@ class StateStore:
         self._persist()
         return tenant
 
+    def get_tenant_by_subscription_id(self, subscription_id: str) -> Optional[Tenant]:
+        return next((tenant for tenant in self._tenants.values() if tenant.subscription_id == subscription_id), None)
+
     def get_bot(self, bot_id: str) -> Optional[BotInstance]:
         return self._bots.get(bot_id)
 

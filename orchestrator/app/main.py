@@ -6,6 +6,7 @@ from pathlib import Path
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
+from .api.v1.webhooks import router as webhooks_router
 from .models import ActionResponse, AuditResponse, BotInstance, CreateBotRequest, LogResponse, Tenant
 from .services.bot_manager import BotManager
 
@@ -15,6 +16,7 @@ app = FastAPI(title="Freqtrade SaaS Orchestrator", version="0.1.0")
 BASE_DIR = Path(os.environ.get("ORCHESTRATOR_ROOT", Path(__file__).resolve().parent.parent))
 manager = BotManager(base_dir=BASE_DIR)
 manager.seed_demo()
+app.state.store = manager.state
 
 
 def require_tenant(tenant_id: str) -> Tenant:
@@ -37,6 +39,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(webhooks_router)
+
 
 @app.get("/health")
 def health() -> dict:
@@ -45,7 +49,13 @@ def health() -> dict:
 
 @app.post("/tenants", response_model=Tenant)
 def create_tenant(tenant: Tenant, mgr: BotManager = Depends(get_manager)) -> Tenant:
-    return mgr.create_tenant(tenant.tenant_id, tenant.email)
+    return mgr.create_tenant(
+        tenant.tenant_id,
+        tenant.email,
+        subscription_id=tenant.subscription_id,
+        subscription_status=tenant.subscription_status,
+        plan=tenant.plan,
+    )
 
 
 @app.get("/tenants/{tenant_id}/bots", response_model=list[BotInstance])
