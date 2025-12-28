@@ -1,6 +1,6 @@
 # Plan d'exécution par étapes
 
-1. **Baseline infra** : installer Docker/Compose via `infra/scripts/install-ec2.sh`, déployer Postgres + docker-socket-proxy + portail placeholder + Nginx.
+1. **Baseline infra** : installer Docker/Compose via `infra/scripts/install-ec2.sh`, déployer Postgres + docker-socket-proxy + portail placeholder (Nginx système en frontal, hors Docker).
 2. **Orchestrateur** : déployer le service FastAPI (port 9000) avec stockage JSON local, connectable à Postgres ultérieurement.
 3. **Templates/validators** : finaliser les templates config Freqtrade et les limites de risque (`templates/validators.yaml`).
 4. **Intégration AWS** : ajouter les appels SSM/Secrets Manager dans l'entrée du conteneur (env/volumes) sans exposer les valeurs dans les logs.

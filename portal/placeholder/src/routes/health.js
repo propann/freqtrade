@@ -6,9 +6,11 @@ const router = express.Router();
 router.get('/', async (_req, res) => {
   try {
     await healthcheck();
-    res.json({ status: 'ok' });
+    res.json({ status: 'ok', service: 'portal', db: 'ok' });
   } catch (error) {
-    res.status(500).json({ status: 'error', error: error.message });
+    // eslint-disable-next-line no-console
+    console.error('[portal] healthcheck failed', error);
+    res.status(500).json({ status: 'error', db: 'down', error: error.message });
   }
 });
 
