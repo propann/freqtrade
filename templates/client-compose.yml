@@ -1,0 +1,33 @@
+version: "3.9"
+services:
+  freqtrade:
+    image: ${FREQTRADE_IMAGE:-freqtradeorg/freqtrade:stable}
+    container_name: ${CONTAINER_NAME}
+    restart: unless-stopped
+    command:
+      - trade
+      - --config
+      - /freqtrade/config/config.json
+      - --logfile
+      - /freqtrade/user_data/logs/freqtrade.log
+      - --dry-run
+    volumes:
+      - ${CONFIG_DIR}:/freqtrade/config:ro
+      - ${DATA_DIR}:/freqtrade/user_data
+      - ${LOGS_DIR}:/freqtrade/user_data/logs
+    mem_limit: ${MEM_LIMIT}
+    cpus: "${CPU_LIMIT}"
+    pids_limit: ${PIDS_LIMIT}
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    networks:
+      - session
+
+networks:
+  session:
+    name: ${NETWORK_NAME}

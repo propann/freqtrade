@@ -181,7 +181,10 @@ router.post('/:id/backtest', async (req, res) => {
   await pool.query('UPDATE sessions SET status = $1, updated_at = NOW() WHERE id = $2', ['backtest', session.id]);
   await audit(tenantId, session.id, 'session_backtest', meta);
   try {
-    const result = await backtestSession(tenantId, session.id, session.name);
+    const result = await backtestSession(tenantId, session.id, session.name, {
+      timerange: meta.timerange,
+      strategy: meta.strategy,
+    });
     await updateJobStatus(job.id, 'completed');
     return res.json({ status: 'backtest_started', job: { ...job, result } });
   } catch (error) {
