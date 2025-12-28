@@ -134,14 +134,15 @@ router.post('/:id/start', async (req, res) => {
   }
   const paths = sessionPaths(tenantId, session.id);
   const job = await createJob(session.id, 'start', 'running', paths.logFile, { source: 'api' });
-  await pool.query('UPDATE sessions SET status = $1, updated_at = NOW() WHERE id = $2', ['running', session.id]);
   await audit(tenantId, session.id, 'session_start');
   try {
     const result = await startSession(tenantId, session.id, session.name);
+    await pool.query('UPDATE sessions SET status = $1, updated_at = NOW() WHERE id = $2', ['running', session.id]);
     await updateJobStatus(job.id, 'completed');
     return res.json({ status: 'started', job: { ...job, result } });
   } catch (error) {
     await updateJobStatus(job.id, 'failed');
+    await pool.query('UPDATE sessions SET status = $1, updated_at = NOW() WHERE id = $2', [session.status, session.id]);
     return res.status(500).json({ error: 'start_failed', detail: error.message });
   }
 });
@@ -154,14 +155,15 @@ router.post('/:id/stop', async (req, res) => {
   }
   const paths = sessionPaths(tenantId, session.id);
   const job = await createJob(session.id, 'stop', 'running', paths.logFile, { source: 'api' });
-  await pool.query('UPDATE sessions SET status = $1, updated_at = NOW() WHERE id = $2', ['stopped', session.id]);
   await audit(tenantId, session.id, 'session_stop');
   try {
     const result = await stopSession(tenantId, session.id);
+    await pool.query('UPDATE sessions SET status = $1, updated_at = NOW() WHERE id = $2', ['stopped', session.id]);
     await updateJobStatus(job.id, 'completed');
     return res.json({ status: 'stopped', job: { ...job, result } });
   } catch (error) {
     await updateJobStatus(job.id, 'failed');
+    await pool.query('UPDATE sessions SET status = $1, updated_at = NOW() WHERE id = $2', [session.status, session.id]);
     return res.status(500).json({ error: 'stop_failed', detail: error.message });
   }
 });
@@ -185,10 +187,12 @@ router.post('/:id/backtest', async (req, res) => {
       timerange: meta.timerange,
       strategy: meta.strategy,
     });
+    await pool.query('UPDATE sessions SET status = $1, updated_at = NOW() WHERE id = $2', ['stopped', session.id]);
     await updateJobStatus(job.id, 'completed');
     return res.json({ status: 'backtest_started', job: { ...job, result } });
   } catch (error) {
     await updateJobStatus(job.id, 'failed');
+    await pool.query('UPDATE sessions SET status = $1, updated_at = NOW() WHERE id = $2', [session.status, session.id]);
     return res.status(500).json({ error: 'backtest_failed', detail: error.message });
   }
 });
