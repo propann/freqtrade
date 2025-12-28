@@ -41,7 +41,7 @@ router.get('/', async (_req, res) => {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Freqtrade AWS Portal</title>
+  <title>Quant Core Portal</title>
   <style>
     :root { font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif; color: #0f172a; background: #0b1220; }
     body { margin: 0; padding: 0; background: linear-gradient(135deg, #0b1220 0%, #0f172a 50%, #0b1220 100%); min-height: 100vh; display: flex; justify-content: center; align-items: center; }
@@ -60,8 +60,8 @@ router.get('/', async (_req, res) => {
 </head>
 <body>
   <div class="card">
-    <h1>Freqtrade AWS Portal</h1>
-    <p class="subtitle">SaaS control-plane for tenant provisioning &amp; monitoring.</p>
+    <h1>Quant Core Portal</h1>
+    <p class="subtitle">Control plane for bot provisioning, monitoring, and secure tenant operations.</p>
     <div class="grid">
       <div class="pill"><strong>Infra</strong><span class="${infraStatus.startsWith('healthy') ? 'status-ok' : 'status-warn'}">${infraStatus}</span></div>
       <div class="pill"><strong>Git</strong><span>${gitHash}</span></div>
@@ -72,7 +72,7 @@ router.get('/', async (_req, res) => {
       <a href="/health" target="_blank" rel="noreferrer">/health</a>
       <a href="/api/clients" target="_blank" rel="noreferrer">/api</a>
     </div>
-    <div class="footer">Requests are served from ${env} mode. Health endpoint performs a live PostgreSQL check.</div>
+    <div class="footer">app.quant-core.app routes through the system Nginx reverse proxy. Health endpoint performs a live PostgreSQL check.</div>
   </div>
 </body>
 </html>`;

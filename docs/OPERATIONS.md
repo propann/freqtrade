@@ -9,8 +9,8 @@
 ```bash
 infra/scripts/deploy.sh
 ```
-- Lancement des services : Postgres, docker-socket-proxy, portail placeholder, Nginx.
-- Le portail reste bindé en loopback (`127.0.0.1`).
+- Lancement des services : Postgres, docker-socket-proxy, portail placeholder.
+- Le portail reste bindé en loopback (`127.0.0.1`) et le reverse-proxy est assuré par le Nginx système (hors Docker).
 
 ## Gestion des bots
 - Provision `POST /tenants/{id}/bots` (requiert subscription active).

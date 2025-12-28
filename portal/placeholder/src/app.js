@@ -5,6 +5,7 @@ const errorHandler = require('./middlewares/errorHandler');
 const indexRoutes = require('./routes/index');
 const healthRoutes = require('./routes/health');
 const tenantRoutes = require('./routes/tenants');
+const adminRoutes = require('./routes/admin');
 
 function buildApp() {
   const app = express();
@@ -15,6 +16,7 @@ function buildApp() {
 
   app.use('/', indexRoutes);
   app.use('/health', healthRoutes);
+  app.use('/api/admin', adminRoutes);
   app.use('/api', tenantRoutes);
 
   const publicDir = path.join(__dirname, '..', 'public');
