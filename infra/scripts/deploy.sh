@@ -21,8 +21,8 @@ docker compose -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" up -d --build
 echo "[+] Vérification santé Postgres"
 docker compose -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" ps postgres
 
-PORTAL_PORT="${PORTAL_HTTP_PORT:-8088}"
-PORTAL_HEALTH="http://127.0.0.1:${PORTAL_PORT}/health"
+PORTAL_HOST_URL="${PORTAL_HOST_URL:-http://localhost:${PORTAL_HTTP_PORT:-8088}}"
+PORTAL_HEALTH="${PORTAL_HOST_URL%/}/health"
 
 if command -v curl >/dev/null 2>&1; then
   echo "[+] Vérification du portail sur ${PORTAL_HEALTH}"
@@ -43,4 +43,4 @@ else
   echo "[!] curl indisponible : vérifiez manuellement ${PORTAL_HEALTH}" >&2
 fi
 
-echo "[+] Portail disponible sur 127.0.0.1:${PORTAL_PORT} (via Nginx)."
+echo "[+] Portail disponible sur ${PORTAL_HOST_URL}."
