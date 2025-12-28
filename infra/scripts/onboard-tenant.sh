@@ -18,7 +18,7 @@ if [[ -z "${1:-}" || -z "${2:-}" ]]; then
 fi
 
 load_env
-require_env CLIENTS_DIR PORTAL_INTERNAL_URL PORTAL_HOST_URL
+require_env CLIENTS_DIR PORTAL_INTERNAL_URL PORTAL_HOST_URL PORTAL_ADMIN_TOKEN
 require_cmd curl
 
 TENANT_ID="$1"
@@ -36,6 +36,22 @@ portal_host=$PORTAL_HOST_URL
 client_dir=$CLIENTS_DIR/$TENANT_ID
 EOF
 
-curl -sS -X POST "$API_URL/tenants" \
-  -H 'Content-Type: application/json' \
-  -d "{\"tenant_id\":\"$TENANT_ID\",\"email\":\"$EMAIL\",\"subscription_status\":\"active\"}" || true
+payload=$(printf '{"id":"%s","email":"%s","subscription_status":"active"}' "$TENANT_ID" "$EMAIL")
+tmp_body="$(mktemp)"
+status_code=$(
+  curl -sS -o "${tmp_body}" -w "%{http_code}" -X POST "$API_URL/tenants" \
+    -H 'Content-Type: application/json' \
+    -H "X-Admin-Token: ${PORTAL_ADMIN_TOKEN}" \
+    -H "Authorization: Bearer ${PORTAL_ADMIN_TOKEN}" \
+    -d "${payload}"
+)
+
+if [[ "${status_code}" != 2* ]]; then
+  echo "[!] Onboarding failed (HTTP ${status_code}). Response:" >&2
+  cat "${tmp_body}" >&2
+  rm -f "${tmp_body}"
+  exit 1
+fi
+
+cat "${tmp_body}"
+rm -f "${tmp_body}"
