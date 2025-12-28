@@ -16,7 +16,8 @@ CREATE TABLE IF NOT EXISTS users (
     email TEXT UNIQUE NOT NULL,
     role TEXT NOT NULL DEFAULT 'admin',
     password_hash TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    last_login TIMESTAMP WITH TIME ZONE
 );
 
 CREATE TABLE IF NOT EXISTS sessions (

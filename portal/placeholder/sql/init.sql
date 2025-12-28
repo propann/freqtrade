@@ -3,7 +3,8 @@ CREATE TABLE IF NOT EXISTS users (
   email TEXT UNIQUE NOT NULL,
   role TEXT NOT NULL DEFAULT 'admin',
   password_hash TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_login TIMESTAMPTZ
 );
 
 CREATE TABLE IF NOT EXISTS tenants (
