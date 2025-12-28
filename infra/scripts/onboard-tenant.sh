@@ -7,6 +7,8 @@ source "${SCRIPT_DIR}/common.sh"
 
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
   echo "Usage: $0 <tenant_id> <email>"
+  echo
+  echo "Prépare le dossier client et enregistre le tenant via l'API."
   exit 0
 fi
 
@@ -17,10 +19,11 @@ fi
 
 load_env
 require_env CLIENTS_DIR PORTAL_INTERNAL_URL PORTAL_HOST_URL
+require_cmd curl
 
 TENANT_ID="$1"
 EMAIL="$2"
-API_URL=${API_URL:-"${PORTAL_INTERNAL_URL%/}/api"}
+API_URL="${PORTAL_INTERNAL_URL%/}/api"
 
 mkdir -p "$CLIENTS_DIR/$TENANT_ID"/data "$CLIENTS_DIR/$TENANT_ID"/configs
 

@@ -1,12 +1,13 @@
 const express = require('express');
 const fs = require('fs/promises');
 const path = require('path');
+const { requireEnv } = require('../config/env');
 const adminAuth = require('../middlewares/adminAuth');
 
 const router = express.Router();
 
-const clientRoot = process.env.CLIENTS_DIR || '/data/clients';
-const defaultNetwork = process.env.DOCKER_NETWORK || 'freqtrade-aws-net';
+const clientRoot = requireEnv('CLIENTS_DIR');
+const defaultNetwork = requireEnv('DOCKER_NETWORK');
 
 function buildDryRunConfig(name) {
   return {

@@ -9,6 +9,8 @@ source "${SCRIPT_DIR}/common.sh"
 
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
   echo "Usage: $0 <client_id>"
+  echo
+  echo "Liste les jobs terminés pour un client."
   exit 0
 fi
 
@@ -19,6 +21,7 @@ fi
 
 load_env
 require_env CLIENTS_DIR
+require_cmd find sort
 
 CLIENT_ID="$1"
 ROOT_DIR="${CLIENTS_DIR}"

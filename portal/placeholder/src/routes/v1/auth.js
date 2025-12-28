@@ -1,24 +1,22 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { requireEnv } = require('../../config/env');
 const { ensureTenant } = require('../../services/tenants');
 const { requireAuth, authCookieName } = require('../../middlewares/auth');
 
 const router = express.Router();
 
-const adminEmail = process.env.ADMIN_EMAIL;
-const adminPasswordHash = process.env.ADMIN_PASSWORD_HASH;
-const adminTenantId = process.env.ADMIN_TENANT_ID || 'admin';
-const jwtSecret = process.env.PORTAL_JWT_SECRET || 'change-me';
-const jwtTtl = process.env.PORTAL_JWT_TTL || '12h';
+const adminEmail = requireEnv('ADMIN_EMAIL');
+const adminPasswordHash = requireEnv('ADMIN_PASSWORD_HASH');
+const adminTenantId = requireEnv('ADMIN_TENANT_ID');
+const jwtSecret = requireEnv('PORTAL_JWT_SECRET');
+const jwtTtl = requireEnv('PORTAL_JWT_TTL');
 
 router.post('/login', async (req, res) => {
   const { email, password } = req.body || {};
   if (!email || !password) {
     return res.status(400).json({ error: 'invalid_credentials', message: 'Invalid credentials.' });
-  }
-  if (!adminEmail || !adminPasswordHash) {
-    return res.status(500).json({ error: 'service_unavailable', message: 'Authentication unavailable.' });
   }
   if (email !== adminEmail) {
     return res.status(401).json({ error: 'invalid_credentials', message: 'Invalid credentials.' });

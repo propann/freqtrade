@@ -6,6 +6,23 @@ set -euo pipefail
 # - Active un pare-feu UFW minimal
 # - Prépare le dossier /opt/freqtrade-aws pour recevoir le dépôt
 
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+  echo "Usage: $0"
+  echo
+  echo "Installe Docker + compose sur une VM Ubuntu et prépare /opt/freqtrade-aws."
+  exit 0
+fi
+
+if ! command -v apt-get >/dev/null 2>&1; then
+  echo "[!] apt-get requis pour ce script (Ubuntu/Debian)." >&2
+  exit 1
+fi
+
+if ! command -v systemctl >/dev/null 2>&1; then
+  echo "[!] systemctl requis pour ce script." >&2
+  exit 1
+fi
+
 if [[ "${EUID}" -ne 0 ]]; then
   echo "[!] Ce script doit être exécuté en root (sudo)." >&2
   exit 1
@@ -32,8 +49,6 @@ systemctl start docker
 ufw default deny incoming
 ufw default allow outgoing
 ufw allow 22/tcp
-ufw allow 80/tcp
-ufw allow 443/tcp
 ufw --force enable
 
 install -d -m 750 /opt/freqtrade-aws

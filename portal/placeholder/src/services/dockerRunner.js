@@ -2,21 +2,21 @@ const fs = require('fs/promises');
 const path = require('path');
 const { execFile } = require('child_process');
 const { promisify } = require('util');
+const { requireEnv } = require('../config/env');
 
 const execFileAsync = promisify(execFile);
 
 const defaultQuotas = {
-  cpu: process.env.DEFAULT_CPU || '1.0',
-  mem: process.env.DEFAULT_MEM_LIMIT || '1024m',
-  pids: parseInt(process.env.DEFAULT_PIDS_LIMIT || '256', 10),
+  cpu: requireEnv('DEFAULT_CPU'),
+  mem: requireEnv('DEFAULT_MEM_LIMIT'),
+  pids: parseInt(requireEnv('DEFAULT_PIDS_LIMIT'), 10),
 };
 
-const repoRoot = path.resolve(__dirname, '../../../../');
-const clientsDir = process.env.CLIENTS_DIR || path.join(repoRoot, 'clients');
-const templatesDir = process.env.TEMPLATES_DIR || path.join(repoRoot, 'templates');
+const clientsDir = requireEnv('CLIENTS_DIR');
+const templatesDir = requireEnv('TEMPLATES_DIR');
 const composeTemplatePath = path.join(templatesDir, 'client-compose.yml');
-const composeBin = process.env.DOCKER_COMPOSE_BIN || 'docker';
-const dryRun = String(process.env.ORCHESTRATOR_DRY_RUN || 'false') === 'true';
+const composeBin = requireEnv('DOCKER_COMPOSE_BIN');
+const dryRun = String(requireEnv('ORCHESTRATOR_DRY_RUN')) === 'true';
 
 function sessionProjectName(tenantId, sessionId) {
   return `fta-${tenantId}-${sessionId}`;

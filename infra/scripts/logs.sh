@@ -9,10 +9,13 @@ SERVICE="${1:-portal}"
 
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
   echo "Usage: $0 [service]"
+  echo
+  echo "Suit les logs d'un service docker compose."
   exit 0
 fi
 
 load_env
+require_docker_compose
 
 echo "[+] Affichage des logs pour ${SERVICE} (ne contient pas de secrets)."
 docker compose -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" logs -f "${SERVICE}"

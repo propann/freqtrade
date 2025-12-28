@@ -1,15 +1,16 @@
 const express = require('express');
+const { requireEnv } = require('../config/env');
 const { pool } = require('../services/db');
 const { ensureTenant, ensureSubscription, findTenant, findTenantWithSubscription, subscriptionActive } = require('../services/tenants');
 const adminAuth = require('../middlewares/adminAuth');
 
 const router = express.Router();
 
-const clientDir = process.env.CLIENTS_DIR || '/data/clients';
+const clientDir = requireEnv('CLIENTS_DIR');
 const quotas = {
-  cpu: process.env.DEFAULT_CPU || '1.0',
-  mem: process.env.DEFAULT_MEM_LIMIT || '1024m',
-  pids: parseInt(process.env.DEFAULT_PIDS_LIMIT || '256', 10),
+  cpu: requireEnv('DEFAULT_CPU'),
+  mem: requireEnv('DEFAULT_MEM_LIMIT'),
+  pids: parseInt(requireEnv('DEFAULT_PIDS_LIMIT'), 10),
 };
 
 async function requireActiveSubscription(req, res, next) {
