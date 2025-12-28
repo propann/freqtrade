@@ -2,7 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { ensureTenant } = require('../../services/tenants');
-const { requireAuth } = require('../../middlewares/auth');
+const { requireAuth, authCookieName } = require('../../middlewares/auth');
 
 const router = express.Router();
 
@@ -15,10 +15,10 @@ const jwtTtl = process.env.PORTAL_JWT_TTL || '12h';
 router.post('/login', async (req, res) => {
   const { email, password } = req.body || {};
   if (!email || !password) {
-    return res.status(400).json({ error: 'invalid_credentials', message: 'Email and password are required.' });
+    return res.status(400).json({ error: 'invalid_credentials', message: 'Invalid credentials.' });
   }
   if (!adminEmail || !adminPasswordHash) {
-    return res.status(500).json({ error: 'admin_not_configured', message: 'ADMIN_EMAIL or ADMIN_PASSWORD_HASH missing.' });
+    return res.status(500).json({ error: 'service_unavailable', message: 'Authentication unavailable.' });
   }
   if (email !== adminEmail) {
     return res.status(401).json({ error: 'invalid_credentials', message: 'Invalid credentials.' });
@@ -41,8 +41,13 @@ router.post('/login', async (req, res) => {
     { expiresIn: jwtTtl }
   );
 
+  res.cookie(authCookieName, token, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+  });
+
   return res.json({
-    token,
     user: {
       email: adminEmail,
       role: 'admin',
@@ -61,7 +66,12 @@ router.get('/me', requireAuth, (req, res) => {
   });
 });
 
-router.post('/logout', requireAuth, (_req, res) => {
+router.post('/logout', (_req, res) => {
+  res.clearCookie(authCookieName, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+  });
   res.json({ status: 'ok' });
 });
 

@@ -17,12 +17,12 @@ function useRoute() {
   return { path, navigate };
 }
 
-function apiRequest(path, { method = 'GET', body } = {}, token) {
+function apiRequest(path, { method = 'GET', body } = {}) {
   return fetch(`${apiBase}${path}`, {
     method,
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: body ? JSON.stringify(body) : undefined,
   }).then(async (res) => {
@@ -36,32 +36,33 @@ function apiRequest(path, { method = 'GET', body } = {}, token) {
 
 function App() {
   const { path, navigate } = useRoute();
-  const [token, setToken] = useState(localStorage.getItem('portal_token') || '');
   const [me, setMe] = useState(null);
+  const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
-    if (!token) {
-      setMe(null);
-      return;
-    }
-    apiRequest('/auth/me', {}, token)
+    apiRequest('/auth/me')
       .then((data) => setMe(data.user))
       .catch(() => {
-        setToken('');
-        localStorage.removeItem('portal_token');
+        setMe(null);
+      })
+      .finally(() => {
+        setAuthReady(true);
       });
-  }, [token]);
+  }, []);
 
   useEffect(() => {
-    if (!token && path !== '/login') {
+    if (authReady && !me && path !== '/login') {
       navigate('/login');
     }
-  }, [token, path, navigate]);
+  }, [authReady, me, path, navigate]);
 
-  if (!token || path === '/login') {
-    return <Login onLogin={(newToken) => {
-      setToken(newToken);
-      localStorage.setItem('portal_token', newToken);
+  if (!authReady) {
+    return <div className="login-page card">Checking session...</div>;
+  }
+
+  if (!me || path === '/login') {
+    return <Login onLogin={(user) => {
+      setMe(user);
       navigate('/dashboard');
     }} />;
   }
@@ -79,16 +80,17 @@ function App() {
           Signed in as {me?.email}
         </div>
         <button className="secondary" onClick={() => {
-          setToken('');
-          localStorage.removeItem('portal_token');
-          navigate('/login');
+          apiRequest('/auth/logout', { method: 'POST' }).finally(() => {
+            setMe(null);
+            navigate('/login');
+          });
         }}>Log out</button>
       </aside>
       <main className="main">
-        {path === '/dashboard' && <Dashboard token={token} />}
-        {path === '/sessions' && <Sessions token={token} navigate={navigate} />}
-        {path.startsWith('/sessions/') && <SessionDetail token={token} sessionId={path.split('/')[2]} />}
-        {path === '/admin' && <Admin token={token} />}
+        {path === '/dashboard' && <Dashboard />}
+        {path === '/sessions' && <Sessions navigate={navigate} />}
+        {path.startsWith('/sessions/') && <SessionDetail sessionId={path.split('/')[2]} />}
+        {path === '/admin' && <Admin />}
       </main>
     </div>
   );
@@ -124,7 +126,7 @@ function Login({ onLogin }) {
         <button onClick={() => {
           setError('');
           apiRequest('/auth/login', { method: 'POST', body: { email, password } })
-            .then((data) => onLogin(data.token))
+            .then((data) => onLogin(data.user))
             .catch((err) => setError(err.message));
         }}>Login</button>
       </div>
@@ -132,14 +134,14 @@ function Login({ onLogin }) {
   );
 }
 
-function Dashboard({ token }) {
+function Dashboard() {
   const [tenant, setTenant] = useState(null);
   const [subscription, setSubscription] = useState(null);
 
   useEffect(() => {
-    apiRequest('/tenants/me', {}, token).then((data) => setTenant(data.tenant));
-    apiRequest('/subscription/me', {}, token).then((data) => setSubscription(data.subscription));
-  }, [token]);
+    apiRequest('/tenants/me').then((data) => setTenant(data.tenant));
+    apiRequest('/subscription/me').then((data) => setSubscription(data.subscription));
+  }, []);
 
   return (
     <>
@@ -162,22 +164,22 @@ function Dashboard({ token }) {
   );
 }
 
-function Sessions({ token, navigate }) {
+function Sessions({ navigate }) {
   const [sessions, setSessions] = useState([]);
   const [name, setName] = useState('');
   const [error, setError] = useState('');
 
   const refresh = () => {
-    apiRequest('/sessions', {}, token).then((data) => setSessions(data.sessions));
+    apiRequest('/sessions').then((data) => setSessions(data.sessions));
   };
 
   useEffect(() => {
     refresh();
-  }, [token]);
+  }, []);
 
   const createSession = () => {
     setError('');
-    apiRequest('/sessions', { method: 'POST', body: { name } }, token)
+    apiRequest('/sessions', { method: 'POST', body: { name } })
       .then((data) => {
         setName('');
         refresh();
@@ -219,9 +221,9 @@ function Sessions({ token, navigate }) {
                 <td>
                   <div className="actions">
                     <button className="ghost" onClick={() => navigate(`/sessions/${session.id}`)}>Open</button>
-                    <button onClick={() => apiRequest(`/sessions/${session.id}/start`, { method: 'POST' }, token).then(refresh)}>Start</button>
-                    <button className="secondary" onClick={() => apiRequest(`/sessions/${session.id}/stop`, { method: 'POST' }, token).then(refresh)}>Stop</button>
-                    <button className="secondary" onClick={() => apiRequest(`/sessions/${session.id}/backtest`, { method: 'POST' }, token).then(refresh)}>Backtest</button>
+                    <button onClick={() => apiRequest(`/sessions/${session.id}/start`, { method: 'POST' }).then(refresh)}>Start</button>
+                    <button className="secondary" onClick={() => apiRequest(`/sessions/${session.id}/stop`, { method: 'POST' }).then(refresh)}>Stop</button>
+                    <button className="secondary" onClick={() => apiRequest(`/sessions/${session.id}/backtest`, { method: 'POST' }).then(refresh)}>Backtest</button>
                   </div>
                 </td>
               </tr>
@@ -233,13 +235,13 @@ function Sessions({ token, navigate }) {
   );
 }
 
-function SessionDetail({ token, sessionId }) {
+function SessionDetail({ sessionId }) {
   const [session, setSession] = useState(null);
   const [logs, setLogs] = useState([]);
 
   const refresh = () => {
-    apiRequest(`/sessions/${sessionId}`, {}, token).then((data) => setSession(data.session));
-    apiRequest(`/sessions/${sessionId}/logs?tail=200`, {}, token).then((data) => setLogs(data.lines));
+    apiRequest(`/sessions/${sessionId}`).then((data) => setSession(data.session));
+    apiRequest(`/sessions/${sessionId}/logs?tail=200`).then((data) => setLogs(data.lines));
   };
 
   useEffect(() => {
@@ -262,9 +264,9 @@ function SessionDetail({ token, sessionId }) {
         <h3>Status</h3>
         <p><span className="badge">{session.status}</span></p>
         <div className="actions">
-          <button onClick={() => apiRequest(`/sessions/${session.id}/start`, { method: 'POST' }, token).then(refresh)}>Start</button>
-          <button className="secondary" onClick={() => apiRequest(`/sessions/${session.id}/stop`, { method: 'POST' }, token).then(refresh)}>Stop</button>
-          <button className="secondary" onClick={() => apiRequest(`/sessions/${session.id}/backtest`, { method: 'POST' }, token).then(refresh)}>Backtest</button>
+          <button onClick={() => apiRequest(`/sessions/${session.id}/start`, { method: 'POST' }).then(refresh)}>Start</button>
+          <button className="secondary" onClick={() => apiRequest(`/sessions/${session.id}/stop`, { method: 'POST' }).then(refresh)}>Stop</button>
+          <button className="secondary" onClick={() => apiRequest(`/sessions/${session.id}/backtest`, { method: 'POST' }).then(refresh)}>Backtest</button>
         </div>
       </div>
       <div className="card">
@@ -277,12 +279,12 @@ function SessionDetail({ token, sessionId }) {
   );
 }
 
-function Admin({ token }) {
+function Admin() {
   const [subscription, setSubscription] = useState(null);
 
   useEffect(() => {
-    apiRequest('/subscription/me', {}, token).then((data) => setSubscription(data.subscription));
-  }, [token]);
+    apiRequest('/subscription/me').then((data) => setSubscription(data.subscription));
+  }, []);
 
   return (
     <div className="card">
