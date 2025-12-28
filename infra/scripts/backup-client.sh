@@ -1,15 +1,25 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-TENANT_ID=${1:-}
-if [[ -z "$TENANT_ID" ]]; then
-  echo "Usage: $0 <tenant_id>" >&2
-  exit 1
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/common.sh"
+
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+  echo "Usage: $0 <tenant_id>"
+  exit 0
 fi
 
-CLIENTS_DIR=${CLIENTS_DIR:-"$(pwd)/clients"}
-BACKUP_DIR=${BACKUP_DIR:-"$(pwd)/backups"}
-POSTGRES_URI=${POSTGRES_URI:-"postgresql://postgres:postgres@127.0.0.1:5432/postgres"}
+TENANT_ID=${1:-}
+if [[ -z "${TENANT_ID}" ]]; then
+  echo "[!] Usage: $0 <tenant_id>" >&2
+  exit 2
+fi
+
+load_env
+require_env CLIENTS_DIR POSTGRES_URI
+
+BACKUP_DIR=${BACKUP_DIR:-"${ROOT_DIR}/backups"}
 
 mkdir -p "$BACKUP_DIR"
 TS=$(date +%Y%m%d-%H%M%S)

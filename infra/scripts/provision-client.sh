@@ -6,14 +6,25 @@ set -euo pipefail
 # - Copie les templates et force le mode dry_run
 # - Prépare un espace data dédié
 
-if [[ $# -lt 1 ]]; then
-  echo "Usage: $0 <client_id>" >&2
-  exit 1
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/common.sh"
+
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+  echo "Usage: $0 <client_id>"
+  exit 0
 fi
 
+if [[ $# -lt 1 ]]; then
+  echo "[!] Usage: $0 <client_id>" >&2
+  exit 2
+fi
+
+load_env
+require_env CLIENTS_DIR
+
 CLIENT_ID="$1"
-ROOT_DIR="${CLIENTS_DIR:-./clients}"
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOT_DIR="${CLIENTS_DIR}"
 TEMPLATE_DIR="${SCRIPT_DIR}/../../clients/templates"
 CLIENT_DIR="${ROOT_DIR}/${CLIENT_ID}"
 NETWORK="fta-client-${CLIENT_ID}"
