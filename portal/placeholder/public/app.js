@@ -73,13 +73,14 @@ function App() {
         <div className="brand">
           <div className="brand-mark"></div>
           <div>
-            <h1>Quant-Core</h1>
-            <span>Finance Control</span>
+            <h1>Freqtrade Portal</h1>
+            <span>Session Control</span>
           </div>
         </div>
         <div className="nav-links">
           <NavLink active={path === '/dashboard'} onClick={() => navigate('/dashboard')}>Dashboard</NavLink>
           <NavLink active={path.startsWith('/sessions')} onClick={() => navigate('/sessions')}>Sessions</NavLink>
+          <NavLink active={path === '/logs'} onClick={() => navigate('/logs')}>Logs</NavLink>
           {me?.role === 'admin' && (
             <NavLink active={path === '/admin'} onClick={() => navigate('/admin')}>Admin</NavLink>
           )}
@@ -101,6 +102,7 @@ function App() {
         {path === '/dashboard' && <Dashboard />}
         {path === '/sessions' && <Sessions navigate={navigate} />}
         {path.startsWith('/sessions/') && <SessionDetail sessionId={path.split('/')[2]} />}
+        {path === '/logs' && <Logs />}
         {path === '/admin' && me?.role === 'admin' && <Admin />}
       </main>
     </div>
@@ -120,10 +122,11 @@ function Login({ onLogin }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const canSubmit = email.trim().length > 0 && password.trim().length > 0;
   return (
     <div className="login-page card">
       <h2>Sign in</h2>
-      <p>Enter your credentials to access the finance control center.</p>
+      <p>Enter your credentials to access the session control panel.</p>
       <div className="form-row">
         <label>
           Email
@@ -134,7 +137,7 @@ function Login({ onLogin }) {
           <input type="password" className="input" value={password} onChange={(e) => setPassword(e.target.value)} />
         </label>
         {error && <span style={{ color: '#dc2626' }}>{error}</span>}
-        <button onClick={() => {
+        <button disabled={!canSubmit} onClick={() => {
           setError('');
           apiRequest('/auth/login', { method: 'POST', body: { email, password } })
             .then((data) => onLogin(data.user))
@@ -208,6 +211,7 @@ function Sessions({ navigate }) {
   const [sessions, setSessions] = useState([]);
   const [name, setName] = useState('');
   const [error, setError] = useState('');
+  const canCreate = name.trim().length > 0;
 
   const refresh = () => {
     apiRequest('/sessions').then((data) => setSessions(data.sessions));
@@ -239,7 +243,7 @@ function Sessions({ navigate }) {
         <div className="form-row">
           <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Session name" />
           {error && <span style={{ color: '#dc2626' }}>{error}</span>}
-          <button onClick={createSession}>Create</button>
+          <button disabled={!canCreate} onClick={createSession}>Create</button>
         </div>
       </div>
       <div className="card">
@@ -260,14 +264,31 @@ function Sessions({ navigate }) {
             {sessions.map((session) => (
               <tr key={session.id}>
                 <td>{session.name}</td>
-                <td><span className="badge">{session.status}</span></td>
+                <td><StatusBadge status={session.status} /></td>
                 <td>{new Date(session.created_at).toLocaleString()}</td>
                 <td>
                   <div className="actions">
                     <button className="ghost" onClick={() => navigate(`/sessions/${session.id}`)}>Open</button>
-                    <button onClick={() => apiRequest(`/sessions/${session.id}/start`, { method: 'POST' }).then(refresh)}>Start</button>
-                    <button className="secondary" onClick={() => apiRequest(`/sessions/${session.id}/stop`, { method: 'POST' }).then(refresh)}>Stop</button>
-                    <button className="secondary" onClick={() => apiRequest(`/sessions/${session.id}/backtest`, { method: 'POST' }).then(refresh)}>Backtest</button>
+                    <button
+                      disabled={!canStartSession(session.status)}
+                      onClick={() => apiRequest(`/sessions/${session.id}/start`, { method: 'POST' }).then(refresh)}
+                    >
+                      Start
+                    </button>
+                    <button
+                      className="secondary"
+                      disabled={!canStopSession(session.status)}
+                      onClick={() => apiRequest(`/sessions/${session.id}/stop`, { method: 'POST' }).then(refresh)}
+                    >
+                      Stop
+                    </button>
+                    <button
+                      className="secondary"
+                      disabled={!canBacktestSession(session.status)}
+                      onClick={() => apiRequest(`/sessions/${session.id}/backtest`, { method: 'POST' }).then(refresh)}
+                    >
+                      Backtest
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -308,11 +329,28 @@ function SessionDetail({ sessionId }) {
       </div>
       <div className="card">
         <h3>Status</h3>
-        <p><span className="badge">{session.status}</span></p>
+        <p><StatusBadge status={session.status} /></p>
         <div className="actions">
-          <button onClick={() => apiRequest(`/sessions/${session.id}/start`, { method: 'POST' }).then(refresh)}>Start</button>
-          <button className="secondary" onClick={() => apiRequest(`/sessions/${session.id}/stop`, { method: 'POST' }).then(refresh)}>Stop</button>
-          <button className="secondary" onClick={() => apiRequest(`/sessions/${session.id}/backtest`, { method: 'POST' }).then(refresh)}>Backtest</button>
+          <button
+            disabled={!canStartSession(session.status)}
+            onClick={() => apiRequest(`/sessions/${session.id}/start`, { method: 'POST' }).then(refresh)}
+          >
+            Start
+          </button>
+          <button
+            className="secondary"
+            disabled={!canStopSession(session.status)}
+            onClick={() => apiRequest(`/sessions/${session.id}/stop`, { method: 'POST' }).then(refresh)}
+          >
+            Stop
+          </button>
+          <button
+            className="secondary"
+            disabled={!canBacktestSession(session.status)}
+            onClick={() => apiRequest(`/sessions/${session.id}/backtest`, { method: 'POST' }).then(refresh)}
+          >
+            Backtest
+          </button>
         </div>
       </div>
       <div className="card">
@@ -340,6 +378,88 @@ function SessionDetail({ sessionId }) {
               </div>
             ))
           )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+function Logs() {
+  const [sessions, setSessions] = useState([]);
+  const [activeSessionId, setActiveSessionId] = useState('');
+  const [logs, setLogs] = useState([]);
+  const [tail, setTail] = useState(200);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    apiRequest('/sessions')
+      .then((data) => {
+        setSessions(data.sessions || []);
+        if (data.sessions?.length) {
+          setActiveSessionId(data.sessions[0].id);
+        }
+      })
+      .catch((err) => setError(err.message));
+  }, []);
+
+  const refresh = () => {
+    if (!activeSessionId) {
+      return;
+    }
+    setLoading(true);
+    setError('');
+    apiRequest(`/sessions/${activeSessionId}/logs?tail=${tail}`)
+      .then((data) => setLogs(data.lines || []))
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    refresh();
+  }, [activeSessionId, tail]);
+
+  return (
+    <>
+      <div className="topbar">
+        <h2>Logs</h2>
+        <button className="ghost" onClick={refresh} disabled={!activeSessionId || loading}>
+          {loading ? 'Loading...' : 'Refresh'}
+        </button>
+      </div>
+      <div className="card">
+        <h3>Session logs</h3>
+        <div className="form-row">
+          <label>
+            Session
+            <select
+              className="input"
+              value={activeSessionId}
+              onChange={(event) => setActiveSessionId(event.target.value)}
+            >
+              {sessions.length === 0 && <option value="">No sessions</option>}
+              {sessions.map((session) => (
+                <option key={session.id} value={session.id}>
+                  {session.name} ({session.status})
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Tail lines
+            <input
+              className="input"
+              type="number"
+              min="20"
+              max="1000"
+              value={tail}
+              onChange={(event) => setTail(Number(event.target.value))}
+            />
+          </label>
+          {error && <span className="error">{error}</span>}
+        </div>
+        <div className="log-box">
+          {logs.length === 0 ? 'No logs available.' : logs.map((line, index) => <div key={index}>{line}</div>)}
         </div>
       </div>
     </>
@@ -382,6 +502,38 @@ function Admin() {
       </div>
     </>
   );
+}
+
+function StatusBadge({ status }) {
+  const label = statusLabel(status);
+  const color = statusColor(status);
+  return <span className={`badge badge-${color}`}>{label}</span>;
+}
+
+function statusLabel(status) {
+  if (status === 'running') return 'Running';
+  if (status === 'stopped') return 'Stopped';
+  if (status === 'backtest') return 'Backtest';
+  return status || 'Unknown';
+}
+
+function statusColor(status) {
+  if (status === 'running') return 'success';
+  if (status === 'stopped') return 'neutral';
+  if (status === 'backtest') return 'warning';
+  return 'neutral';
+}
+
+function canStartSession(status) {
+  return status !== 'running' && status !== 'backtest';
+}
+
+function canStopSession(status) {
+  return status === 'running';
+}
+
+function canBacktestSession(status) {
+  return status !== 'running' && status !== 'backtest';
 }
 
 const root = createRoot(document.getElementById('root'));
