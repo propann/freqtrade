@@ -9,7 +9,9 @@ fi
 CLIENTS_DIR=${CLIENTS_DIR:-"$(pwd)/clients"}
 TENANT_ID="$1"
 EMAIL="$2"
-API_URL=${API_URL:-"http://127.0.0.1:9000"}
+PORTAL_INTERNAL_URL=${PORTAL_INTERNAL_URL:-"http://portal:8080"}
+PORTAL_HOST_URL=${PORTAL_HOST_URL:-"http://localhost:8088"}
+API_URL=${API_URL:-"${PORTAL_INTERNAL_URL%/}/api"}
 
 mkdir -p "$CLIENTS_DIR/$TENANT_ID"/data "$CLIENTS_DIR/$TENANT_ID"/configs
 
@@ -18,6 +20,7 @@ cat <<EOF
 tenant=$TENANT_ID
 email=$EMAIL
 api=$API_URL
+portal_host=$PORTAL_HOST_URL
 client_dir=$CLIENTS_DIR/$TENANT_ID
 EOF
 
