@@ -70,27 +70,38 @@ function App() {
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <h1>Quant-Core Portal</h1>
+        <div className="brand">
+          <div className="brand-mark"></div>
+          <div>
+            <h1>Quant-Core</h1>
+            <span>Finance Control</span>
+          </div>
+        </div>
         <div className="nav-links">
           <NavLink active={path === '/dashboard'} onClick={() => navigate('/dashboard')}>Dashboard</NavLink>
           <NavLink active={path.startsWith('/sessions')} onClick={() => navigate('/sessions')}>Sessions</NavLink>
-          <NavLink active={path === '/admin'} onClick={() => navigate('/admin')}>Admin</NavLink>
+          {me?.role === 'admin' && (
+            <NavLink active={path === '/admin'} onClick={() => navigate('/admin')}>Admin</NavLink>
+          )}
         </div>
-        <div style={{ marginTop: 'auto', fontSize: '12px', color: '#94a3b8' }}>
-          Signed in as {me?.email}
+        <div className="sidebar-footer">
+          <div className="user-meta">
+            <span>Signed in</span>
+            <strong>{me?.email}</strong>
+          </div>
+          <button className="secondary" onClick={() => {
+            apiRequest('/auth/logout', { method: 'POST' }).finally(() => {
+              setMe(null);
+              navigate('/login');
+            });
+          }}>Log out</button>
         </div>
-        <button className="secondary" onClick={() => {
-          apiRequest('/auth/logout', { method: 'POST' }).finally(() => {
-            setMe(null);
-            navigate('/login');
-          });
-        }}>Log out</button>
       </aside>
       <main className="main">
         {path === '/dashboard' && <Dashboard />}
         {path === '/sessions' && <Sessions navigate={navigate} />}
         {path.startsWith('/sessions/') && <SessionDetail sessionId={path.split('/')[2]} />}
-        {path === '/admin' && <Admin />}
+        {path === '/admin' && me?.role === 'admin' && <Admin />}
       </main>
     </div>
   );
@@ -112,7 +123,7 @@ function Login({ onLogin }) {
   return (
     <div className="login-page card">
       <h2>Sign in</h2>
-      <p>Use your admin credentials to access the control plane.</p>
+      <p>Enter your credentials to access the finance control center.</p>
       <div className="form-row">
         <label>
           Email
@@ -137,27 +148,56 @@ function Login({ onLogin }) {
 function Dashboard() {
   const [tenant, setTenant] = useState(null);
   const [subscription, setSubscription] = useState(null);
+  const [sessions, setSessions] = useState([]);
 
   useEffect(() => {
     apiRequest('/tenants/me').then((data) => setTenant(data.tenant));
     apiRequest('/subscription/me').then((data) => setSubscription(data.subscription));
+    apiRequest('/sessions').then((data) => setSessions(data.sessions || []));
   }, []);
+
+  const runningCount = sessions.filter((session) => session.status === 'running').length;
 
   return (
     <>
       <div className="topbar">
         <h2>Dashboard</h2>
+        <div className="topbar-actions">
+          <span className="pill">Operations</span>
+        </div>
       </div>
       <div className="status-grid">
         <div className="status-card">
           <h4>Tenant</h4>
           <p>{tenant?.id || 'Loading...'}</p>
-          <span className="badge">{tenant?.email}</span>
+          <span className="badge">{tenant?.email || 'Awaiting tenant'}</span>
         </div>
         <div className="status-card">
           <h4>Subscription</h4>
           <p>{subscription?.status || 'Loading...'}</p>
-          <span className="badge">{subscription?.plan}</span>
+          <span className="badge">{subscription?.plan || 'Awaiting plan'}</span>
+        </div>
+        <div className="status-card">
+          <h4>Sessions</h4>
+          <p>{sessions.length} total</p>
+          <span className="badge">{runningCount} running</span>
+        </div>
+      </div>
+      <div className="card">
+        <h3>Operations overview</h3>
+        <div className="info-grid">
+          <div>
+            <span className="label">Active risk controls</span>
+            <strong>Standard policy</strong>
+          </div>
+          <div>
+            <span className="label">Audit window</span>
+            <strong>Last 24 hours</strong>
+          </div>
+          <div>
+            <span className="label">Last sync</span>
+            <strong>Moments ago</strong>
+          </div>
         </div>
       </div>
     </>
@@ -203,6 +243,10 @@ function Sessions({ navigate }) {
         </div>
       </div>
       <div className="card">
+        <div className="table-head">
+          <h3>Active sessions</h3>
+          <span className="muted">{sessions.length} tracked</span>
+        </div>
         <table className="table">
           <thead>
             <tr>
@@ -287,12 +331,33 @@ function Admin() {
   }, []);
 
   return (
-    <div className="card">
-      <h2>Admin overview</h2>
-      <p>Default plan: {subscription?.plan}</p>
-      <p>Status: {subscription?.status}</p>
-      <p>Use the sessions screen to create and manage bot runs.</p>
-    </div>
+    <>
+      <div className="topbar">
+        <h2>Admin</h2>
+        <span className="pill">Restricted</span>
+      </div>
+      <div className="card">
+        <h3>Subscription controls</h3>
+        <div className="info-grid">
+          <div>
+            <span className="label">Default plan</span>
+            <strong>{subscription?.plan || 'Loading...'}</strong>
+          </div>
+          <div>
+            <span className="label">Status</span>
+            <strong>{subscription?.status || 'Loading...'}</strong>
+          </div>
+          <div>
+            <span className="label">Governance</span>
+            <strong>Managed by operations</strong>
+          </div>
+        </div>
+      </div>
+      <div className="card">
+        <h3>Guidance</h3>
+        <p>Use the sessions workspace to create, start, stop, and backtest sessions.</p>
+      </div>
+    </>
   );
 }
 
