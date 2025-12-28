@@ -282,10 +282,12 @@ function Sessions({ navigate }) {
 function SessionDetail({ sessionId }) {
   const [session, setSession] = useState(null);
   const [logs, setLogs] = useState([]);
+  const [auditEntries, setAuditEntries] = useState([]);
 
   const refresh = () => {
     apiRequest(`/sessions/${sessionId}`).then((data) => setSession(data.session));
     apiRequest(`/sessions/${sessionId}/logs?tail=200`).then((data) => setLogs(data.lines));
+    apiRequest(`/audit?session_id=${encodeURIComponent(sessionId)}`).then((data) => setAuditEntries(data.entries || []));
   };
 
   useEffect(() => {
@@ -317,6 +319,27 @@ function SessionDetail({ sessionId }) {
         <h3>Logs (tail)</h3>
         <div className="log-box">
           {logs.length === 0 ? 'No logs yet.' : logs.map((line, index) => <div key={index}>{line}</div>)}
+        </div>
+      </div>
+      <div className="card">
+        <h3>Audit trail</h3>
+        <div className="audit-list">
+          {auditEntries.length === 0 ? (
+            <span className="muted">No audit entries yet.</span>
+          ) : (
+            auditEntries.map((entry) => (
+              <div className="audit-row" key={entry.id}>
+                <div>
+                  <strong>{entry.action}</strong>
+                  <div className="muted">{entry.session_id || 'Tenant scope'}</div>
+                </div>
+                <div className="audit-meta">
+                  <span>{entry.created_at ? new Date(entry.created_at).toLocaleString() : '—'}</span>
+                  <code>{entry.meta ? JSON.stringify(entry.meta) : '{}'}</code>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </>

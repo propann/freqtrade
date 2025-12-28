@@ -205,6 +205,48 @@ button.ghost {
   overflow: auto;
 }
 
+.audit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.audit-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  font-size: 13px;
+}
+
+.audit-row strong {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 11px;
+  color: #1e293b;
+}
+
+.audit-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  text-align: right;
+}
+
+.audit-meta code {
+  background: #e2e8f0;
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-size: 11px;
+  color: #1f2937;
+  max-width: 280px;
+  overflow-wrap: anywhere;
+}
+
 .login-page {
   max-width: 440px;
   margin: 120px auto;
