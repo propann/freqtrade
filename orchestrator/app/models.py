@@ -24,6 +24,7 @@ class TenantQuotas(BaseModel):
     max_bots: int = Field(..., ge=1)
     cpu_limit: float = Field(..., gt=0)
     mem_limit: str
+    pids_limit: int = Field(..., ge=10)
     allow_hyperopt: bool = False
     allow_backtest: bool = False
 
@@ -63,6 +64,8 @@ class BotConfig(BaseModel):
     strategy: str
     template: str
     config_path: str
+    compose_path: str
+    project_name: str
     network: str
     state_path: str
     risk: BotRiskLimits

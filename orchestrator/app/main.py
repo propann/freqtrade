@@ -87,6 +87,11 @@ def pause_bot(bot_id: str, mgr: BotManager = Depends(get_manager)) -> ActionResp
     return mgr.pause_bot(bot_id, actor="system")
 
 
+@app.post("/bots/{bot_id}/stop", response_model=ActionResponse)
+def stop_bot(bot_id: str, mgr: BotManager = Depends(get_manager)) -> ActionResponse:
+    return mgr.stop_bot(bot_id, actor="system")
+
+
 @app.post("/bots/{bot_id}/restart", response_model=ActionResponse)
 def restart_bot(bot_id: str, mgr: BotManager = Depends(get_manager)) -> ActionResponse:
     return mgr.restart_bot(bot_id, actor="system")
@@ -102,6 +107,11 @@ def logs(bot_id: str, mgr: BotManager = Depends(get_manager)) -> LogResponse:
     content = mgr.logs(bot_id)
     bot = mgr.status(bot_id)
     return LogResponse(bot_id=bot_id, tenant_id=bot.tenant_id, content=content)
+
+
+@app.post("/bots/{bot_id}/backtest", response_model=ActionResponse)
+def backtest(bot_id: str, mgr: BotManager = Depends(get_manager)) -> ActionResponse:
+    return mgr.backtest_bot(bot_id, actor="system")
 
 
 @app.get("/tenants/{tenant_id}/audit", response_model=AuditResponse)
