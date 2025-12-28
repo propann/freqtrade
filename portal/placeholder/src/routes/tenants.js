@@ -56,6 +56,11 @@ router.post('/tenants', adminAuth, async (req, res) => {
   try {
     await ensureTenant(id, email);
     const subscription = await ensureSubscription(id);
+    await pool.query('INSERT INTO audit_logs(tenant_id, action, meta) VALUES($1, $2, $3)', [
+      id,
+      'tenant_upserted',
+      { email, subscription_status: subscription?.status },
+    ]);
     return res.status(201).json({
       status: 'created',
       tenant: { id, email },

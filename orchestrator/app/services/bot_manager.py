@@ -22,8 +22,8 @@ from ..models import (
 )
 from ..utils.guards import ensure_active_subscription
 from ..utils.secrets import vault
-from ..utils.guards import ensure_active_subscription
 from .state import StateStore
+from .quota_manager import QuotaManager
 
 
 class BotManager:
@@ -172,11 +172,9 @@ class BotManager:
         return bot, self.get_tenant_quotas(bot.tenant_id)
 
     def start_bot(self, bot_id: str, actor: str) -> ActionResponse:
-        bot = self.state.get_bot(bot_id)
-        if not bot:
-            raise HTTPException(status_code=404, detail="Bot not found")
-        self.enforce_subscription(bot.tenant_id)
+        bot, quotas = self._enforce_quota_for_bot(bot_id)
         self.prepare_bot_config(bot_id)
+        resource_limits = self.quota_manager.get_docker_resource_config(quotas)
         return self._transition(
             bot_id,
             BotStatus.running,
