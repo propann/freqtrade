@@ -77,7 +77,7 @@ router.post('/', async (req, res) => {
   try {
     await pool.query(
       'INSERT INTO sessions(id, tenant_id, name, status, meta, created_at, updated_at) VALUES($1, $2, $3, $4, $5, $6, $6)',
-      [id, tenantId, name, 'created', meta, now]
+      [id, tenantId, name, 'stopped', meta, now]
     );
     await prepareSession(tenantId, id, name);
     await audit(tenantId, id, 'session_created', { name });
@@ -178,7 +178,7 @@ router.post('/:id/backtest', async (req, res) => {
     strategy: req.body?.strategy,
   };
   const job = await createJob(session.id, 'backtest', 'running', paths.logFile, meta);
-  await pool.query('UPDATE sessions SET status = $1, updated_at = NOW() WHERE id = $2', ['backtesting', session.id]);
+  await pool.query('UPDATE sessions SET status = $1, updated_at = NOW() WHERE id = $2', ['backtest', session.id]);
   await audit(tenantId, session.id, 'session_backtest', meta);
   try {
     const result = await backtestSession(tenantId, session.id, session.name);
