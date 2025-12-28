@@ -1,7 +1,7 @@
 :root {
   font-family: "Inter", "IBM Plex Sans", system-ui, sans-serif;
-  color: #0b1220;
-  background-color: #f4f6fb;
+  color: #0f172a;
+  background-color: #f5f6f8;
 }
 
 * {
@@ -25,7 +25,7 @@ a {
 }
 
 .sidebar {
-  background: #0b1220;
+  background: #111827;
   color: #e5e7eb;
   padding: 28px 24px;
   display: flex;
@@ -44,8 +44,8 @@ a {
   width: 36px;
   height: 36px;
   border-radius: 10px;
-  background: linear-gradient(135deg, #1d4ed8, #0ea5e9);
-  box-shadow: 0 10px 24px rgba(29, 78, 216, 0.35);
+  background: linear-gradient(135deg, #64748b, #1f2937);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.35);
 }
 
 .brand h1 {
@@ -78,7 +78,7 @@ a {
 }
 
 .nav-links a.active {
-  background: rgba(59, 130, 246, 0.16);
+  background: rgba(148, 163, 184, 0.2);
   color: #fff;
 }
 
@@ -153,20 +153,25 @@ button {
   padding: 9px 16px;
   border-radius: 10px;
   cursor: pointer;
-  background: #1d4ed8;
+  background: #334155;
   color: #fff;
   font-weight: 500;
   font-size: 13px;
 }
 
 button.secondary {
-  background: #334155;
+  background: #475569;
 }
 
 button.ghost {
   background: transparent;
-  color: #1d4ed8;
+  color: #334155;
   border: 1px solid #cbd5f5;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .input {
@@ -176,6 +181,16 @@ button.ghost {
   border-radius: 10px;
   margin-top: 6px;
   font-size: 14px;
+  background: #fff;
+}
+
+.input:disabled {
+  background: #f1f5f9;
+}
+
+.error {
+  color: #b91c1c;
+  font-size: 13px;
 }
 
 .form-row {
@@ -194,8 +209,23 @@ button.ghost {
   color: #0f172a;
 }
 
+.badge-success {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.badge-warning {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.badge-neutral {
+  background: #e2e8f0;
+  color: #334155;
+}
+
 .log-box {
-  background: #0b1220;
+  background: #111827;
   color: #e2e8f0;
   padding: 16px;
   border-radius: 12px;
@@ -272,10 +302,10 @@ button.ghost {
 .pill {
   padding: 6px 12px;
   border-radius: 999px;
-  background: #e0e7ff;
+  background: #e2e8f0;
   font-size: 12px;
   font-weight: 500;
-  color: #1e3a8a;
+  color: #334155;
 }
 
 .muted {
