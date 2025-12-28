@@ -1,22 +1,29 @@
-# Sécurité et isolation
+# Sécurité (prod)
 
-## Principes
-- **Aucun secret dans Git** : seuls des placeholders figurent dans les templates et `.env.example`.
-- **Isolation réseau** : réseau `control` pour le portail, réseau `fta-client-<id>` par tenant.
-- **docker-socket-proxy** : exposition minimale (containers/images/networks/volumes/events/ping/version/info uniquement).
-- **Durcissement des conteneurs** : `cap_drop: ["ALL"]`, `no-new-privileges`, `read_only` quand possible, quotas CPU/RAM/PIDs appliqués par défaut.
-- **Logs sans secrets** : filtres côté orchestrateur pour éviter l'impression de clés API.
-- **Audit** : chaque action (create/start/pause/restart) est journalisée avec l'acteur et l'horodatage.
+## Ports ouverts minimum (SG AWS / host)
+- 80/443 (TCP) depuis Internet -> nginx host (reverse-proxy public).
+- SSH restreint (source IP allowlist). GitHub via SSH 443 (voir OPERATIONS.md) si nécessaire.
+- Pas d'exposition directe du port 8088 : il reste en loopback (`127.0.0.1:8088`) pour nginx host.
 
-## Secrets AWS
-- **SSM Parameter Store** pour les clés API d'échange par tenant/bot.
-- **Secrets Manager** pour les tokens sensibles (Telegram, webhooks).
-- Injection au runtime via les entrées d'environnement du conteneur ou montée de fichiers.
+## UFW / Firewall host
+- Si UFW activé : `sudo ufw allow 80,443/tcp`, `sudo ufw allow from <admin_ip> to any port 22 proto tcp`, `sudo ufw enable`.
+- Vérifier: `sudo ufw status numbered`. Les règles Docker doivent conserver l'accès loopback (127.0.0.1:8088).
 
-## AuthN/AuthZ
-- JWT côté portail (non inclus ici) pour identifier l'utilisateur.
-- L'orchestrateur applique un contrôle de statut d'abonnement (`active`) avant toute action sensible.
+## Nginx host vs nginx docker
+- Nginx host : termine TLS, sert de reverse-proxy public (`/etc/nginx/sites-enabled/...`), envoie le trafic vers `http://127.0.0.1:8088`.
+- Nginx docker (infra/nginx) : proxy interne `8080 -> portal:8088` dans le réseau compose `control`. Ne jamais exposer directement sur Internet.
+- Vérification rapide : `sudo journalctl -u nginx -f` (host) et `sudo bash infra/scripts/prod-logs.sh nginx` (docker).
 
-## Sauvegarde/restauration
-- Scripts dédiés (`infra/scripts/backup-client.sh`, `restore-client.sh`) pour copier `clients/<id>` et les métadonnées Postgres.
-- Les dumps sont chiffrés côté opérateur avant stockage (S3 SSE-KMS recommandé, hors dépôt Git).
+## Secrets
+- Emplacement prod: `/etc/quant-core/quant-core.env` (root:root, chmod 600). Jamais de secrets dans Git.
+- Rotation: `sudo bash infra/scripts/prod-rotate-secrets.sh` (renouvelle `PORTAL_JWT_SECRET` + `PORTAL_ADMIN_TOKEN`, puis redémarre la stack).
+- Droits: `ls -l /etc/quant-core/quant-core.env` doit afficher `-rw------- root root`.
+
+## Conteneurs et réseau
+- Réseau `control` dédié aux services core. Nginx docker publie uniquement sur loopback host.
+- `docker-socket-proxy` expose uniquement les API nécessaires (containers/images/networks/volumes/events/ping/version/info).
+- Portal tourné en mode restreint: `read_only: true`, `cap_drop: ALL`, `no-new-privileges`.
+
+## Logs / PII
+- Journaux portal/nginx/postgres accessibles via `prod-logs.sh`, sans inclusion volontaire de secrets.
+- Journalctl/CloudWatch: s'assurer que la rétention est configurée pour éviter les fuites prolongées.

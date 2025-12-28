@@ -1,31 +1,39 @@
-# Opérations (EC2 + Docker Compose)
+# Opérations (EC2)
 
-## Pré-requis EC2
-- Ubuntu 22.04 LTS, sécurité renforcée (firewall limité, accès SSH restreint).
-- Docker + docker-compose installés via `infra/scripts/install-ec2.sh`.
-- Fichier `.env` dérivé de `.env.example` (aucun secret réel dans Git).
+## Répertoires clefs
+- Code: `/home/ubuntu/freqtrade`
+- Secrets prod: `/etc/quant-core/quant-core.env` (root:root, 600). Copier via `sudo bash infra/scripts/install-env-prod.sh`.
+- Données: `clients/` (un sous-dossier par tenant) et `logs/` (bind-mount dans les conteneurs portal). Vérifier présence/permissions: `sudo bash infra/scripts/check-env.sh`.
+- Backups: `/var/backups/quant-core/*.sql.gz` (dump Postgres).
 
-## Déploiement
-```bash
-infra/scripts/deploy.sh
+## Rotation des logs
+- Docker (json-file) non roté par défaut. Recommandé: `/etc/docker/daemon.json` :
+```json
+{
+  "log-driver": "json-file",
+  "log-opts": { "max-size": "50m", "max-file": "5" }
+}
 ```
-- Lancement des services : Postgres, docker-socket-proxy, portail placeholder.
-- Le portail reste bindé en loopback (`127.0.0.1`) et le reverse-proxy est assuré par le Nginx système (hors Docker).
+Relancer docker: `sudo systemctl restart docker`.
+- Nginx host: journalctl gère la rotation (journald). Pour fichiers access/error personnalisés, ajouter une entrée logrotate dédiée.
 
-## Gestion des bots
-- Provision `POST /tenants/{id}/bots` (requiert subscription active).
-- Start/pause/restart via endpoints publics orchestrateur ou via la console.
-- Les conteneurs bots utilisent le réseau `fta-client-<id>` et montent `clients/<id>/configs` + `clients/<id>/data`.
+## Politique de tokens (JWT/admin)
+- `PORTAL_JWT_SECRET` et `PORTAL_ADMIN_TOKEN` vivent uniquement dans `/etc/quant-core/quant-core.env` (jamais Git).
+- Rotation: `sudo bash infra/scripts/prod-rotate-secrets.sh` (redéploie le portail). Effet: reconnexion utilisateur + mise à jour des scripts admin.
+- Toujours passer le token admin en header `X-Admin-Token` (ou `Authorization: Bearer`).
 
-## Sauvegarde / Restauration
-- `infra/scripts/backup-client.sh <tenant_id>` : archive `clients/<id>` + dump ciblé Postgres (metadata tenant/audit).
-- `infra/scripts/restore-client.sh <tenant_id> <archive.tar.gz>` : restaure les fichiers et recharge le dump.
+## Convention de nommage tenants
+- Format recommandé: `client-<nom>-<env>` ex. `client-azoth-prod`, `client-azoth-staging`.
+- Caractères autorisés: `[a-z0-9-]`, commencer par une lettre, longueur < 32.
+- Les dossiers dans `clients/` reprennent exactement l'identifiant tenant.
 
-## Journalisation
-- Logs applicatifs orchestrateur/portail : stdout -> `docker logs` (sans secrets).
-- Logs bots : conservés dans `clients/<id>/logs`. Pas de diffusion externe par défaut.
-
-## Migration ECS/Fargate (option)
-- Remplacer docker-compose par des tâches Fargate (1 tâche = 1 bot ou 1 job éphémère).
-- Secrets injectés via IAM Task Role + secrets ECS.
-- Réseau par tâche via VPC/Subnets isolés.
+## GitHub via SSH port 443 (port 22 bloqué)
+Ajouter à `~/.ssh/config` :
+```
+Host github.com
+  HostName ssh.github.com
+  User git
+  Port 443
+  IdentityFile ~/.ssh/id_ed25519
+```
+Tester: `ssh -T git@github.com`.

@@ -90,6 +90,9 @@ services:
     security_opt:
       - no-new-privileges:true
     read_only: true
+    volumes:
+      - ../clients:/app/clients
+      - ../logs:/app/logs
     tmpfs:
       - /tmp
     cap_drop:

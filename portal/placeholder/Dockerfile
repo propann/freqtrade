@@ -8,6 +8,7 @@ RUN npm ci --only=production
 COPY portal/placeholder/src ./src
 COPY portal/placeholder/public ./public
 COPY portal/placeholder/db.sql ./db.sql
+COPY portal/placeholder/sql ./sql
 COPY templates/client-compose.yml ./templates/client-compose.yml
 
 USER node
