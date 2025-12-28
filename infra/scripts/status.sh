@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/common.sh"
 COMPOSE_FILE="${ROOT_DIR}/infra/docker-compose.yml"
-ENV_FILE="${ROOT_DIR}/.env"
+
+load_env
 
 echo "[+] Services de contrôle"
 docker compose -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" ps

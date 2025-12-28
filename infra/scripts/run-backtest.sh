@@ -3,15 +3,27 @@ set -euo pipefail
 
 # Lance un backtest dans un conteneur éphémère isolé (1 job = 1 conteneur).
 
-if [[ $# -lt 1 ]]; then
-  echo "Usage: $0 <client_id> [strategy] [timerange]" >&2
-  exit 1
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/common.sh"
+
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+  echo "Usage: $0 <client_id> [strategy] [timerange]"
+  exit 0
 fi
+
+if [[ $# -lt 1 ]]; then
+  echo "[!] Usage: $0 <client_id> [strategy] [timerange]" >&2
+  exit 2
+fi
+
+load_env
+require_env CLIENTS_DIR
 
 CLIENT_ID="$1"
 STRATEGY="${2:-SampleStrategy}"
 TIMERANGE="${3:-20230101-20230201}"
-ROOT_DIR="${CLIENTS_DIR:-./clients}"
+ROOT_DIR="${CLIENTS_DIR}"
 CLIENT_DIR="${ROOT_DIR}/${CLIENT_ID}"
 DATA_DIR="${CLIENT_DIR}/data"
 CONFIG_FILE="${DATA_DIR}/config.json"
