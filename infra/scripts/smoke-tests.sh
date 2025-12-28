@@ -1,14 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PORTAL_HOST_URL=${PORTAL_HOST_URL:-"http://localhost:8088"}
-ADMIN_EMAIL=${ADMIN_EMAIL:-"admin@example.com"}
-ADMIN_PASSWORD=${ADMIN_PASSWORD:-""}
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/common.sh"
 
-if [[ -z "${ADMIN_PASSWORD}" ]]; then
-  echo "ADMIN_PASSWORD must be set to run smoke tests." >&2
-  exit 1
-fi
+load_env
+require_env PORTAL_HOST_URL ADMIN_EMAIL ADMIN_PASSWORD
 
 health_url="${PORTAL_HOST_URL%/}/health"
 
