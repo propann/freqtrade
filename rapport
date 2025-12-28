@@ -1,0 +1,114 @@
+# Rapport complet du projet freqtrade-aws
+
+## 1. Résumé exécutif
+Le projet **freqtrade-aws** fournit une surcouche SaaS multi-tenant autour de Freqtrade, sans modifier le cœur du projet. L’objectif est d’opérer plusieurs bots isolés via une infrastructure **EC2 + Docker Compose**, avec une trajectoire documentée vers **ECS Fargate**. La solution comprend un orchestrateur FastAPI, une console web Next.js, des scripts d’infrastructure, des templates de configuration et une documentation opérationnelle et sécurité.
+
+## 2. Objectifs et périmètre
+- **Multi-tenancy** : chaque client dispose d’un espace isolé (réseau, configuration, données, logs).
+- **Orchestration** : API centralisée pour créer et piloter les bots (start/pause/restart/status/logs/audit).
+- **SaaS payant** : intégration PayPal prévue pour contrôler l’accès (statut d’abonnement).
+- **Sécurité & conformité** : secrets injectés à l’exécution (SSM/Secrets Manager), durcissement des conteneurs, audit des actions.
+- **Évolutivité** : migration possible vers ECS Fargate sans changer la logique d’orchestration.
+
+## 3. Architecture globale
+### 3.1 Composants principaux
+- **Orchestrator (FastAPI)** : API de gestion des tenants/bots, quotas, logs et audit.
+- **Console (Next.js)** : interface web (dark mode) pour piloter les bots sans exposer de secrets.
+- **Infra (EC2 + Docker Compose)** : services de base (Postgres, docker-socket-proxy, Nginx, portail placeholder).
+- **Templates** : modèles de configuration Freqtrade et validateurs de risque/quotas.
+- **Clients** : répertoires isolés par tenant (configs, data, logs, résultats).
+
+### 3.2 Réseaux et isolation
+- Réseau `control` : portail + proxy.
+- Réseau `fta-client-<id>` : réseau dédié par client pour isoler les conteneurs.
+- **docker-socket-proxy** : réduction de la surface d’accès au moteur Docker.
+
+### 3.3 Flux principal d’un bot
+1. **Onboarding** tenant (création DB + orchestrateur).
+2. **Vérification abonnement** (bloque si non `active`).
+3. **Génération config** depuis `templates/` + validateurs de risque.
+4. **Démarrage** du conteneur Freqtrade (quotas CPU/RAM/PIDs, secrets injectés).
+5. **Supervision** via logs et endpoints statut/metrics.
+6. **Jobs éphémères** (backtests/hyperopt) avec résultats persistés.
+
+## 4. Déploiement et opérations
+### 4.1 Pré-requis
+- Ubuntu 22.04 LTS
+- Docker + docker-compose via `infra/scripts/install-ec2.sh`
+- Fichier `.env` basé sur `.env.example` (aucun secret dans Git)
+
+### 4.2 Déploiement initial
+- Script : `infra/scripts/deploy.sh`
+- Services lancés : Postgres, docker-socket-proxy, portail, Nginx
+- Portail bindé en loopback (accès via Nginx)
+
+### 4.3 Gestion des bots
+- API orchestrateur : création, start/pause/restart/status/logs
+- Isolation par réseaux dédiés et volumes `clients/<id>/configs` + `clients/<id>/data`
+
+### 4.4 Sauvegarde et restauration
+- `infra/scripts/backup-client.sh <id>` : archive `clients/<id>` + dump Postgres ciblé
+- `infra/scripts/restore-client.sh <id> <archive>` : restauration fichiers + métadonnées
+
+## 5. Sécurité
+- **Aucun secret en Git** (placeholders uniquement)
+- **Durcissement conteneurs** : `cap_drop: ["ALL"]`, `no-new-privileges`, quotas CPU/RAM/PIDs, `read_only` quand possible
+- **Isolation réseau** par tenant
+- **Logs filtrés** pour éviter les fuites de secrets
+- **Audit trail** complet des actions sensibles
+
+### 5.1 Gestion des secrets
+- **SSM Parameter Store** : clés d’échange par tenant/bot
+- **Secrets Manager** : tokens sensibles (Telegram, webhooks)
+- Injection runtime par variables d’environnement ou fichiers montés
+
+## 6. Modèle économique et facturation
+### 6.1 PayPal (MVP)
+- Statut stocké en base (`subscriptions.status`)
+- Blocage des actions sensibles si `status != active`
+- Webhook PayPal prévu pour synchroniser les statuts
+
+### 6.2 Pricing (MVP)
+- Facturation basée sur CPU/RAM, durée des jobs, stockage
+- Plans indicatifs :
+  - **Plan 20** : 1 vCPU, 1 Go RAM, `pids_limit=256`
+  - **Plan 30** : 1–2 vCPU, 2 Go RAM
+  - **Plan +** : ressources ajustables sur demande
+- Surconsommation facturée à l’usage (CPU-minute, Go-mois)
+
+## 7. Estimation des coûts AWS (indicatif)
+- EC2 t3.medium : ~35$/mois
+- EBS gp3 50GiB : ~5$/mois
+- S3 : ~0.023$/Go/mois
+- Secrets Manager : ~0.40$/secret/mois
+- SSM Parameter Store : ~0.05$/10k transactions
+
+## 8. Roadmap / Plan d’exécution
+1. Baseline infra (Docker/Compose + services de base)
+2. Orchestrateur FastAPI (API centralisée)
+3. Templates et validateurs de risque
+4. Intégration AWS SSM/Secrets
+5. Console Next.js connectée
+6. Billing PayPal (statut subscription)
+7. Backup/restore testés
+8. Durcissement supplémentaire (read-only, quotas)
+9. Migration optionnelle ECS/Fargate
+
+## 9. Structure du dépôt
+- `orchestrator/` : API FastAPI multi-tenant
+- `console/` : UI Next.js
+- `infra/` : scripts, compose, Nginx, docker-socket-proxy
+- `templates/` : configs Freqtrade + validateurs
+- `docs/` : architecture, sécurité, opérations, coûts, roadmap
+- `clients/` : données générées par tenant
+
+## 10. Points clés et recommandations
+- **Sécuriser les secrets** via SSM/Secrets Manager uniquement.
+- **Renforcer l’isolement** réseau par tenant et le durcissement Docker.
+- **Valider les quotas** CPU/RAM/PIDs pour éviter les abus.
+- **Mettre en place le webhook PayPal** pour automatiser la gestion des abonnements.
+- **Préparer la migration ECS/Fargate** si la charge augmente.
+
+---
+
+Ce rapport synthétise la vision produit, l’architecture, l’exploitation et la sécurité du projet freqtrade-aws, ainsi que les éléments de facturation et de coûts cloud.
