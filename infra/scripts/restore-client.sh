@@ -7,6 +7,8 @@ source "${SCRIPT_DIR}/common.sh"
 
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
   echo "Usage: $0 <tenant_id> <archive.tar.gz>"
+  echo
+  echo "Restaure un tenant depuis une archive et un dump optionnel."
   exit 0
 fi
 
@@ -17,10 +19,11 @@ fi
 
 load_env
 require_env CLIENTS_DIR POSTGRES_URI
+require_cmd tar psql
 
 TENANT_ID="$1"
 ARCHIVE="$2"
-META_FILE=${META_FILE:-""}
+META_FILE="${META_FILE:-}"
 
 mkdir -p "$CLIENTS_DIR"
 tar -xzf "$ARCHIVE" -C "$CLIENTS_DIR"

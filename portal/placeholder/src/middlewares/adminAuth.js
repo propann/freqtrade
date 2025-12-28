@@ -1,5 +1,7 @@
 let devModeLogged = false;
-const adminToken = process.env.PORTAL_ADMIN_TOKEN;
+const { requireEnv } = require('../config/env');
+
+const adminToken = requireEnv('PORTAL_ADMIN_TOKEN');
 
 function adminAuth(req, res, next) {
   if (!adminToken) {

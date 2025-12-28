@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
+const { requireEnv } = require('../config/env');
 
-const secret = process.env.PORTAL_JWT_SECRET || 'change-me';
+const secret = requireEnv('PORTAL_JWT_SECRET');
 const authCookieName = 'portal_auth';
 
 function getCookieValue(cookieHeader, name) {

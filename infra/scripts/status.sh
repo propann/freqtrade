@@ -6,7 +6,15 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/common.sh"
 COMPOSE_FILE="${ROOT_DIR}/infra/docker-compose.yml"
 
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+  echo "Usage: $0"
+  echo
+  echo "Affiche l'état des services et des réseaux clients."
+  exit 0
+fi
+
 load_env
+require_docker_compose
 
 echo "[+] Services de contrôle"
 docker compose -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" ps

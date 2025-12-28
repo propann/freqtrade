@@ -6,8 +6,16 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/common.sh"
 COMPOSE_FILE="${ROOT_DIR}/infra/docker-compose.yml"
 
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+  echo "Usage: $0"
+  echo
+  echo "Démarre les services de contrôle et vérifie la santé du portail."
+  exit 0
+fi
+
 load_env
 require_env PORTAL_HOST_URL
+require_docker_compose
 
 echo "[+] Démarrage des services de contrôle..."
 docker compose -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" up -d --build

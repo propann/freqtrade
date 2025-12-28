@@ -9,6 +9,8 @@ source "${SCRIPT_DIR}/common.sh"
 
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
   echo "Usage: $0 <client_id> [strategy] [timerange]"
+  echo
+  echo "Lance un backtest dans un conteneur éphémère isolé."
   exit 0
 fi
 
@@ -18,7 +20,8 @@ if [[ $# -lt 1 ]]; then
 fi
 
 load_env
-require_env CLIENTS_DIR
+require_env CLIENTS_DIR JOB_TIMEOUT
+require_cmd docker timeout grep tr
 
 CLIENT_ID="$1"
 STRATEGY="${2:-SampleStrategy}"
@@ -31,7 +34,7 @@ COMPOSE_FILE="${CLIENT_DIR}/docker-compose.job.yml"
 ENV_FILE="${CLIENT_DIR}/.env"
 NETWORK="fta-client-${CLIENT_ID}"
 SUBSCRIPTION_STATUS_FILE="${CLIENT_DIR}/subscription.status"
-JOB_TIMEOUT="${JOB_TIMEOUT:-${DEFAULT_JOB_TIMEOUT:-10m}}"
+JOB_TIMEOUT="${JOB_TIMEOUT}"
 
 if [[ ! -d "${CLIENT_DIR}" ]]; then
   echo "Client ${CLIENT_ID} introuvable" >&2

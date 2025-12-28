@@ -5,8 +5,16 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/common.sh"
 
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+  echo "Usage: $0"
+  echo
+  echo "Exécute une série de requêtes API pour valider le portail."
+  exit 0
+fi
+
 load_env
 require_env PORTAL_HOST_URL ADMIN_EMAIL ADMIN_PASSWORD ORCHESTRATOR_URL
+require_cmd curl python mktemp
 
 health_url="${PORTAL_HOST_URL%/}/health"
 orchestrator_health="${ORCHESTRATOR_URL%/}/health"

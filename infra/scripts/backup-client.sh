@@ -7,6 +7,8 @@ source "${SCRIPT_DIR}/common.sh"
 
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
   echo "Usage: $0 <tenant_id>"
+  echo
+  echo "Crée une archive des données et des métadonnées d'un tenant."
   exit 0
 fi
 
@@ -17,9 +19,8 @@ if [[ -z "${TENANT_ID}" ]]; then
 fi
 
 load_env
-require_env CLIENTS_DIR POSTGRES_URI
-
-BACKUP_DIR=${BACKUP_DIR:-"${ROOT_DIR}/backups"}
+require_env CLIENTS_DIR POSTGRES_URI BACKUP_DIR
+require_cmd tar pg_dump
 
 mkdir -p "$BACKUP_DIR"
 TS=$(date +%Y%m%d-%H%M%S)

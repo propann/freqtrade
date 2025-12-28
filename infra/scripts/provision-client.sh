@@ -12,6 +12,8 @@ source "${SCRIPT_DIR}/common.sh"
 
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
   echo "Usage: $0 <client_id>"
+  echo
+  echo "Provisionne un environnement isolé pour un client."
   exit 0
 fi
 
@@ -21,11 +23,12 @@ if [[ $# -lt 1 ]]; then
 fi
 
 load_env
-require_env CLIENTS_DIR
+require_env CLIENTS_DIR CLIENT_TEMPLATES_DIR
+require_cmd cp sed docker
 
 CLIENT_ID="$1"
 ROOT_DIR="${CLIENTS_DIR}"
-TEMPLATE_DIR="${SCRIPT_DIR}/../../clients/templates"
+TEMPLATE_DIR="${CLIENT_TEMPLATES_DIR}"
 CLIENT_DIR="${ROOT_DIR}/${CLIENT_ID}"
 NETWORK="fta-client-${CLIENT_ID}"
 

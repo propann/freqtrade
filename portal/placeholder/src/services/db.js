@@ -1,11 +1,12 @@
 const { Pool } = require('pg');
+const { requireEnv } = require('../config/env');
 
 const pool = new Pool({
-  host: process.env.POSTGRES_HOST,
-  port: Number(process.env.POSTGRES_PORT || 5432),
-  database: process.env.POSTGRES_DB,
-  user: process.env.POSTGRES_USER,
-  password: process.env.POSTGRES_PASSWORD,
+  host: requireEnv('POSTGRES_HOST'),
+  port: Number(requireEnv('POSTGRES_PORT')),
+  database: requireEnv('POSTGRES_DB'),
+  user: requireEnv('POSTGRES_USER'),
+  password: requireEnv('POSTGRES_PASSWORD'),
   max: 2,
 });
 
