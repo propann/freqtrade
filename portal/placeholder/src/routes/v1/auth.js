@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { requireEnv } = require('../../config/env');
 const { ensureTenant } = require('../../services/tenants');
+const { ensureAdminUser, findUserByEmail, updateLastLogin } = require('../../services/users');
 const { requireAuth, authCookieName } = require('../../middlewares/auth');
 
 const router = express.Router();
@@ -18,22 +19,29 @@ router.post('/login', async (req, res) => {
   if (!email || !password) {
     return res.status(400).json({ error: 'invalid_credentials', message: 'Invalid credentials.' });
   }
-  if (email !== adminEmail) {
+  if (email === adminEmail) {
+    await ensureAdminUser(adminEmail, adminPasswordHash);
+  }
+
+  const user = await findUserByEmail(email);
+  if (!user || !user.password_hash) {
     return res.status(401).json({ error: 'invalid_credentials', message: 'Invalid credentials.' });
   }
-  const matches = await bcrypt.compare(password, adminPasswordHash);
+
+  const matches = await bcrypt.compare(password, user.password_hash);
   if (!matches) {
     return res.status(401).json({ error: 'invalid_credentials', message: 'Invalid credentials.' });
   }
 
   await ensureTenant(adminTenantId, adminEmail);
+  await updateLastLogin(user.id);
 
   const token = jwt.sign(
     {
-      sub: adminEmail,
-      role: 'admin',
+      sub: user.id,
+      role: user.role,
       tenant_id: adminTenantId,
-      email: adminEmail,
+      email: user.email,
     },
     jwtSecret,
     { expiresIn: jwtTtl }
@@ -47,8 +55,8 @@ router.post('/login', async (req, res) => {
 
   return res.json({
     user: {
-      email: adminEmail,
-      role: 'admin',
+      email: user.email,
+      role: user.role,
       tenant_id: adminTenantId,
     },
   });
