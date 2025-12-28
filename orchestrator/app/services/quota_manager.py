@@ -31,5 +31,5 @@ class QuotaManager:
             "mem_limit": quotas.mem_limit,
             "cpu_quota": int(quotas.cpu_limit * 100000),
             "cpu_period": 100000,
-            "pids_limit": 50,
+            "pids_limit": quotas.pids_limit,
         }
