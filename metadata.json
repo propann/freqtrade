@@ -1,0 +1,8 @@
+{
+  "name": "QuantApex Pro - Freqtrade Algorithmic Trading Station",
+  "description": "Next-generation Freqtrade algorithmic trading terminal with live execution, multi-timeframe analytics, smart risk control, Hyperopt lab, and 1-click Coolify deployment.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

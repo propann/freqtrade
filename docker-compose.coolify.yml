@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  # Next-gen Quant UI Trading Terminal
+  trading-terminal:
+    build:
+      context: ./console
+      dockerfile: Dockerfile
+    container_name: quantapex-ui-terminal
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - FREQTRADE_API_URL=http://freqtrade-engine:8080
+      - FREQTRADE_USERNAME=${FREQTRADE_USERNAME:-freqtrade_user}
+      - FREQTRADE_PASSWORD=${FREQTRADE_PASSWORD:-SuperSecretQuantPassword2026!}
+      - FREQTRADE_JWT_SECRET=${FREQTRADE_JWT_SECRET:-quant-apex-ultra-secure-jwt-key-2026-coolify}
+    depends_on:
+      - freqtrade-engine
+    networks:
+      - quant-network
+
+  # Freqtrade Core Engine (Latest Stable Multi-Timeframe)
+  freqtrade-engine:
+    image: freqtradeorg/freqtrade:stable
+    container_name: quantapex-freqtrade-core
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./user_data:/freqtrade/user_data
+    command: >
+      trade
+      --config /freqtrade/user_data/config.json
+      --strategy NostalgiaHyperComboStrategy
+      --db-url sqlite:////freqtrade/user_data/tradesv3.sqlite
+    environment:
+      - TZ=UTC
+    networks:
+      - quant-network
+
+networks:
+  quant-network:
+    driver: bridge
