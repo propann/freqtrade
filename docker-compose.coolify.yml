@@ -125,6 +125,38 @@ services:
     networks:
       - quant-network
 
+  rack-preflight:
+    profiles: ["operator"]
+    image: python:3.12-alpine
+    working_dir: /workspace/repository
+    entrypoint:
+      - python3
+      - /workspace/repository/scripts/preflight.py
+      - --process-env
+      - --config
+      - /workspace/repository/user_data/config.json
+    environment:
+      QUANT_RACK_ROOT: /workspace/repository
+      FREQTRADE_USERNAME: ${FREQTRADE_USERNAME:?FREQTRADE_USERNAME is required}
+      FREQTRADE_PASSWORD: ${FREQTRADE_PASSWORD:?FREQTRADE_PASSWORD is required}
+      FREQTRADE_API_JWT_SECRET: ${FREQTRADE_API_JWT_SECRET:?FREQTRADE_API_JWT_SECRET is required}
+      FREQTRADE_WS_TOKEN: ${FREQTRADE_WS_TOKEN:?FREQTRADE_WS_TOKEN is required}
+      FREQTRADE_ADMIN_USER: ${FREQTRADE_ADMIN_USER:?FREQTRADE_ADMIN_USER is required}
+      FREQTRADE_ADMIN_PASSWORD: ${FREQTRADE_ADMIN_PASSWORD:?FREQTRADE_ADMIN_PASSWORD is required}
+      FREQTRADE_PIN_CODE: ${FREQTRADE_PIN_CODE:-}
+      FREQTRADE_JWT_SECRET: ${FREQTRADE_JWT_SECRET:?FREQTRADE_JWT_SECRET is required}
+      EXCHANGE_API_KEY: ${EXCHANGE_API_KEY:-}
+      EXCHANGE_API_SECRET: ${EXCHANGE_API_SECRET:-}
+      TELEGRAM_ENABLED: ${TELEGRAM_ENABLED:-false}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+      TELEGRAM_AUTHORIZED_USERS: ${TELEGRAM_AUTHORIZED_USERS:-[]}
+    cpus: 0.10
+    mem_limit: 64m
+    pids_limit: 32
+    volumes:
+      - .:/workspace/repository:ro
+
 networks:
   quant-network:
     driver: bridge

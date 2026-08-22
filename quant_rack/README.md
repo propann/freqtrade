@@ -19,6 +19,14 @@ scripts/rackctl plan baseline
 scripts/rackctl status
 ```
 
+Avant toute première mise en route avec les secrets Coolify :
+
+```bash
+docker compose --env-file .env -f docker-compose.coolify.yml run --rm rack-preflight --require-telegram --require-exchange
+```
+
+`rack-preflight` est éphémère et monte le dépôt en lecture seule. Il ne contacte ni Telegram ni l'exchange et n'affiche jamais les valeurs contrôlées.
+
 Sélectionner un profil sans toucher au moteur :
 
 ```bash

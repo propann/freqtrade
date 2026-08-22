@@ -75,6 +75,7 @@ python -m unittest discover -s tests
 scripts/rackctl list
 scripts/rackctl plan baseline
 scripts/rackctl activate baseline
+scripts/preflight --require-telegram --require-exchange
 scripts/researchctl plan baseline --timerange 20260101-20260630
 scripts/researchctl benchmark baseline --rows 10000 --repeats 5 --confirm BENCHMARK
 docker compose --env-file .env -f docker-compose.coolify.yml run --rm rack-observer sample
@@ -83,6 +84,7 @@ docker compose --env-file .env -f docker-compose.coolify.yml run --rm rack-obser
 Depuis le VPS, l'activation vérifiée passe par le réseau privé Docker :
 
 ```bash
+docker compose --env-file .env -f docker-compose.coolify.yml run --rm rack-preflight --require-telegram --require-exchange
 docker compose --env-file .env -f docker-compose.coolify.yml run --rm rack-operator deploy baseline --confirm DRY-RUN
 ```
 

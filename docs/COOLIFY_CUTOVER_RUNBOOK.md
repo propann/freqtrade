@@ -30,6 +30,14 @@ Sauvegarder au minimum le volume `user_data`, la base de trades et la configurat
 
 ## 3. Prévalidation du profil
 
+Après avoir posé les secrets dans Coolify, exécuter la porte de sécurité sans afficher leurs valeurs :
+
+```bash
+docker compose --env-file .env -f docker-compose.coolify.yml run --rm rack-preflight --require-telegram --require-exchange
+```
+
+Le résultat doit être `status: pass`. Corriger chaque échec avant de construire ou redémarrer un conteneur. Le contrôle refuse notamment les valeurs `change-me`, les secrets faibles ou intégrés à `config.json`, le mode réel, les entrées forcées, les CORS ouverts et toute valeur secrète retrouvée dans un fichier suivi par Git.
+
 Dans un shell du service ou sur une copie exacte du volume :
 
 ```bash

@@ -34,6 +34,7 @@ Principes non négociables : secrets uniquement côté serveur, dry-run par déf
 | RACK-05 | Terminé | Exposer l'état du rack en lecture seule | Route authentifiée, volume monté en lecture seule |
 | RACK-06 | Terminé | Réparer les jobs Python et console | Deux jobs GitHub Actions verts sur l'exécution 107 |
 | RACK-07 | À faire | Exécuter la procédure de pré-déploiement | Checklist du runbook signée par l'opérateur |
+| RACK-08 | Terminé | Automatiser le contrôle des secrets et du mode avant démarrage | Préflight sans valeur secrète, dépôt monté en lecture seule, mode réel refusé |
 
 ## P2 — Client Freqtrade en lecture seule
 
