@@ -1,8 +1,8 @@
 # Quant Core
 
-Console de pilotage Freqtrade destinée à un déploiement Docker/Coolify. Le dépôt ne contient plus qu'une seule interface : `console/`, construite avec Next.js.
+Console de pilotage Freqtrade destinée à un déploiement Docker/Coolify. Le dépôt ne contient plus qu'une seule interface : une page Next.js sobre et responsive dans `console/`.
 
-> État réel : l'interface est une maquette fonctionnelle avancée. Le flux de marché Binance est réel quand l'API publique répond, mais les positions, performances, logs et actions du bot sont encore simulés par les routes API Next.js. La vue Validation ne fabrique aucun résultat de backtest. Ne pas utiliser les chiffres de démonstration pour prendre une décision financière.
+> État réel : la console lit l'état du moteur Freqtrade via son réseau Docker privé. Positions, soldes, profits, configuration, santé, ressources et logs ne possèdent aucun repli fictif. Les commandes restent volontairement verrouillées jusqu'à la phase d'activation auditée et réversible.
 
 ## Composants actifs
 
@@ -11,8 +11,9 @@ Console de pilotage Freqtrade destinée à un déploiement Docker/Coolify. Le d�
 - `templates/` : exemples de configuration Freqtrade et règles de risque.
 - `orchestrator/` : prototype FastAPI conservé pour une future couche de contrôle ; il n'est pas connecté à la console actuelle.
 - `clients/` : modèles historiques utiles à une future gestion multi-instance ; ils ne sont pas utilisés par le Compose actuel.
+- `quant_rack/` : profils légers décrivant stratégie, indicateurs, protections, outils et budget VPS.
 
-L'ancien portail Express situé dans `portal/placeholder`, son infrastructure AWS et sa documentation ont été supprimés le 22 août 2026. Ils faisaient doublon avec la console et ne correspondaient plus au code déployable.
+L'ancien portail Express situé dans `portal/placeholder`, son infrastructure AWS et sa documentation ont été supprimés le 22 août 2026. L'ancienne console à onglets et graphiques a également été remplacée par une cabine de supervision sans données simulées ni commande dangereuse.
 
 ## Démarrage local de la console
 
@@ -47,6 +48,7 @@ Le port REST Freqtrade n'est pas publié sur l'hôte. Seule la console est publi
 - `FREQTRADE_PIN_CODE` : optionnel ; vide désactive l'authentification par PIN.
 - `EXCHANGE_API_KEY` / `EXCHANGE_API_SECRET` : optionnels en dry-run, à stocker uniquement comme secrets serveur/Coolify.
 - `TELEGRAM_ENABLED`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` et `TELEGRAM_AUTHORIZED_USERS` : intégration Telegram native de Freqtrade. Un jeton publié doit être révoqué avant utilisation.
+- `OBS_CPU_WARN_PCT`, `OBS_RAM_WARN_PCT` et `OBS_EXCHANGE_ERROR_WARN_COUNT` : seuils initiaux du collecteur léger ; ne les ajuster qu'après la fenêtre de sept jours.
 
 La console est accessible depuis plusieurs ordinateurs via son domaine HTTPS avec le même compte opérateur. Les clés exchange et Telegram restent côté serveur : les variables `FREQTRADE__...` surchargent la configuration Freqtrade au démarrage et ne sont jamais renvoyées au navigateur.
 
@@ -61,8 +63,34 @@ openssl rand -hex 32
 ```bash
 bun run lint
 bun run build
+bun test console/lib
 python -m pip install -r orchestrator/requirements-dev.txt
-pytest orchestrator/tests
+python -m pytest orchestrator/tests
+python -m unittest discover -s tests
 ```
 
-Voir [l'audit du code](docs/CODE_AUDIT_2026-08-22.md), [l'étude outils et stratégies](docs/STRATEGY_TOOLING_STUDY_2026-08-22.md) et [l'architecture](ARCHITECTURE.md) avant de brancher un compte d'échange.
+## Quant Rack
+
+```bash
+scripts/rackctl list
+scripts/rackctl plan baseline
+scripts/rackctl activate baseline
+scripts/preflight --require-telegram --require-exchange
+scripts/researchctl plan baseline --timerange 20260101-20260630
+scripts/researchctl benchmark baseline --rows 10000 --repeats 5 --confirm BENCHMARK
+scripts/researchctl validate baseline --timerange 20260101-20260630 --confirm VALIDATE
+docker compose --env-file .env -f docker-compose.coolify.yml run --rm rack-observer sample
+```
+
+Depuis le VPS, l'activation vérifiée passe par le réseau privé Docker :
+
+```bash
+docker compose --env-file .env -f docker-compose.coolify.yml run --rm rack-preflight --require-telegram --require-exchange
+docker compose --env-file .env -f docker-compose.coolify.yml run --rm rack-operator deploy baseline --confirm DRY-RUN
+```
+
+La dernière commande initialise uniquement l'état du rack. Pour modifier la configuration, utiliser explicitement `--apply-config`, examiner la sauvegarde, puis redémarrer le moteur. Voir [`quant_rack/README.md`](quant_rack/README.md).
+
+Le pilotage du chantier se trouve dans la [feuille de route et le tableau de suivi](ROADMAP.md). La mise en production suit obligatoirement le [runbook Coolify](docs/COOLIFY_CUTOVER_RUNBOOK.md).
+
+Voir aussi [l'audit du code](docs/CODE_AUDIT_2026-08-22.md), [l'étude outils et stratégies](docs/STRATEGY_TOOLING_STUDY_2026-08-22.md), [la cartographie Freqtrade/Rack](docs/FREQTRADE_RACK_MAP_2026-08-22.md) et [l'architecture](ARCHITECTURE.md) avant de brancher un compte d'échange.

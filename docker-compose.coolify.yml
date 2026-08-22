@@ -10,6 +10,7 @@ services:
     environment:
       NODE_ENV: production
       FREQTRADE_API_URL: http://freqtrade-engine:8080
+      FREQTRADE_API_TIMEOUT_MS: ${FREQTRADE_API_TIMEOUT_MS:-3000}
       FREQTRADE_USERNAME: ${FREQTRADE_USERNAME:?FREQTRADE_USERNAME is required}
       FREQTRADE_PASSWORD: ${FREQTRADE_PASSWORD:?FREQTRADE_PASSWORD is required}
       FREQTRADE_ADMIN_USER: ${FREQTRADE_ADMIN_USER:?FREQTRADE_ADMIN_USER is required}
@@ -17,6 +18,12 @@ services:
       FREQTRADE_PIN_CODE: ${FREQTRADE_PIN_CODE:-}
       FREQTRADE_JWT_SECRET: ${FREQTRADE_JWT_SECRET:?FREQTRADE_JWT_SECRET is required}
       FREQTRADE_PUBLIC_DOMAIN: ${FREQTRADE_PUBLIC_DOMAIN:-localhost}
+      QUANT_RACK_STATE_PATH: /app/user_data/rack/state.json
+      QUANT_OBSERVABILITY_SUMMARY_PATH: /app/user_data/observability/summary-168h.json
+    volumes:
+      - ./user_data:/app/user_data:ro
+    cpus: ${CONSOLE_CPU_LIMIT:-0.5}
+    mem_limit: ${CONSOLE_MEMORY_LIMIT:-512m}
     depends_on:
       - freqtrade-engine
     networks:
@@ -30,6 +37,9 @@ services:
       TZ: UTC
       FREQTRADE__API_SERVER__USERNAME: ${FREQTRADE_USERNAME:?FREQTRADE_USERNAME is required}
       FREQTRADE__API_SERVER__PASSWORD: ${FREQTRADE_PASSWORD:?FREQTRADE_PASSWORD is required}
+      FREQTRADE__API_SERVER__ENABLED: "true"
+      FREQTRADE__API_SERVER__LISTEN_IP_ADDRESS: 0.0.0.0
+      FREQTRADE__API_SERVER__LISTEN_PORT: 8080
       FREQTRADE__API_SERVER__JWT_SECRET_KEY: ${FREQTRADE_API_JWT_SECRET:?FREQTRADE_API_JWT_SECRET is required}
       FREQTRADE__API_SERVER__WS_TOKEN: ${FREQTRADE_WS_TOKEN:?FREQTRADE_WS_TOKEN is required}
       FREQTRADE__EXCHANGE__KEY: ${EXCHANGE_API_KEY:-}
@@ -40,6 +50,9 @@ services:
       FREQTRADE__TELEGRAM__AUTHORIZED_USERS: ${TELEGRAM_AUTHORIZED_USERS:-[]}
     expose:
       - "8080"
+    cpus: ${FREQTRADE_CPU_LIMIT:-1.0}
+    mem_limit: ${FREQTRADE_MEMORY_LIMIT:-1024m}
+    pids_limit: ${FREQTRADE_PIDS_LIMIT:-256}
     volumes:
       - ./user_data:/freqtrade/user_data
       - ./strategies:/freqtrade/user_data/strategies:ro
@@ -49,6 +62,100 @@ services:
       --db-url sqlite:////freqtrade/user_data/tradesv3.sqlite
     networks:
       - quant-network
+
+  strategy-lab:
+    profiles: ["research"]
+    image: freqtradeorg/freqtrade:stable
+    environment:
+      TZ: UTC
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+      NUMEXPR_NUM_THREADS: "1"
+    cpus: ${RESEARCH_CPU_LIMIT:-1.0}
+    mem_limit: ${RESEARCH_MEMORY_LIMIT:-1024m}
+    pids_limit: ${RESEARCH_PIDS_LIMIT:-256}
+    volumes:
+      - ./user_data:/freqtrade/user_data
+      - ./strategies:/freqtrade/user_data/strategies:ro
+      - ./scripts:/freqtrade/quant_tools:ro
+      - ./quant_rack:/freqtrade/quant_rack:ro
+    networks:
+      - quant-network
+
+  rack-operator:
+    profiles: ["operator"]
+    image: python:3.12-alpine
+    working_dir: /workspace
+    entrypoint: ["python3", "/workspace/scripts/rackctl.py"]
+    environment:
+      FREQTRADE_API_URL: http://freqtrade-engine:8080
+      FREQTRADE_USERNAME: ${FREQTRADE_USERNAME:?FREQTRADE_USERNAME is required}
+      FREQTRADE_PASSWORD: ${FREQTRADE_PASSWORD:?FREQTRADE_PASSWORD is required}
+      QUANT_RACK_ACTOR: ${QUANT_RACK_ACTOR:-coolify-operator}
+    cpus: ${RACK_OPERATOR_CPU_LIMIT:-0.25}
+    mem_limit: ${RACK_OPERATOR_MEMORY_LIMIT:-128m}
+    pids_limit: 64
+    volumes:
+      - ./scripts:/workspace/scripts:ro
+      - ./quant_rack:/workspace/quant_rack:ro
+      - ./strategies:/workspace/strategies:ro
+      - ./user_data:/workspace/user_data
+    networks:
+      - quant-network
+
+  rack-observer:
+    profiles: ["observe"]
+    image: python:3.12-alpine
+    working_dir: /workspace
+    entrypoint: ["python3", "/workspace/scripts/observectl.py"]
+    environment:
+      FREQTRADE_API_URL: http://freqtrade-engine:8080
+      FREQTRADE_USERNAME: ${FREQTRADE_USERNAME:?FREQTRADE_USERNAME is required}
+      FREQTRADE_PASSWORD: ${FREQTRADE_PASSWORD:?FREQTRADE_PASSWORD is required}
+      OBS_CPU_WARN_PCT: ${OBS_CPU_WARN_PCT:-80}
+      OBS_RAM_WARN_PCT: ${OBS_RAM_WARN_PCT:-80}
+      OBS_EXCHANGE_ERROR_WARN_COUNT: ${OBS_EXCHANGE_ERROR_WARN_COUNT:-3}
+    cpus: ${OBSERVER_CPU_LIMIT:-0.10}
+    mem_limit: ${OBSERVER_MEMORY_LIMIT:-64m}
+    pids_limit: 32
+    volumes:
+      - ./scripts:/workspace/scripts:ro
+      - ./user_data:/workspace/user_data
+    networks:
+      - quant-network
+
+  rack-preflight:
+    profiles: ["operator"]
+    image: python:3.12-alpine
+    working_dir: /workspace/repository
+    entrypoint:
+      - python3
+      - /workspace/repository/scripts/preflight.py
+      - --process-env
+      - --config
+      - /workspace/repository/user_data/config.json
+    environment:
+      QUANT_RACK_ROOT: /workspace/repository
+      FREQTRADE_USERNAME: ${FREQTRADE_USERNAME:?FREQTRADE_USERNAME is required}
+      FREQTRADE_PASSWORD: ${FREQTRADE_PASSWORD:?FREQTRADE_PASSWORD is required}
+      FREQTRADE_API_JWT_SECRET: ${FREQTRADE_API_JWT_SECRET:?FREQTRADE_API_JWT_SECRET is required}
+      FREQTRADE_WS_TOKEN: ${FREQTRADE_WS_TOKEN:?FREQTRADE_WS_TOKEN is required}
+      FREQTRADE_ADMIN_USER: ${FREQTRADE_ADMIN_USER:?FREQTRADE_ADMIN_USER is required}
+      FREQTRADE_ADMIN_PASSWORD: ${FREQTRADE_ADMIN_PASSWORD:?FREQTRADE_ADMIN_PASSWORD is required}
+      FREQTRADE_PIN_CODE: ${FREQTRADE_PIN_CODE:-}
+      FREQTRADE_JWT_SECRET: ${FREQTRADE_JWT_SECRET:?FREQTRADE_JWT_SECRET is required}
+      EXCHANGE_API_KEY: ${EXCHANGE_API_KEY:-}
+      EXCHANGE_API_SECRET: ${EXCHANGE_API_SECRET:-}
+      TELEGRAM_ENABLED: ${TELEGRAM_ENABLED:-false}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+      TELEGRAM_AUTHORIZED_USERS: ${TELEGRAM_AUTHORIZED_USERS:-[]}
+    cpus: 0.10
+    mem_limit: 64m
+    pids_limit: 32
+    volumes:
+      - .:/workspace/repository:ro
 
 networks:
   quant-network:

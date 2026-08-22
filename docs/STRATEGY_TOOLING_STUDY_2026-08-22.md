@@ -93,7 +93,7 @@ La navigation cible tient en six zones :
 
 ### Phase B — laboratoire
 
-- Lancer le pipeline `scripts/strategy-check.sh` en tâche contrôlée.
+- Lancer `scripts/researchctl validate` dans l'atelier éphémère borné ; `strategy-check.sh` reste un simple raccourci de compatibilité.
 - Lire les exports natifs de Freqtrade et conserver les paramètres, versions, périodes et hashes de stratégie.
 - Comparer les trois familles sans inventer de score global opaque.
 
