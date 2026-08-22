@@ -14,7 +14,7 @@ Principes non négociables : secrets uniquement côté serveur, dry-run par déf
 |---|---|---|---|
 | P0 — Nettoyage et sécurité | Terminé | Ancien portail/AWS retiré, secrets sortis du code, docs alignées | Audit et scan de secrets validés |
 | P1 — Socle Quant Rack | En validation | Profils, budgets VPS, activation locale sûre, affichage console | CI verte sur la PR #33 |
-| P2 — Vérité terrain | En validation | Console alimentée par l'API REST Freqtrade en lecture seule | Zéro métrique simulée sur les vues opérateur |
+| P2 — Vérité terrain | En validation | Console minimale alimentée par l'API REST Freqtrade en lecture seule | Validation visuelle et réseau sur le VPS |
 | P3 — Activation contrôlée | En validation | Changement de profil, rechargement, contrôle santé, rollback | Validation sur le moteur Coolify en dry-run |
 | P4 — Bibliothèque indicateurs | À faire | Indicateurs partagés, calculés une seule fois si cela apporte un gain mesuré | Benchmark avant/après et API stable |
 | P5 — Atelier stratégie | En validation | Backtest ponctuel, file d'un seul job, arrêt automatique | Exécution réelle sur le VPS et export vérifié |
@@ -44,6 +44,8 @@ Principes non négociables : secrets uniquement côté serveur, dry-run par déf
 | API-03 | P0 — En validation | Brancher `status`, `balance` et historique des trades | Aucun fallback silencieux vers des données fictives |
 | API-04 | P0 — En validation | Marquer clairement indisponibilité et ancienneté | Dernier état connu après un échec, indisponible au deuxième |
 | API-05 | P1 — En validation | Supprimer les routes et jeux de données simulés restants | Recherche `demo/mock/fake` vide dans `console/` |
+| UI-01 | P0 — Terminé | Remplacer l'ancienne interface à onglets par une page opérateur minimale | Moteur, capital, positions, rack, système et logs visibles sans graphique décoratif |
+| UI-02 | P0 — Terminé | Conserver une interface sûre sur ordinateur et mobile | Aucun secret ni bouton de trading côté navigateur ; mise en page responsive |
 
 ## P3 — Activation et retour arrière
 
@@ -122,6 +124,7 @@ Toutes les conditions suivantes sont obligatoires :
 | 2026-08-22 | Ne pas amincir le cœur Freqtrade | Les résolveurs et modules optionnels fournissent déjà les frontières utiles |
 | 2026-08-22 | Profils déclaratifs et activation explicite | Réduire la charge sans comportement implicite |
 | 2026-08-22 | PR avant `main` pour le rack | Le déploiement existant peut redémarrer automatiquement |
+| 2026-08-22 | Cabine opérateur sans fioriture | Réduire la charge cognitive, le JavaScript et les dépendances de visualisation |
 
 ## Rythme de suivi
 
@@ -130,4 +133,4 @@ Toutes les conditions suivantes sont obligatoires :
 - Chaque semaine en phase de test : relever CPU/RAM, erreurs, fraîcheur et nombre de redémarrages.
 - Aucune phase suivante ne masque une porte de sortie non satisfaite ; elle reste explicitement bloquée.
 
-Prochaine séquence : valider P2 en CI, exécuter le pré-déploiement Coolify, observer l'adaptateur en dry-run, puis ouvrir P3 sans activer de mutation en production.
+Prochaine séquence : déployer la branche de validation, poser les secrets renouvelés dans Coolify, confirmer le dry-run et l'absence de positions non gérées, puis observer P2/P3/P5 sur le VPS avant toute fusion dans `main`.

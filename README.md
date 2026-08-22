@@ -1,6 +1,6 @@
 # Quant Core
 
-Console de pilotage Freqtrade destinée à un déploiement Docker/Coolify. Le dépôt ne contient plus qu'une seule interface : `console/`, construite avec Next.js.
+Console de pilotage Freqtrade destinée à un déploiement Docker/Coolify. Le dépôt ne contient plus qu'une seule interface : une page Next.js sobre et responsive dans `console/`.
 
 > État réel : la console lit l'état du moteur Freqtrade via son réseau Docker privé. Positions, soldes, profits, configuration, santé, ressources et logs ne possèdent aucun repli fictif. Les commandes restent volontairement verrouillées jusqu'à la phase d'activation auditée et réversible.
 
@@ -13,7 +13,7 @@ Console de pilotage Freqtrade destinée à un déploiement Docker/Coolify. Le d�
 - `clients/` : modèles historiques utiles à une future gestion multi-instance ; ils ne sont pas utilisés par le Compose actuel.
 - `quant_rack/` : profils légers décrivant stratégie, indicateurs, protections, outils et budget VPS.
 
-L'ancien portail Express situé dans `portal/placeholder`, son infrastructure AWS et sa documentation ont été supprimés le 22 août 2026. Ils faisaient doublon avec la console et ne correspondaient plus au code déployable.
+L'ancien portail Express situé dans `portal/placeholder`, son infrastructure AWS et sa documentation ont été supprimés le 22 août 2026. L'ancienne console à onglets et graphiques a également été remplacée par une cabine de supervision sans données simulées ni commande dangereuse.
 
 ## Démarrage local de la console
 
