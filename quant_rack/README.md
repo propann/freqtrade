@@ -77,6 +77,14 @@ scripts/researchctl run baseline --timerange 20260101-20260630 --confirm RESEARC
 
 Le service Compose `strategy-lab` ne démarre jamais avec le bot normal. `researchctl` le crée pour le travail demandé, refuse un second job concurrent, puis `docker compose run --rm` le supprime. Chaque expérience conserve le profil, la période, l'empreinte de la stratégie, la durée, le résultat et les logs sous `user_data/research/`.
 
+Valider ensuite la stratégie dans le même atelier et sous le même verrou :
+
+```bash
+scripts/researchctl validate baseline --timerange 20260101-20260630 --confirm VALIDATE
+```
+
+Cette commande enchaîne découverte, backtest avec protections, détection du biais d'anticipation et analyse récursive. Le CSV lookahead est contrôlé automatiquement et bloque la suite si un biais est signalé. Le résultat récursif reste volontairement `review_required` : Freqtrade fournit des écarts par indicateur dont le seuil acceptable dépend des signaux. Lire `recursive.stdout.log` avant toute promotion, puis effectuer un test hors échantillon et un dry-run prolongé. `scripts/strategy-check.sh` n'est plus qu'un raccourci compatible vers cette commande centralisée ; son premier argument est désormais l'identifiant du profil.
+
 ## Mesure des indicateurs
 
 Mesurer le passage `populate_indicators` avec une charge déterministe identique pour chaque stratégie :

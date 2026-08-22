@@ -35,6 +35,11 @@ class ResearchCtlTests(unittest.TestCase):
         docker = fake_bin / "docker"
         docker.write_text(
             "#!/bin/sh\n"
+            "if [ -n \"${FAIL_RESEARCH_COMMAND:-}\" ]; then\n"
+            "  for argument in \"$@\"; do\n"
+            "    [ \"$argument\" = \"$FAIL_RESEARCH_COMMAND\" ] && exit 9\n"
+            "  done\n"
+            "fi\n"
             "previous=''\n"
             "for argument in \"$@\"; do\n"
             "  if [ \"$previous\" = '--export-filename' ]; then\n"
@@ -46,6 +51,11 @@ class ResearchCtlTests(unittest.TestCase):
             "    relative=${argument#/freqtrade/user_data/}\n"
             "    mkdir -p \"$QUANT_RACK_ROOT/user_data/$(dirname \"$relative\")\"\n"
             "    echo '{\"profile\":\"test\",\"strategy\":\"TestStrategy\",\"timing_ms\":{\"median\":1.2},\"memory\":{\"indicator_bytes\":128}}' > \"$QUANT_RACK_ROOT/user_data/$relative\"\n"
+            "  fi\n"
+            "  if [ \"$previous\" = '--lookahead-analysis-exportfilename' ]; then\n"
+            "    relative=${argument#/freqtrade/user_data/}\n"
+            "    mkdir -p \"$QUANT_RACK_ROOT/user_data/$(dirname \"$relative\")\"\n"
+            "    printf 'strategy,has_bias\\nTestStrategy,%s\\n' \"${LOOKAHEAD_BIAS:-No}\" > \"$QUANT_RACK_ROOT/user_data/$relative\"\n"
             "  fi\n"
             "  previous=$argument\n"
             "done\n"
@@ -126,6 +136,53 @@ class ResearchCtlTests(unittest.TestCase):
         result = self.run_research("benchmark", "test", "--rows", "100", "--confirm", "BENCHMARK")
         self.assertEqual(result.returncode, 2)
         self.assertIn("--rows", result.stderr)
+
+    def test_validate_records_all_checks_and_requires_recursive_review(self):
+        result = self.run_research(
+            "validate", "test", "--timerange", "20260101-20260201", "--confirm", "VALIDATE"
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        record = json.loads(result.stdout)
+        self.assertEqual(record["kind"], "strategy_validation")
+        self.assertEqual(record["result"], "review_required")
+        self.assertEqual(
+            [check["result"] for check in record["validation_checks"]],
+            ["completed", "completed", "no_bias_detected", "review_required"],
+        )
+        self.assertTrue((self.root / "user_data" / record["lookahead_report"]).is_file())
+
+    def test_validate_requires_exact_confirmation(self):
+        result = self.run_research(
+            "validate", "test", "--timerange", "20260101-20260201", "--confirm", "YES"
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("--confirm VALIDATE", result.stderr)
+
+    def test_validate_blocks_a_strategy_with_lookahead_bias(self):
+        self.env["LOOKAHEAD_BIAS"] = "Yes"
+        result = self.run_research(
+            "validate", "test", "--timerange", "20260101-20260201", "--confirm", "VALIDATE"
+        )
+        self.assertEqual(result.returncode, 2)
+        registry = (self.root / "user_data" / "research" / "experiments.jsonl").read_text().splitlines()
+        record = json.loads(registry[-1])
+        self.assertEqual(
+            [check["result"] for check in record["validation_checks"]],
+            ["completed", "completed", "bias_detected", "skipped"],
+        )
+
+    def test_validate_stops_after_a_failed_check(self):
+        self.env["FAIL_RESEARCH_COMMAND"] = "backtesting"
+        result = self.run_research(
+            "validate", "test", "--timerange", "20260101-20260201", "--confirm", "VALIDATE"
+        )
+        self.assertEqual(result.returncode, 2)
+        registry = (self.root / "user_data" / "research" / "experiments.jsonl").read_text().splitlines()
+        record = json.loads(registry[-1])
+        self.assertEqual(
+            [check["result"] for check in record["validation_checks"]],
+            ["completed", "failed", "skipped", "skipped"],
+        )
 
 
 if __name__ == "__main__":

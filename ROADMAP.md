@@ -17,7 +17,7 @@ Principes non négociables : secrets uniquement côté serveur, dry-run par déf
 | P2 — Vérité terrain | En validation | Console minimale alimentée par l'API REST Freqtrade en lecture seule | Validation visuelle et réseau sur le VPS |
 | P3 — Activation contrôlée | En validation | Changement de profil, rechargement, contrôle santé, rollback | Validation sur le moteur Coolify en dry-run |
 | P4 — Bibliothèque indicateurs | À faire | Indicateurs partagés, calculés une seule fois si cela apporte un gain mesuré | Benchmark avant/après et API stable |
-| P5 — Atelier stratégie | En validation | Backtest ponctuel, file d'un seul job, arrêt automatique | Exécution réelle sur le VPS et export vérifié |
+| P5 — Atelier stratégie | En validation | Backtest ponctuel, benchmark et validation sous un verrou unique | Exécution réelle sur le VPS et rapports examinés |
 | P6 — Observabilité VPS | En validation | Relevés éphémères CPU, RAM, santé, positions et fraîcheur | Tâche Coolify active et budget tenu 7 jours |
 | P7 — Passage réel | Bloqué | Déploiement progressif et réversible | Accord opérateur + dry-run concluant + aucune position non gérée |
 
@@ -74,10 +74,10 @@ On ne crée pas un nouveau moteur d'indicateurs. Les stratégies continuent d'ut
 
 | ID | Priorité | Action | Critère d'acceptation |
 |---|---|---|---|
-| LAB-01 | P0 — En validation | File locale limitée à un job | Test de verrou concurrent réussi |
-| LAB-02 | P0 — En validation | Conteneur backtest jetable avec limites | Service Compose à profil, CPU/RAM/PID bornés et `run --rm` |
+| LAB-01 | P0 — Terminé | File locale limitée à un job | Verrou commun aux backtests, benchmarks et validations ; test concurrent réussi |
+| LAB-02 | P0 — Terminé | Conteneur backtest jetable avec limites | Service Compose à profil, CPU/RAM/PID bornés et `run --rm` |
 | LAB-03 | P1 | Hyperopt opt-in uniquement | Paquet et processus absents du moteur live |
-| LAB-04 | P1 — En validation | Registre des expériences | Profil, commit, hashes stratégie/config, période, durée, sortie et logs enregistrés |
+| LAB-04 | P1 — Terminé | Registre des expériences | Profil, commit, hashes stratégie/config, période, durée, verdicts, sorties et logs enregistrés |
 | LAB-05 | P0 | Garde anti-surapprentissage | Validation hors échantillon et frais/slippage inclus |
 
 ## P6 — Observabilité et budgets

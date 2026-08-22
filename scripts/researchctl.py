@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import fcntl
 import hashlib
 import json
@@ -152,6 +153,56 @@ def benchmark_plan(profile_id: str, rows: int, repeats: int) -> dict[str, Any]:
     }
 
 
+def validation_plan(profile_id: str, timerange: str) -> dict[str, Any]:
+    item = profile(profile_id)
+    timerange = validate_timerange(timerange)
+    strategy_path = ROOT / str(item["strategy_file"])
+    return {
+        "kind": "strategy_validation",
+        "profile": profile_id,
+        "strategy": item["strategy"],
+        "strategy_sha256": sha256(strategy_path),
+        "config_sha256": sha256(CONFIG_PATH) if CONFIG_PATH.is_file() else "missing",
+        "git_commit": git_revision(),
+        "timeframe": item["timeframe"],
+        "timerange": timerange,
+        "budget": item["budget"],
+        "runner": "docker-compose/strategy-lab",
+        "parallel_jobs": 1,
+        "checks": ["strategy_discovery", "backtest", "lookahead", "recursive"],
+    }
+
+
+def bounded_timeout(variable: str, default: int, maximum: int) -> int:
+    try:
+        value = int(os.environ.get(variable, str(default)))
+    except ValueError as exc:
+        raise ResearchError(f"{variable} doit être un nombre entier") from exc
+    return max(60, min(maximum, value))
+
+
+def tail_text(value: str | bytes | None) -> str:
+    if isinstance(value, bytes):
+        value = value.decode("utf-8", errors="replace")
+    return (value or "")[-500_000:]
+
+
+def lookahead_has_bias(path: Path) -> bool:
+    try:
+        with path.open(newline="", encoding="utf-8-sig") as handle:
+            rows = list(csv.DictReader(handle))
+    except (OSError, csv.Error) as exc:
+        raise ResearchError(f"Rapport lookahead inutilisable : {path}") from exc
+    headers = {str(key).strip().casefold() for key in rows[0]} if rows else set()
+    if not rows or "has_bias" not in headers:
+        raise ResearchError(f"Rapport lookahead vide ou incomplet : {path}")
+    for row in rows:
+        normalized = {str(key).strip().casefold(): str(value).strip().casefold() for key, value in row.items()}
+        if normalized.get("has_bias") in {"yes", "true", "1"}:
+            return True
+    return False
+
+
 def run_experiment(profile_id: str, timerange: str, confirmation: str) -> dict[str, Any]:
     if confirmation != "RESEARCH":
         raise ResearchError("Confirmation requise : --confirm RESEARCH")
@@ -281,6 +332,119 @@ def run_benchmark(profile_id: str, rows: int, repeats: int, confirmation: str) -
     return record
 
 
+def run_validation(profile_id: str, timerange: str, confirmation: str) -> dict[str, Any]:
+    if confirmation != "VALIDATE":
+        raise ResearchError("Confirmation requise : --confirm VALIDATE")
+    if not CONFIG_PATH.is_file():
+        raise ResearchError(f"Configuration Freqtrade absente : {CONFIG_PATH}")
+    if not COMPOSE_FILE.is_file() or not ENV_FILE.is_file():
+        raise ResearchError("Fichier Compose ou .env absent")
+
+    plan = validation_plan(profile_id, timerange)
+    experiment_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + f"-{profile_id}-validation"
+    output_dir = RESEARCH_DIR / experiment_id
+    output_dir.mkdir(parents=True, exist_ok=False)
+    lookahead_relative = f"research/{experiment_id}/lookahead.csv"
+    common = [
+        "--config", "/freqtrade/user_data/config.json",
+        "--strategy", str(plan["strategy"]),
+        "--strategy-path", "/freqtrade/user_data/strategies",
+        "--timeframe", str(plan["timeframe"]),
+        "--timerange", str(plan["timerange"]),
+    ]
+    checks = [
+        ("strategy_discovery", [
+            "list-strategies", "--config", "/freqtrade/user_data/config.json",
+            "--strategy-path", "/freqtrade/user_data/strategies",
+        ]),
+        ("backtest", [
+            "backtesting", *common, "--enable-protections", "--cache", "none",
+            "--breakdown", "month", "year",
+        ]),
+        ("lookahead", [
+            "lookahead-analysis", *common,
+            "--lookahead-analysis-exportfilename", f"/freqtrade/user_data/{lookahead_relative}",
+        ]),
+        ("recursive", ["recursive-analysis", *common]),
+    ]
+    docker_prefix = [
+        "docker", "compose", "--env-file", str(ENV_FILE), "-f", str(COMPOSE_FILE),
+        "run", "--rm", "--no-deps", "strategy-lab",
+    ]
+    timeout = bounded_timeout("QUANT_VALIDATION_TIMEOUT", 3600, 14_400)
+    started_at = datetime.now(timezone.utc).isoformat()
+    started = time.monotonic()
+    results: list[dict[str, Any]] = []
+    failed = False
+
+    for name, arguments in checks:
+        if failed:
+            results.append({"name": name, "result": "skipped", "exit_code": None, "elapsed_seconds": 0})
+            continue
+        step_started = time.monotonic()
+        stdout_path = output_dir / f"{name}.stdout.log"
+        stderr_path = output_dir / f"{name}.stderr.log"
+        try:
+            completed = subprocess.run(
+                [*docker_prefix, *arguments], cwd=ROOT, text=True, capture_output=True,
+                timeout=timeout, check=False,
+            )
+            exit_code = completed.returncode
+            stdout_path.write_text(tail_text(completed.stdout), encoding="utf-8")
+            stderr_path.write_text(tail_text(completed.stderr), encoding="utf-8")
+            step_result = "completed" if exit_code == 0 else "failed"
+        except subprocess.TimeoutExpired as exc:
+            exit_code = 124
+            stdout_path.write_text(tail_text(exc.stdout), encoding="utf-8")
+            stderr_path.write_text(tail_text(exc.stderr), encoding="utf-8")
+            step_result = "timeout"
+
+        if name == "lookahead" and step_result == "completed":
+            try:
+                biased = lookahead_has_bias(output_dir / "lookahead.csv")
+            except ResearchError as exc:
+                with stderr_path.open("a", encoding="utf-8") as handle:
+                    handle.write(f"\n{exc}\n")
+                step_result = "failed"
+                exit_code = 65
+            else:
+                step_result = "bias_detected" if biased else "no_bias_detected"
+                if biased:
+                    exit_code = 66
+
+        if name == "recursive" and step_result == "completed":
+            step_result = "review_required"
+        failed = step_result in {"failed", "timeout", "bias_detected"}
+        results.append({
+            "name": name,
+            "result": step_result,
+            "exit_code": exit_code,
+            "elapsed_seconds": round(time.monotonic() - step_started, 3),
+            "stdout": f"research/{experiment_id}/{name}.stdout.log",
+            "stderr": f"research/{experiment_id}/{name}.stderr.log",
+        })
+
+    result = "failed" if failed else "review_required"
+    record = {
+        **plan,
+        "experiment_id": experiment_id,
+        "started_at": started_at,
+        "finished_at": datetime.now(timezone.utc).isoformat(),
+        "elapsed_seconds": round(time.monotonic() - started, 3),
+        "result": result,
+        "validation_checks": results,
+        "lookahead_report": lookahead_relative,
+        "review_note": "Examiner recursive.stdout.log avant toute promotion de stratégie.",
+    }
+    (output_dir / "metadata.json").write_text(
+        json.dumps(record, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    append_registry(record)
+    if failed:
+        raise ResearchError(f"Validation {experiment_id} terminée avec l'état failed")
+    return record
+
+
 def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(description="Atelier de recherche Freqtrade éphémère")
     commands = root.add_subparsers(dest="command", required=True)
@@ -296,6 +460,10 @@ def parser() -> argparse.ArgumentParser:
     benchmark_parser.add_argument("--rows", type=int, default=10_000)
     benchmark_parser.add_argument("--repeats", type=int, default=5)
     benchmark_parser.add_argument("--confirm", required=True)
+    validate_parser = commands.add_parser("validate")
+    validate_parser.add_argument("profile")
+    validate_parser.add_argument("--timerange", required=True)
+    validate_parser.add_argument("--confirm", required=True)
     return root
 
 
@@ -307,9 +475,12 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "run":
             with research_lock():
                 result = run_experiment(args.profile, args.timerange, args.confirm)
-        else:
+        elif args.command == "benchmark":
             with research_lock():
                 result = run_benchmark(args.profile, args.rows, args.repeats, args.confirm)
+        else:
+            with research_lock():
+                result = run_validation(args.profile, args.timerange, args.confirm)
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
     except ResearchError as exc:
