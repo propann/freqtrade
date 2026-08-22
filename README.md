@@ -11,6 +11,7 @@ Console de pilotage Freqtrade destinée à un déploiement Docker/Coolify. Le d�
 - `templates/` : exemples de configuration Freqtrade et règles de risque.
 - `orchestrator/` : prototype FastAPI conservé pour une future couche de contrôle ; il n'est pas connecté à la console actuelle.
 - `clients/` : modèles historiques utiles à une future gestion multi-instance ; ils ne sont pas utilisés par le Compose actuel.
+- `quant_rack/` : profils légers décrivant stratégie, indicateurs, protections, outils et budget VPS.
 
 L'ancien portail Express situé dans `portal/placeholder`, son infrastructure AWS et sa documentation ont été supprimés le 22 août 2026. Ils faisaient doublon avec la console et ne correspondaient plus au code déployable.
 
@@ -63,6 +64,17 @@ bun run lint
 bun run build
 python -m pip install -r orchestrator/requirements-dev.txt
 pytest orchestrator/tests
+python -m unittest discover -s tests
 ```
 
-Voir [l'audit du code](docs/CODE_AUDIT_2026-08-22.md), [l'étude outils et stratégies](docs/STRATEGY_TOOLING_STUDY_2026-08-22.md) et [l'architecture](ARCHITECTURE.md) avant de brancher un compte d'échange.
+## Quant Rack
+
+```bash
+scripts/rackctl list
+scripts/rackctl plan baseline
+scripts/rackctl activate baseline
+```
+
+La dernière commande initialise uniquement l'état du rack. Pour modifier la configuration, utiliser explicitement `--apply-config`, examiner la sauvegarde, puis redémarrer le moteur. Voir [`quant_rack/README.md`](quant_rack/README.md).
+
+Voir [l'audit du code](docs/CODE_AUDIT_2026-08-22.md), [l'étude outils et stratégies](docs/STRATEGY_TOOLING_STUDY_2026-08-22.md), [la cartographie Freqtrade/Rack](docs/FREQTRADE_RACK_MAP_2026-08-22.md) et [l'architecture](ARCHITECTURE.md) avant de brancher un compte d'échange.

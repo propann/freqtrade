@@ -81,6 +81,22 @@ interface StrategyInfo {
   winrate: string;
 }
 
+interface RackState {
+  status: 'configured' | 'not_configured' | 'unavailable';
+  profile_id?: string;
+  label?: string;
+  strategy?: string;
+  timeframe?: string;
+  pair_limit?: number;
+  budget?: { cpu: number; memory_mb: number; max_parallel_jobs: number };
+  indicators?: string[];
+  protections?: string[];
+  tools?: Record<string, 'off' | 'on' | 'warm' | 'job'>;
+  config_applied?: boolean;
+  restart_required?: boolean;
+  updated_at?: string;
+}
+
 interface Trade {
   id: number;
   pair: string;
@@ -347,6 +363,7 @@ export default function QuantApexTradingStation() {
   const [chartLoading, setChartLoading] = useState(false);
   const [marketTickers, setMarketTickers] = useState<Ticker[]>(DEFAULT_TICKERS);
   const [marketDataSource, setMarketDataSource] = useState<'binance-live' | 'simulated'>('simulated');
+  const [rackState, setRackState] = useState<RackState>({ status: 'not_configured' });
   const [chartOverlay, setChartOverlay] = useState<{ ema20: boolean; ema50: boolean; ema200: boolean; bb: boolean; rsi: boolean; volume: boolean }>({
     ema20: true,
     ema50: true,
@@ -513,6 +530,21 @@ export default function QuantApexTradingStation() {
       clearInterval(intervalState);
       clearInterval(intervalTickers);
     };
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const fetchRackState = async () => {
+      try {
+        const response = await fetch('/api/rack/status');
+        if (response.ok) setRackState(await response.json());
+      } catch {
+        setRackState({ status: 'unavailable' });
+      }
+    };
+    fetchRackState();
+    const interval = setInterval(fetchRackState, 30000);
+    return () => clearInterval(interval);
   }, [isAuthenticated]);
 
   useEffect(() => {
@@ -1770,7 +1802,7 @@ export default function QuantApexTradingStation() {
               <h2 style={{ fontSize: '20px', fontWeight: '800', margin: 0 }}>Stratégies</h2>
             </div>
             <p style={{ color: '#94a3b8', fontSize: '13px', lineHeight: 1.6 }}>
-              Une seule baseline installée. Les autres familles restent des pistes d’étude, pas des promesses de performance.
+              Deux profils de recherche installés. Les autres familles restent des pistes d’étude, pas des promesses de performance.
             </p>
             <div style={{ marginTop: '18px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '14px' }}>
               <div style={{ padding: '18px', borderRadius: '10px', backgroundColor: 'rgba(56, 189, 248, 0.08)', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
@@ -1788,6 +1820,45 @@ export default function QuantApexTradingStation() {
                 <p style={{ color: '#94a3b8', fontSize: '13px', lineHeight: 1.6 }}>Mean reversion et breakout, seulement après validation de la baseline.</p>
                 <code style={{ color: '#38bdf8', fontSize: '12px' }}>docs/STRATEGY_TOOLING_STUDY_2026-08-22.md</code>
               </div>
+            </div>
+
+            <div style={{ marginTop: '22px', padding: '18px', borderRadius: '12px', backgroundColor: '#040711', border: '1px solid rgba(56, 189, 248, 0.22)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '14px', flexWrap: 'wrap' }}>
+                <div>
+                  <div style={{ color: '#64748b', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase' }}>Quant Rack</div>
+                  <h3 style={{ margin: '5px 0 0', fontSize: '16px' }}>
+                    {rackState.status === 'configured' ? rackState.label : 'Rack non initialisé'}
+                  </h3>
+                </div>
+                <span style={{ color: rackState.status === 'configured' ? '#10b981' : '#fbbf24', fontSize: '12px', fontWeight: '800' }}>
+                  {rackState.status === 'configured' ? `${rackState.timeframe} • ${rackState.pair_limit} paires max` : 'scripts/rackctl list'}
+                </span>
+              </div>
+
+              {rackState.status === 'configured' && (
+                <>
+                  <div style={{ marginTop: '14px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
+                    <div style={{ padding: '12px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.03)' }}>
+                      <div style={{ color: '#64748b', fontSize: '11px' }}>BUDGET</div>
+                      <strong>{rackState.budget?.cpu} CPU • {rackState.budget?.memory_mb} Mo</strong>
+                    </div>
+                    <div style={{ padding: '12px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.03)' }}>
+                      <div style={{ color: '#64748b', fontSize: '11px' }}>INDICATEURS DU PROFIL</div>
+                      <strong>{rackState.indicators?.length || 0}</strong>
+                    </div>
+                    <div style={{ padding: '12px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.03)' }}>
+                      <div style={{ color: '#64748b', fontSize: '11px' }}>JOBS PARALLÈLES</div>
+                      <strong>{rackState.budget?.max_parallel_jobs || 1}</strong>
+                    </div>
+                  </div>
+                  <div style={{ marginTop: '12px', color: '#94a3b8', fontSize: '12px', lineHeight: 1.7 }}>
+                    {rackState.indicators?.join(' • ')}
+                  </div>
+                  {rackState.restart_required && (
+                    <div style={{ marginTop: '10px', color: '#fbbf24', fontSize: '12px' }}>Configuration appliquée : redémarrage contrôlé du moteur requis.</div>
+                  )}
+                </>
+              )}
             </div>
           </div>
         )}

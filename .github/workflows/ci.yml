@@ -20,7 +20,9 @@ jobs:
       - name: Lint
         run: python -m compileall orchestrator
       - name: Tests
-        run: pytest orchestrator/tests
+        run: |
+          pytest orchestrator/tests
+          python -m unittest discover -s tests
 
   console:
     runs-on: ubuntu-latest

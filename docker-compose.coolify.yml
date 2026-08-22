@@ -17,6 +17,11 @@ services:
       FREQTRADE_PIN_CODE: ${FREQTRADE_PIN_CODE:-}
       FREQTRADE_JWT_SECRET: ${FREQTRADE_JWT_SECRET:?FREQTRADE_JWT_SECRET is required}
       FREQTRADE_PUBLIC_DOMAIN: ${FREQTRADE_PUBLIC_DOMAIN:-localhost}
+      QUANT_RACK_STATE_PATH: /app/user_data/rack/state.json
+    volumes:
+      - ./user_data:/app/user_data:ro
+    cpus: ${CONSOLE_CPU_LIMIT:-0.5}
+    mem_limit: ${CONSOLE_MEMORY_LIMIT:-512m}
     depends_on:
       - freqtrade-engine
     networks:
@@ -40,6 +45,9 @@ services:
       FREQTRADE__TELEGRAM__AUTHORIZED_USERS: ${TELEGRAM_AUTHORIZED_USERS:-[]}
     expose:
       - "8080"
+    cpus: ${FREQTRADE_CPU_LIMIT:-1.0}
+    mem_limit: ${FREQTRADE_MEMORY_LIMIT:-1024m}
+    pids_limit: ${FREQTRADE_PIDS_LIMIT:-256}
     volumes:
       - ./user_data:/freqtrade/user_data
       - ./strategies:/freqtrade/user_data/strategies:ro

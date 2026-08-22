@@ -12,6 +12,8 @@ flowchart LR
 
 Le Compose lance `trading-terminal` et `freqtrade-engine` sur `quant-network`. Le moteur expose le port 8080 uniquement à l'intérieur de ce réseau.
 
+Quant Rack se place au-dessus de la configuration Freqtrade. Il sélectionne un profil, publie son budget et prépare un changement atomique ; il ne remplace ni la boucle de trading, ni l'exchange, ni la base de données.
+
 ## Réalité d'implémentation
 
 | Zone | État | Source |
@@ -24,6 +26,7 @@ Le Compose lance `trading-terminal` et `freqtrade-engine` sur `quant-network`. L
 | Identifiants exchange / Telegram | Non collectés par la console, injectés au moteur | Secrets serveur / Coolify |
 | Stratégie de base | Recherche spot 15m, non validée | `strategies/QuantCoreBaseline.py` |
 | Stratégie Ichimoku | Modernisée depuis le fichier fourni, non validée | `strategies/IchiV1Research.py` |
+| Quant Rack | Profils et état lisible par la console | `quant_rack/`, `scripts/rackctl.py` |
 | Orchestrateur FastAPI | Prototype séparé | `orchestrator/` |
 
 ## Coffre de déploiement
