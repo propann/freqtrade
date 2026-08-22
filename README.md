@@ -45,6 +45,8 @@ docker compose --env-file .env -f docker-compose.coolify.yml up -d --build
 
 Le port REST Freqtrade n'est pas publié sur l'hôte. Seule la console est publiée, sur `127.0.0.1:3000` par défaut. Pour Coolify, définir `CONSOLE_BIND_ADDRESS=0.0.0.0` si la plateforme doit joindre directement le conteneur via le port hôte.
 
+La console fournit `GET /api/health` pour Docker et Coolify. La réponse reste volontairement générique (`ok` ou `unavailable`) et devient saine seulement lorsque l'accès personnel est correctement configuré. L'image vérifie cette route toutes les 30 secondes.
+
 ## Variables obligatoires
 
 - `FREQTRADE_USERNAME` / `FREQTRADE_PASSWORD` : compte REST du moteur Freqtrade.

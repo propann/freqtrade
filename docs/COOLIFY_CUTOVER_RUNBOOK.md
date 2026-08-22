@@ -70,9 +70,18 @@ La commande refuse le live et les positions ouvertes, recharge via l'API native,
 4. Contrôler le démarrage Freqtrade, la stratégie, la timeframe, la pairlist et `dry_run=true`.
 5. Contrôler la console, l'état du rack et la réception d'une notification Telegram de test ne contenant aucun secret.
 
+La sonde publique ne divulgue aucun composant. Depuis une machine autorisée, elle doit répondre en HTTPS avec `{"status":"ok"}` :
+
+```bash
+curl --fail --silent --show-error https://DOMAINE/api/health
+```
+
+Un `503` signifie que l'accès personnel n'est pas complètement configuré. Vérifier aussi que le conteneur devient `healthy` après sa période de démarrage ; ne pas contourner la sonde en remplaçant son URL par une page qui répond toujours `200`.
+
 ## 5. Contrôles après déploiement
 
 - [ ] `ping` répond et le moteur reste sain.
+- [ ] `/api/health` répond `200` et le conteneur est `healthy`.
 - [ ] La stratégie et le profil affichés correspondent.
 - [ ] Le nombre de paires et de trades maximum respecte le profil.
 - [ ] Aucune boucle de redémarrage ni erreur d'authentification exchange.

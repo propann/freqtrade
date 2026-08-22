@@ -14,6 +14,8 @@ Ce logiciel pilote potentiellement un moteur de trading. Une fausse réussite, u
 - l'exemple `.env.example` ne contient que des valeurs factices.
 - les clés exchange et Telegram sont injectées dans Freqtrade depuis les secrets Coolify et ne transitent pas par Next.js.
 - les journaux publics sont limités et filtrés côté serveur pour les formes usuelles de secrets et les valeurs configurées.
+- les réponses ajoutent CSP, anti-framing, `nosniff`, politique de référent stricte et désactivation des capteurs inutiles ; la route d'authentification est `no-store` et bornée à 4 Kio ;
+- la sonde de santé ne révèle ni composant, ni version, ni détail de configuration.
 
 ## Limites critiques restantes
 
