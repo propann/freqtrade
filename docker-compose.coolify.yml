@@ -80,6 +80,27 @@ services:
     networks:
       - quant-network
 
+  rack-operator:
+    profiles: ["operator"]
+    image: python:3.12-alpine
+    working_dir: /workspace
+    entrypoint: ["python3", "/workspace/scripts/rackctl.py"]
+    environment:
+      FREQTRADE_API_URL: http://freqtrade-engine:8080
+      FREQTRADE_USERNAME: ${FREQTRADE_USERNAME:?FREQTRADE_USERNAME is required}
+      FREQTRADE_PASSWORD: ${FREQTRADE_PASSWORD:?FREQTRADE_PASSWORD is required}
+      QUANT_RACK_ACTOR: ${QUANT_RACK_ACTOR:-coolify-operator}
+    cpus: ${RACK_OPERATOR_CPU_LIMIT:-0.25}
+    mem_limit: ${RACK_OPERATOR_MEMORY_LIMIT:-128m}
+    pids_limit: 64
+    volumes:
+      - ./scripts:/workspace/scripts:ro
+      - ./quant_rack:/workspace/quant_rack:ro
+      - ./strategies:/workspace/strategies:ro
+      - ./user_data:/workspace/user_data
+    networks:
+      - quant-network
+
 networks:
   quant-network:
     driver: bridge

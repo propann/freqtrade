@@ -77,6 +77,12 @@ scripts/rackctl activate baseline
 scripts/researchctl plan baseline --timerange 20260101-20260630
 ```
 
+Depuis le VPS, l'activation vérifiée passe par le réseau privé Docker :
+
+```bash
+docker compose --env-file .env -f docker-compose.coolify.yml run --rm rack-operator deploy baseline --confirm DRY-RUN
+```
+
 La dernière commande initialise uniquement l'état du rack. Pour modifier la configuration, utiliser explicitement `--apply-config`, examiner la sauvegarde, puis redémarrer le moteur. Voir [`quant_rack/README.md`](quant_rack/README.md).
 
 Le pilotage du chantier se trouve dans la [feuille de route et le tableau de suivi](ROADMAP.md). La mise en production suit obligatoirement le [runbook Coolify](docs/COOLIFY_CUTOVER_RUNBOOK.md).
