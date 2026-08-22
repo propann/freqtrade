@@ -63,7 +63,7 @@ openssl rand -hex 32
 bun run lint
 bun run build
 python -m pip install -r orchestrator/requirements-dev.txt
-pytest orchestrator/tests
+python -m pytest orchestrator/tests
 python -m unittest discover -s tests
 ```
 
@@ -77,4 +77,6 @@ scripts/rackctl activate baseline
 
 La dernière commande initialise uniquement l'état du rack. Pour modifier la configuration, utiliser explicitement `--apply-config`, examiner la sauvegarde, puis redémarrer le moteur. Voir [`quant_rack/README.md`](quant_rack/README.md).
 
-Voir [l'audit du code](docs/CODE_AUDIT_2026-08-22.md), [l'étude outils et stratégies](docs/STRATEGY_TOOLING_STUDY_2026-08-22.md), [la cartographie Freqtrade/Rack](docs/FREQTRADE_RACK_MAP_2026-08-22.md) et [l'architecture](ARCHITECTURE.md) avant de brancher un compte d'échange.
+Le pilotage du chantier se trouve dans la [feuille de route et le tableau de suivi](ROADMAP.md). La mise en production suit obligatoirement le [runbook Coolify](docs/COOLIFY_CUTOVER_RUNBOOK.md).
+
+Voir aussi [l'audit du code](docs/CODE_AUDIT_2026-08-22.md), [l'étude outils et stratégies](docs/STRATEGY_TOOLING_STUDY_2026-08-22.md), [la cartographie Freqtrade/Rack](docs/FREQTRADE_RACK_MAP_2026-08-22.md) et [l'architecture](ARCHITECTURE.md) avant de brancher un compte d'échange.

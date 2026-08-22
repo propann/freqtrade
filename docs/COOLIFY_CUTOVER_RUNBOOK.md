@@ -1,0 +1,75 @@
+# Runbook de mise en production Coolify
+
+Ce runbook s'applique à toute fusion ou redéploiement susceptible de remplacer le conteneur Freqtrade. Il interdit le déploiement automatique non surveillé sur un bot réel.
+
+## Informations à consigner
+
+| Champ | Valeur |
+|---|---|
+| Date et opérateur | À compléter |
+| Commit déployé | À compléter |
+| Profil rack | À compléter |
+| Mode avant/après | `dry_run` / `live` |
+| Positions ouvertes avant | À compléter |
+| Sauvegarde | Chemin et heure à compléter |
+| Résultat | Succès / rollback |
+
+## 1. Porte avant fusion
+
+- [ ] Les deux jobs de la PR sont verts.
+- [ ] Le diff ne contient ni jeton, ni clé exchange, ni fichier `.env`.
+- [ ] Le jeton Telegram précédemment exposé a été révoqué ; le nouveau existe uniquement dans les secrets Coolify.
+- [ ] Les clés exchange n'autorisent pas les retraits.
+- [ ] Le mode actuel du bot est connu.
+- [ ] Les positions ouvertes sont listées. En live, aucune fusion sans décision explicite sur leur reprise.
+- [ ] L'auto-déploiement Coolify est suspendu si la fenêtre n'est pas immédiatement surveillée.
+
+## 2. Sauvegarde
+
+Sauvegarder au minimum le volume `user_data`, la base de trades et la configuration active via le mécanisme de sauvegarde du VPS/Coolify. Vérifier que l'archive est non vide et noter son emplacement. Ne jamais copier les secrets dans Git ni dans un ticket.
+
+## 3. Prévalidation du profil
+
+Dans un shell du service ou sur une copie exacte du volume :
+
+```bash
+scripts/rackctl list
+scripts/rackctl plan baseline
+python -m unittest discover -s tests
+```
+
+Pour préparer la configuration, commencer en dry-run :
+
+```bash
+scripts/rackctl activate baseline --apply-config
+```
+
+Vérifier la sauvegarde annoncée par la commande et le diff de la configuration sans afficher ses valeurs secrètes.
+
+## 4. Déploiement contrôlé
+
+1. Fusionner le commit validé pendant la fenêtre surveillée.
+2. Suivre le build Coolify jusqu'à l'état sain.
+3. Vérifier que seul le service attendu a été remplacé.
+4. Contrôler le démarrage Freqtrade, la stratégie, la timeframe, la pairlist et `dry_run=true`.
+5. Contrôler la console, l'état du rack et la réception d'une notification Telegram de test ne contenant aucun secret.
+
+## 5. Contrôles après déploiement
+
+- [ ] `ping` répond et le moteur reste sain.
+- [ ] La stratégie et le profil affichés correspondent.
+- [ ] Le nombre de paires et de trades maximum respecte le profil.
+- [ ] Aucune boucle de redémarrage ni erreur d'authentification exchange.
+- [ ] CPU et RAM restent sous 80 % de leur limite pendant 15 minutes.
+- [ ] Les bougies sont fraîches et aucun signal n'est pris sur des données périmées.
+- [ ] En dry-run, un cycle complet est observé avant clôture de la fenêtre.
+
+## 6. Déclencheurs de rollback
+
+Restaurer immédiatement la version précédente si le moteur ne devient pas sain, si la stratégie/configuration n'est pas celle prévue, si la base n'est pas lisible, si les ressources saturent durablement ou si un secret apparaît dans les logs.
+
+Rollback : redéployer l'image/commit précédent, restaurer `user_data` uniquement si une migration ou une écriture invalide l'exige, puis vérifier l'état et les positions. Conserver les logs de l'échec sans y recopier de secret.
+
+## 7. Passage ultérieur en live
+
+Le passage en live est une opération distincte. Il exige la totalité des portes P7 de [`ROADMAP.md`](../ROADMAP.md), une nouvelle sauvegarde, une confirmation manuelle et un démarrage avec exposition minimale. Ne jamais transformer automatiquement un déploiement de code en activation de fonds réels.
