@@ -79,3 +79,14 @@ scripts/researchctl benchmark ichi-v1 --rows 10000 --repeats 5 --confirm BENCHMA
 ```
 
 Le benchmark s'exécute dans le même conteneur éphémère et avec les mêmes quotas que les backtests. Il relève la médiane, le p95, le temps par millier de bougies, la mémoire ajoutée au DataFrame, le pic RSS et les colonnes produites. Le jeu OHLCV est une charge déterministe de comparaison, clairement marquée comme telle : ce n'est ni une donnée de marché ni une mesure de performance financière. Les rapports JSON restent dans `user_data/research/` et servent de référence avant toute mutualisation ou mise en cache.
+
+## Observabilité légère
+
+Un relevé ne démarre aucun démon supplémentaire. Le conteneur rejoint brièvement le réseau privé, interroge cinq endpoints Freqtrade, écrit une ligne sans secret puis disparaît :
+
+```bash
+docker compose --env-file .env -f docker-compose.coolify.yml run --rm rack-observer sample
+docker compose --env-file .env -f docker-compose.coolify.yml run --rm rack-observer summary --hours 168
+```
+
+Pour une tâche planifiée Coolify, exécuter `sample --fail-on-alert` toutes les cinq minutes. Un CPU ou une RAM à 80 %, un moteur arrêté, une API indisponible ou une fraîcheur dépassant deux timeframes produit un état d'alerte. Les relevés restent dans `user_data/observability/samples.jsonl` ; le résumé sur 168 heures donne les moyennes, maxima, états et stratégies observés.

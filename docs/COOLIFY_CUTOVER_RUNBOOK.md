@@ -85,3 +85,17 @@ Le passage en live est une opération distincte. Il exige la totalité des porte
 ## 8. Recherche hors moteur live
 
 Ne jamais lancer backtest ou hyperopt dans le conteneur `freqtrade-engine`. Utiliser `scripts/researchctl` : le profil Compose `strategy-lab` est éphémère, limité à un job et supprimé après le travail. Vérifier l'espace disque disponible avant l'export et archiver uniquement les expériences utiles.
+
+## 9. Observation sur sept jours
+
+Créer dans Coolify une tâche planifiée toutes les cinq minutes avec la commande suivante :
+
+```bash
+docker compose --env-file .env -f docker-compose.coolify.yml run --rm rack-observer sample --fail-on-alert
+```
+
+Après sept jours, produire le résumé et reporter les maxima CPU/RAM, les états dégradés et la fraîcheur dans la feuille de route :
+
+```bash
+docker compose --env-file .env -f docker-compose.coolify.yml run --rm rack-observer summary --hours 168
+```

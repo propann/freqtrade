@@ -18,7 +18,7 @@ Principes non négociables : secrets uniquement côté serveur, dry-run par déf
 | P3 — Activation contrôlée | En validation | Changement de profil, rechargement, contrôle santé, rollback | Validation sur le moteur Coolify en dry-run |
 | P4 — Bibliothèque indicateurs | À faire | Indicateurs partagés, calculés une seule fois si cela apporte un gain mesuré | Benchmark avant/après et API stable |
 | P5 — Atelier stratégie | En validation | Backtest ponctuel, file d'un seul job, arrêt automatique | Exécution réelle sur le VPS et export vérifié |
-| P6 — Observabilité VPS | À faire | CPU, RAM, latence bougie, erreurs exchange et fraîcheur des données | Alertes testées et budget tenu 7 jours |
+| P6 — Observabilité VPS | En validation | Relevés éphémères CPU, RAM, santé, positions et fraîcheur | Tâche Coolify active et budget tenu 7 jours |
 | P7 — Passage réel | Bloqué | Déploiement progressif et réversible | Accord opérateur + dry-run concluant + aucune position non gérée |
 
 États autorisés : `À faire`, `En cours`, `En validation`, `Bloqué`, `Terminé`.
@@ -80,6 +80,8 @@ On ne crée pas un nouveau moteur d'indicateurs. Les stratégies continuent d'ut
 | LAB-05 | P0 | Garde anti-surapprentissage | Validation hors échantillon et frais/slippage inclus |
 
 ## P6 — Observabilité et budgets
+
+Le collecteur ponctuel `rack-observer` est codé et testé. Il reste à planifier son exécution toutes les cinq minutes dans Coolify, vérifier la remontée des échecs et conserver sept jours complets avant d'ajuster les seuils.
 
 | Signal | Seuil initial | Réaction |
 |---|---:|---|

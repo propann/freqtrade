@@ -103,6 +103,26 @@ services:
     networks:
       - quant-network
 
+  rack-observer:
+    profiles: ["observe"]
+    image: python:3.12-alpine
+    working_dir: /workspace
+    entrypoint: ["python3", "/workspace/scripts/observectl.py"]
+    environment:
+      FREQTRADE_API_URL: http://freqtrade-engine:8080
+      FREQTRADE_USERNAME: ${FREQTRADE_USERNAME:?FREQTRADE_USERNAME is required}
+      FREQTRADE_PASSWORD: ${FREQTRADE_PASSWORD:?FREQTRADE_PASSWORD is required}
+      OBS_CPU_WARN_PCT: ${OBS_CPU_WARN_PCT:-80}
+      OBS_RAM_WARN_PCT: ${OBS_RAM_WARN_PCT:-80}
+    cpus: ${OBSERVER_CPU_LIMIT:-0.10}
+    mem_limit: ${OBSERVER_MEMORY_LIMIT:-64m}
+    pids_limit: 32
+    volumes:
+      - ./scripts:/workspace/scripts:ro
+      - ./user_data:/workspace/user_data
+    networks:
+      - quant-network
+
 networks:
   quant-network:
     driver: bridge
