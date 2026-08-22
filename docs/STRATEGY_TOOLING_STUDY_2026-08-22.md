@@ -100,7 +100,7 @@ La navigation cible tient en six zones :
 
 ### Phase C — commandes
 
-- Autoriser start/pause seulement en dry-run au début.
+- Autoriser démarrer/bloquer les entrées seulement en dry-run au début.
 - Ajouter confirmations renforcées et journal d'audit pour force-entry/force-exit.
 - N'activer le live qu'après une checklist signée et réversible.
 

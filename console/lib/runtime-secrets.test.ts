@@ -19,6 +19,15 @@ describe('runtime secrets', () => {
     });
     expect(applyRuntimeSecretsUpdate(current, { exchangeKey: '', exchangeSecret: '' })).toEqual(current);
     expect(() => applyRuntimeSecretsUpdate(EMPTY_RUNTIME_SECRETS, { exchangeKey: 'exchange-key' })).toThrow();
+    expect(() => applyRuntimeSecretsUpdate(current, { exchangeKey: 'replacement-key', exchangeSecret: '' })).toThrow();
+  });
+
+  test('preserves the hidden Telegram allowlist when the field stays blank', () => {
+    const current = applyRuntimeSecretsUpdate(EMPTY_RUNTIME_SECRETS, {
+      telegramAuthorizedUsers: '12345,67890',
+    });
+    expect(applyRuntimeSecretsUpdate(current, { telegramAuthorizedUsers: '' }).telegram.authorized_users)
+      .toEqual(['12345', '67890']);
   });
 
   test('refuses enabling incomplete Telegram configuration', () => {

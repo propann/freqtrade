@@ -47,7 +47,7 @@ Principes non négociables : secrets uniquement côté serveur, dry-run par déf
 | DEP-01 | Bloqué | Migrer Next.js vers la branche maintenue | Correctif annoncé le 26 août 2026 publié, lockfile régénéré, audit dépendances et CI verts |
 | OPS-01 | Terminé | Ajouter une santé conteneur neutre et des en-têtes défensifs | Route générique, Docker `HEALTHCHECK`, test de prérequis et build vert |
 | OPS-02 | En validation | Gérer Exchange et Telegram depuis le coffre personnel | Écriture `0600`, valeurs non relues, rechargement/rollback et CI verts ; validation Coolify requise |
-| OPS-03 | En validation | Exposer les commandes opérationnelles sûres | Démarrer, pause et recharger avec session, origine, mot de passe et confirmation |
+| OPS-03 | En validation | Exposer les commandes opérationnelles sûres | Démarrer, bloquer les entrées et recharger avec session, origine, mot de passe et confirmation |
 
 ## P2 — Client Freqtrade en lecture seule
 

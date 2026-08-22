@@ -128,6 +128,11 @@ function freshness(iso: string) {
   return `Il y a ${Math.floor(seconds / 60)} min`;
 }
 
+function compactDate(iso: string | null | undefined) {
+  if (!iso) return 'Jamais';
+  return new Intl.DateTimeFormat('fr-FR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(iso));
+}
+
 function Metric({ label, value, detail, tone = 'neutral', icon }: {
   label: string; value: string; detail: string; tone?: 'neutral' | 'positive' | 'negative'; icon: ReactNode;
 }) {
@@ -266,7 +271,7 @@ export default function Home() {
     finally { setSettingsBusy(false); }
   }
 
-  async function control(action: 'start' | 'pause' | 'reload') {
+  async function control(action: 'start' | 'stopbuy' | 'reload') {
     setSettingsBusy(true); setSettingsError(''); setSettingsMessage('');
     try {
       const response = await fetch('/api/bot/control', {
@@ -342,7 +347,7 @@ export default function Home() {
           <span className={`engine engine--${bot.status}`}><i />{bot.status === 'running' ? 'Actif' : bot.status}</span>
           <span className={`mode mode--${bot.dryRun === false ? 'live' : 'dry'}`}>{bot.dryRun === false ? 'RÉEL' : 'SIMULATION'}</span>
           <button className="icon-button" onClick={refreshBot} disabled={loading} aria-label="Actualiser"><RefreshCw className={loading ? 'spin' : ''} size={17} /></button>
-          <button className={`icon-button ${settingsOpen ? 'icon-button--active' : ''}`} onClick={() => setSettingsOpen((open) => !open)} aria-label="Réglages"><Settings size={17} /></button>
+          <button className={`icon-button ${settingsOpen ? 'icon-button--active' : ''}`} onClick={() => setSettingsOpen((open) => !open)} aria-label="Réglages" aria-pressed={settingsOpen}><Settings size={17} /></button>
           <button className="icon-button" onClick={logout} aria-label="Déconnexion"><LogOut size={17} /></button>
         </div>
       </header>
@@ -351,6 +356,11 @@ export default function Home() {
         {settingsOpen ? (
           <>
             <section className="page-heading"><div><p className="eyebrow">Coffre serveur</p><h1>Réglages</h1></div><button className="text-button" onClick={() => setSettingsOpen(false)}>Retour</button></section>
+            <section className="settings-summary" aria-label="État des réglages">
+              <div><span>Exchange</span><strong className={settings?.exchangeConfigured ? 'positive' : ''}>{settings?.exchangeConfigured ? 'Prêt' : 'À configurer'}</strong></div>
+              <div><span>Telegram</span><strong className={settings?.telegramEnabled ? 'positive' : ''}>{settings?.telegramEnabled ? 'Actif' : settings?.telegramConfigured ? 'Prêt' : 'À configurer'}</strong></div>
+              <div><span>Dernière écriture</span><strong>{compactDate(settings?.updatedAt)}</strong></div>
+            </section>
             <form className="settings-grid" onSubmit={saveSettings}>
               <section className="panel settings-card">
                 <div className="panel__head"><div><p className="eyebrow">Marché actif : {bot.exchange}</p><h2>Exchange</h2></div><KeyRound size={19} /></div>
@@ -373,10 +383,10 @@ export default function Home() {
 
               <section className="panel settings-card settings-card--wide">
                 <div className="panel__head"><div><p className="eyebrow">Confirmation</p><h2>Appliquer</h2></div><ShieldCheck size={19} /></div>
-                <div className="confirmation-row"><label>Mot de passe actuel<input type="password" autoComplete="current-password" value={settingsForm.confirmPassword} onChange={(event) => setSettingsForm({ ...settingsForm, confirmPassword: event.target.value })} /></label><button className="button button--primary" disabled={settingsBusy || !settingsForm.confirmPassword}>{settingsBusy ? 'Application…' : 'Enregistrer et recharger'}</button></div>
+                <div className="confirmation-row"><label>Mot de passe actuel<input type="password" autoComplete="current-password" value={settingsForm.confirmPassword} onChange={(event) => setSettingsForm({ ...settingsForm, confirmPassword: event.target.value })} /></label><button className="button button--primary" disabled={settingsBusy || !settingsForm.confirmPassword}>{settingsBusy ? 'Application…' : 'Enregistrer'}</button></div>
                 {settingsError && <p className="form-error" role="alert">{settingsError}</p>}
                 {settingsMessage && <p className="form-success" role="status">{settingsMessage}</p>}
-                <div className="control-row"><button type="button" className="button button--secondary" disabled={settingsBusy || !settingsForm.confirmPassword} onClick={() => control('start')}><Play size={15} /> Démarrer</button><button type="button" className="button button--secondary" disabled={settingsBusy || !settingsForm.confirmPassword} onClick={() => control('pause')}><Pause size={15} /> Pause</button><button type="button" className="button button--secondary" disabled={settingsBusy || !settingsForm.confirmPassword} onClick={() => control('reload')}><RefreshCw size={15} /> Recharger</button></div>
+                <div className="control-row"><button type="button" className="button button--secondary" disabled={settingsBusy || !settingsForm.confirmPassword} onClick={() => control('start')}><Play size={15} /> Démarrer</button><button type="button" className="button button--secondary" disabled={settingsBusy || !settingsForm.confirmPassword} onClick={() => control('stopbuy')}><Pause size={15} /> Bloquer les entrées</button><button type="button" className="button button--secondary" disabled={settingsBusy || !settingsForm.confirmPassword} onClick={() => control('reload')}><RefreshCw size={15} /> Recharger</button></div>
                 <p className="form-note">Une sauvegarde est faite avant écriture. Si le moteur refuse la configuration, l’ancienne version est restaurée.</p>
               </section>
             </form>
@@ -387,7 +397,7 @@ export default function Home() {
 
         <section className="page-heading">
           <div><p className="eyebrow">Supervision</p><h1>Vue d’ensemble</h1></div>
-          <span className="freshness">Mis à jour {freshness(bot.lastUpdated)}</span>
+          <span className="freshness"><i className={bot.dataMode === 'live' ? 'ok' : ''} />Mis à jour {freshness(bot.lastUpdated)}</span>
         </section>
 
         <section className="metrics-grid" aria-label="Indicateurs clés">

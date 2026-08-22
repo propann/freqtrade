@@ -1,6 +1,6 @@
 # Console web (Next.js)
 
-Interface Next.js personnelle de Quant Core. La porte d'entrée compacte ne révèle ni la nature ni les composants du service ; après connexion, une page responsive montre capital, positions, stratégie, rack, outils, ressources, alertes et derniers journaux. Le compte unique remplace les anciens rôles et le raccourci PIN. Son adaptateur serveur interroge le cœur sur le réseau Docker privé avec authentification, timeout, cache court et états dégradés. Le panneau Réglages écrit Exchange et Telegram dans un fichier privé sans jamais relire les valeurs dans le navigateur. Les commandes démarrer, pause et recharger exigent le mot de passe ; aucun ordre forcé n'est exposé.
+Interface Next.js personnelle de Quant Core. La porte d'entrée compacte ne révèle ni la nature ni les composants du service ; après connexion, une page responsive montre capital, positions, stratégie, rack, outils, ressources, alertes et derniers journaux. Le compte unique remplace les anciens rôles et le raccourci PIN. Son adaptateur serveur interroge le cœur sur le réseau Docker privé avec authentification, timeout, cache court et états dégradés. Le panneau Réglages écrit Exchange et Telegram dans un fichier privé sans jamais relire les valeurs dans le navigateur. Les commandes démarrer, bloquer les entrées et recharger exigent le mot de passe ; aucun ordre forcé n'est exposé.
 
 ## Démarrer en local
 ```bash
