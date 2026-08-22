@@ -46,6 +46,14 @@ scripts/rackctl activate baseline --apply-config
 
 Vérifier la sauvegarde annoncée par la commande et le diff de la configuration sans afficher ses valeurs secrètes.
 
+Quand l'API interne est joignable depuis le shell, préférer l'activation transactionnelle :
+
+```bash
+scripts/rackctl deploy baseline --confirm DRY-RUN
+```
+
+La commande refuse le live et les positions ouvertes, recharge via l'API native, vérifie la santé puis rollback automatiquement en cas d'échec. Examiner la dernière ligne de `user_data/rack/audit.jsonl` avant de poursuivre.
+
 ## 4. Déploiement contrôlé
 
 1. Fusionner le commit validé pendant la fenêtre surveillée.

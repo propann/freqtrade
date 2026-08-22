@@ -15,7 +15,7 @@ Principes non négociables : secrets uniquement côté serveur, dry-run par déf
 | P0 — Nettoyage et sécurité | Terminé | Ancien portail/AWS retiré, secrets sortis du code, docs alignées | Audit et scan de secrets validés |
 | P1 — Socle Quant Rack | En validation | Profils, budgets VPS, activation locale sûre, affichage console | CI verte sur la PR #33 |
 | P2 — Vérité terrain | En validation | Console alimentée par l'API REST Freqtrade en lecture seule | Zéro métrique simulée sur les vues opérateur |
-| P3 — Activation contrôlée | À faire | Changement de profil, rechargement, contrôle santé, rollback | Test d'échec injecté et retour arrière réussi |
+| P3 — Activation contrôlée | En validation | Changement de profil, rechargement, contrôle santé, rollback | Validation sur le moteur Coolify en dry-run |
 | P4 — Bibliothèque indicateurs | À faire | Indicateurs partagés, calculés une seule fois si cela apporte un gain mesuré | Benchmark avant/après et API stable |
 | P5 — Atelier stratégie | À faire | Backtest/hyperopt ponctuels, file d'un seul job, arrêt automatique | Aucun processus de recherche résident |
 | P6 — Observabilité VPS | À faire | CPU, RAM, latence bougie, erreurs exchange et fraîcheur des données | Alertes testées et budget tenu 7 jours |
@@ -49,10 +49,10 @@ Principes non négociables : secrets uniquement côté serveur, dry-run par déf
 
 | ID | Priorité | Action | Critère d'acceptation |
 |---|---|---|---|
-| ACT-01 | P0 | Prévalidation stratégie/configuration avant mutation | Une configuration invalide ne touche jamais le fichier actif |
-| ACT-02 | P0 | Appliquer un profil avec journal d'audit sans secret | Acteur, profil, hash, heure et résultat enregistrés |
-| ACT-03 | P0 | Recharger via l'API native `reload_config` | Santé confirmée après rechargement, sans redémarrage aveugle |
-| ACT-04 | P0 | Restaurer automatiquement la dernière configuration saine | Rollback validé sur timeout et erreur moteur |
+| ACT-01 | P0 — En validation | Prévalidation stratégie/configuration avant mutation | Une configuration invalide ne touche jamais le fichier actif |
+| ACT-02 | P0 — En validation | Appliquer un profil avec journal d'audit sans secret | Acteur, profil, hash, heure et résultat enregistrés |
+| ACT-03 | P0 — En validation | Recharger via l'API native `reload_config` | Santé confirmée après rechargement, sans redémarrage aveugle |
+| ACT-04 | P0 — En validation | Restaurer automatiquement la dernière configuration saine | Tests succès, refus live et rollback injecté réussis |
 | ACT-05 | P1 | Ajouter confirmation forte dans la console | Impossible d'activer en un clic accidentel |
 
 ## P4 — Rack d'indicateurs mesuré
