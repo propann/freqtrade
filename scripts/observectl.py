@@ -21,11 +21,13 @@ from typing import Any
 ROOT = Path(os.environ.get("QUANT_RACK_ROOT", Path(__file__).resolve().parent.parent))
 OBSERVABILITY_DIR = Path(os.environ.get("QUANT_OBSERVABILITY_DIR", ROOT / "user_data" / "observability"))
 SAMPLES_PATH = OBSERVABILITY_DIR / "samples.jsonl"
+SUMMARY_PATH = OBSERVABILITY_DIR / "summary-168h.json"
 FREQTRADE_API_URL = os.environ.get("FREQTRADE_API_URL", "http://127.0.0.1:8080").rstrip("/")
 FREQTRADE_USERNAME = os.environ.get("FREQTRADE_USERNAME", "")
 FREQTRADE_PASSWORD = os.environ.get("FREQTRADE_PASSWORD", "")
 CPU_WARN_PCT = float(os.environ.get("OBS_CPU_WARN_PCT", "80"))
 RAM_WARN_PCT = float(os.environ.get("OBS_RAM_WARN_PCT", "80"))
+EXCHANGE_ERROR_WARN_COUNT = int(os.environ.get("OBS_EXCHANGE_ERROR_WARN_COUNT", "3"))
 
 
 class ObserveError(RuntimeError):
@@ -77,13 +79,41 @@ def timestamp(value: Any) -> datetime | None:
     return None
 
 
+def exchange_error_count(payload: Any) -> tuple[int, int]:
+    logs = payload.get("logs", []) if isinstance(payload, dict) else []
+    if not isinstance(logs, list):
+        return 0, 0
+    exchange_terms = (
+        "exchange", "ccxt", "networkerror", "requesttimeout", "ratelimit",
+        "rate limit", "ddosprotection", "binance", "kraken", "bybit", "coinbase",
+    )
+    count = 0
+    for entry in logs:
+        if not isinstance(entry, list):
+            continue
+        fields = [str(value).casefold() for value in entry]
+        joined = " | ".join(fields)
+        severity = any(value in ("error", "critical") for value in fields)
+        if severity and any(term in joined for term in exchange_terms):
+            count += 1
+    return count, len(logs)
+
+
 def collect_sample(now: datetime | None = None) -> dict[str, Any]:
     now = now or datetime.now(timezone.utc)
     endpoints: dict[str, Any] = {}
     unavailable: list[str] = []
-    for endpoint in ("ping", "show_config", "status", "sysinfo", "health"):
+    endpoint_paths = {
+        "ping": "ping",
+        "show_config": "show_config",
+        "status": "status",
+        "sysinfo": "sysinfo",
+        "health": "health",
+        "logs": "logs?limit=100",
+    }
+    for endpoint, path in endpoint_paths.items():
         try:
-            endpoints[endpoint] = api_get(endpoint)
+            endpoints[endpoint] = api_get(path)
         except ObserveError:
             endpoints[endpoint] = None
             unavailable.append(endpoint)
@@ -104,6 +134,7 @@ def collect_sample(now: datetime | None = None) -> dict[str, Any]:
     )
     last_process = timestamp(health.get("last_process_ts")) or timestamp(health.get("last_process"))
     bot_start = timestamp(health.get("bot_start"))
+    exchange_errors, log_window_size = exchange_error_count(endpoints["logs"])
     process_age = max(0.0, (now - last_process).total_seconds()) if last_process else None
     stale_after = timeframe_seconds(timeframe) * 2
 
@@ -120,6 +151,8 @@ def collect_sample(now: datetime | None = None) -> dict[str, Any]:
         alerts.append({"code": "cpu_high", "level": "warning"})
     if ram_pct >= RAM_WARN_PCT:
         alerts.append({"code": "ram_high", "level": "warning"})
+    if exchange_errors >= EXCHANGE_ERROR_WARN_COUNT:
+        alerts.append({"code": "exchange_errors", "level": "warning"})
 
     levels = {alert["level"] for alert in alerts}
     status = "critical" if "critical" in levels else "degraded" if "warning" in levels else "healthy"
@@ -149,7 +182,15 @@ def collect_sample(now: datetime | None = None) -> dict[str, Any]:
             "age_seconds": round(process_age, 3) if process_age is not None else None,
             "stale_after_seconds": stale_after,
         },
-        "thresholds": {"cpu_warn_pct": CPU_WARN_PCT, "ram_warn_pct": RAM_WARN_PCT},
+        "exchange": {
+            "errors_in_log_window": exchange_errors,
+            "log_window_size": log_window_size,
+        },
+        "thresholds": {
+            "cpu_warn_pct": CPU_WARN_PCT,
+            "ram_warn_pct": RAM_WARN_PCT,
+            "exchange_error_warn_count": EXCHANGE_ERROR_WARN_COUNT,
+        },
     }
 
 
@@ -195,11 +236,20 @@ def maximum(items: list[float]) -> float | None:
     return round(max(items), 3) if items else None
 
 
+def max_consecutive(items: list[bool]) -> int:
+    best = current = 0
+    for item in items:
+        current = current + 1 if item else 0
+        best = max(best, current)
+    return best
+
+
 def summarize(samples: list[dict[str, Any]], hours: int) -> dict[str, Any]:
     cpu = values(samples, "resources", "cpu_average_pct")
     ram = values(samples, "resources", "ram_pct")
     age = values(samples, "freshness", "age_seconds")
     open_trades = values(samples, "engine", "open_trades")
+    exchange_errors = values(samples, "exchange", "errors_in_log_window")
     bot_starts = {
         str(sample.get("engine", {}).get("bot_start_at"))
         for sample in samples
@@ -209,12 +259,17 @@ def summarize(samples: list[dict[str, Any]], hours: int) -> dict[str, Any]:
     for sample in samples:
         dry_run = sample.get("engine", {}).get("dry_run")
         modes.add("dry_run" if dry_run is True else "live" if dry_run is False else "unknown")
+    exchange_alerts = [
+        any(alert.get("code") == "exchange_errors" for alert in sample.get("alerts", []))
+        for sample in samples
+    ]
     return {
         "schema_version": 1,
         "window_hours": hours,
         "from": samples[0]["observed_at"],
         "to": samples[-1]["observed_at"],
         "samples": len(samples),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
         "status_counts": dict(Counter(str(sample.get("status", "unknown")) for sample in samples)),
         "cpu_average_pct": {"average": average(cpu), "max": maximum(cpu)},
         "ram_pct": {"average": average(ram), "max": maximum(ram)},
@@ -222,9 +277,21 @@ def summarize(samples: list[dict[str, Any]], hours: int) -> dict[str, Any]:
         "max_open_trades": int(max(open_trades)) if open_trades else None,
         "observed_bot_starts": len(bot_starts),
         "restart_count_lower_bound": max(0, len(bot_starts) - 1),
+        "exchange_errors": {
+            "max_in_log_window": int(max(exchange_errors)) if exchange_errors else 0,
+            "samples_with_errors": sum(1 for value in exchange_errors if value > 0),
+            "max_consecutive_alert_samples": max_consecutive(exchange_alerts),
+        },
         "strategies": sorted({str(sample.get("engine", {}).get("strategy")) for sample in samples}),
         "modes": sorted(modes),
     }
+
+
+def write_summary(summary: dict[str, Any]) -> None:
+    OBSERVABILITY_DIR.mkdir(parents=True, exist_ok=True)
+    temporary = SUMMARY_PATH.with_suffix(".json.tmp")
+    temporary.write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    temporary.replace(SUMMARY_PATH)
 
 
 def parser() -> argparse.ArgumentParser:
@@ -243,9 +310,12 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "sample":
             result = collect_sample()
             append_sample(result)
+            write_summary(summarize(read_samples(168), 168))
             print(json.dumps(result, ensure_ascii=False, indent=2))
             return 1 if args.fail_on_alert and result["status"] != "healthy" else 0
         result = summarize(read_samples(args.hours), args.hours)
+        if args.hours == 168:
+            write_summary(result)
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
     except ObserveError as exc:

@@ -107,6 +107,18 @@ progress { width: 100%; height: 4px; border: 0; border-radius: 4px; overflow: hi
 progress::-webkit-progress-bar { background: #252d38; }
 progress::-webkit-progress-value { background: var(--accent); }
 progress::-moz-progress-bar { background: var(--accent); }
+.observation { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
+.observation__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.observation__head > strong { font-size: 12px; }
+.observation__status { padding: 5px 8px; border-radius: 999px; background: var(--surface-2); color: var(--muted); font-size: 10px; }
+.observation__status--configured { color: var(--accent); }
+.observation__status--unavailable { color: var(--negative); }
+.observation__grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 12px 0 10px; }
+.observation__grid > div { display: grid; gap: 4px; padding: 9px; border: 1px solid var(--border); border-radius: 8px; background: #0d1218; }
+.observation__grid span, .observation > small, .observation > p { color: var(--muted); font-size: 10px; }
+.observation__grid strong { font-size: 13px; }
+.observation > p { margin: 12px 0 0; line-height: 1.5; }
+.observation code { color: #c4ccd5; }
 .log-view { height: 250px; overflow: auto; padding: 5px 13px; border-radius: 9px; background: #080b0f; color: #aeb8c3; font: 11px/1.65 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 .log-view > div { padding: 6px 0; border-bottom: 1px solid #171d24; overflow-wrap: anywhere; }
 .log-empty { color: var(--muted); }
@@ -134,6 +146,7 @@ footer { display: flex; justify-content: space-between; gap: 16px; padding: 24px
   .page-heading { align-items: flex-start; flex-direction: column; }
   .alert { flex-direction: column; gap: 4px; }
   .facts { grid-template-columns: 1fr; }
+  .observation__grid { grid-template-columns: 1fr 1fr; }
   .panel { padding: 16px; }
   .login-card { padding: 25px; }
   footer { flex-direction: column; }

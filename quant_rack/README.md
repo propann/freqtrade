@@ -89,4 +89,4 @@ docker compose --env-file .env -f docker-compose.coolify.yml run --rm rack-obser
 docker compose --env-file .env -f docker-compose.coolify.yml run --rm rack-observer summary --hours 168
 ```
 
-Pour une tâche planifiée Coolify, exécuter `sample --fail-on-alert` toutes les cinq minutes. Un CPU ou une RAM à 80 %, un moteur arrêté, une API indisponible ou une fraîcheur dépassant deux timeframes produit un état d'alerte. Les relevés restent dans `user_data/observability/samples.jsonl` ; le résumé sur 168 heures donne les moyennes, maxima, états et stratégies observés.
+Pour une tâche planifiée Coolify, exécuter `sample --fail-on-alert` toutes les cinq minutes. Un CPU ou une RAM à 80 %, un moteur arrêté, une API indisponible, une fraîcheur dépassant deux timeframes ou trois erreurs exchange dans les 100 derniers événements produit un état d'alerte. Le texte des événements exchange n'est jamais recopié dans l'historique. Les relevés restent dans `user_data/observability/samples.jsonl` ; un résumé filtré est écrit atomiquement dans `summary-168h.json` et affiché en lecture seule dans la console.

@@ -99,3 +99,5 @@ Après sept jours, produire le résumé et reporter les maxima CPU/RAM, les éta
 ```bash
 docker compose --env-file .env -f docker-compose.coolify.yml run --rm rack-observer summary --hours 168
 ```
+
+Le même résumé est alors visible dans le panneau **Système → Observation 7 jours** de la console. Vérifier que le nombre de relevés approche 2 016, qu'aucun texte de log n'apparaît dans `samples.jsonl` et que les incidents affichés correspondent aux échecs de tâches Coolify.

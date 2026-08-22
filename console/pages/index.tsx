@@ -61,6 +61,19 @@ type RackState = {
   config_applied?: boolean;
 };
 
+type ObservabilityState = {
+  status: 'configured' | 'not_configured' | 'unavailable';
+  windowHours?: number;
+  generatedAt?: string | null;
+  samples?: number;
+  statusCounts?: { healthy: number; degraded: number; critical: number };
+  cpuAveragePct?: { average: number | null; max: number | null };
+  ramPct?: { average: number | null; max: number | null };
+  freshnessAgeSeconds?: { average: number | null; max: number | null };
+  restartCountLowerBound?: number | null;
+  exchangeErrors?: { maxInLogWindow: number; samplesWithErrors: number; maxConsecutiveAlertSamples: number };
+};
+
 const EMPTY_STATE: BotState = {
   dataMode: 'unavailable', status: 'unavailable', version: '—', strategy: '—', timeframe: '—',
   exchange: '—', tradingMode: '—', dryRun: null, walletBalance: 0, profitTotal: 0, profitPct: 0,
@@ -104,6 +117,7 @@ export default function Home() {
   const [authBusy, setAuthBusy] = useState(false);
   const [bot, setBot] = useState<BotState>(EMPTY_STATE);
   const [rack, setRack] = useState<RackState>({ status: 'not_configured' });
+  const [observability, setObservability] = useState<ObservabilityState>({ status: 'not_configured' });
   const [logs, setLogs] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -111,6 +125,8 @@ export default function Home() {
     await fetch('/api/auth', { method: 'DELETE' });
     setAuthenticated(false);
     setBot(EMPTY_STATE);
+    setRack({ status: 'not_configured' });
+    setObservability({ status: 'not_configured' });
     setLogs([]);
   }, []);
 
@@ -143,10 +159,16 @@ export default function Home() {
 
   const refreshRack = useCallback(async () => {
     try {
-      const { payload } = await fetchJson('/api/rack/status');
-      setRack(payload);
+      const [{ payload: rackState }, { payload: observationState }] = await Promise.all([
+        fetchJson('/api/rack/status'), fetchJson('/api/observability/summary'),
+      ]);
+      setRack(rackState);
+      setObservability(observationState);
     } catch (error) {
-      if ((error as Error).message !== 'Session expirée') setRack({ status: 'unavailable' });
+      if ((error as Error).message !== 'Session expirée') {
+        setRack({ status: 'unavailable' });
+        setObservability({ status: 'unavailable' });
+      }
     }
   }, [fetchJson]);
 
@@ -187,8 +209,9 @@ export default function Home() {
     if (bot.dataMode === 'unavailable') return { level: 'danger', title: 'Moteur indisponible', text: bot.message || 'Aucune donnée Freqtrade exploitable.' };
     if (bot.stale) return { level: 'warning', title: 'Données anciennes', text: bot.message || 'Le dernier état sain est affiché.' };
     if (bot.degraded) return { level: 'warning', title: 'Service dégradé', text: `Endpoints indisponibles : ${bot.unavailableEndpoints.join(', ') || 'non précisé'}.` };
+    if ((observability.statusCounts?.critical || 0) > 0) return { level: 'warning', title: 'Incidents observés', text: `${observability.statusCounts?.critical} relevé(s) critique(s) dans la fenêtre de surveillance.` };
     return null;
-  }, [bot]);
+  }, [bot, observability]);
 
   if (authenticated === null) return <main className="boot"><Activity className="spin" size={24} /><span>Ouverture de Quant Core…</span></main>;
 
@@ -267,6 +290,13 @@ export default function Home() {
             <div className="panel__head"><div><p className="eyebrow">Petit VPS</p><h2>Système</h2></div><Cpu size={19} /></div>
             <div className="gauges"><div><span>CPU moyen</span><strong>{bot.system ? `${bot.system.cpuAveragePct.toFixed(1)} %` : '—'}</strong><progress max="100" value={bot.system?.cpuAveragePct || 0} /></div><div><span>RAM</span><strong>{bot.system ? `${bot.system.ramPct.toFixed(1)} %` : '—'}</strong><progress max="100" value={bot.system?.ramPct || 0} /></div></div>
             <dl className="facts facts--compact"><div><dt>Freqtrade</dt><dd>{bot.version}</dd></div><div><dt>Exchange</dt><dd>{bot.exchange}</dd></div><div><dt>Trading</dt><dd>{bot.tradingMode}</dd></div><div><dt>Cœurs</dt><dd>{bot.system?.cpuCount ?? '—'}</dd></div></dl>
+            <div className="observation">
+              <div className="observation__head"><strong>Observation 7 jours</strong><span className={`observation__status observation__status--${observability.status}`}>{observability.status === 'configured' ? `${observability.samples ?? 0} relevés` : 'En attente'}</span></div>
+              {observability.status === 'configured' ? <>
+                <div className="observation__grid"><div><span>CPU max.</span><strong>{observability.cpuAveragePct?.max != null ? `${observability.cpuAveragePct.max.toFixed(1)} %` : '—'}</strong></div><div><span>RAM max.</span><strong>{observability.ramPct?.max != null ? `${observability.ramPct.max.toFixed(1)} %` : '—'}</strong></div><div><span>Critiques</span><strong>{observability.statusCounts?.critical ?? 0}</strong></div><div><span>Erreurs exchange</span><strong>{observability.exchangeErrors?.maxInLogWindow ?? 0}</strong></div></div>
+                <small>{observability.restartCountLowerBound ?? 0} redémarrage(s) minimum · fraîcheur max. {observability.freshnessAgeSeconds?.max != null ? `${Math.round(observability.freshnessAgeSeconds.max)} s` : '—'} · généré {freshness(observability.generatedAt || '')}</small>
+              </> : <p>L’historique apparaîtra après le premier passage de <code>rack-observer</code>.</p>}
+            </div>
           </section>
         </div>
 

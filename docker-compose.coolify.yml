@@ -19,6 +19,7 @@ services:
       FREQTRADE_JWT_SECRET: ${FREQTRADE_JWT_SECRET:?FREQTRADE_JWT_SECRET is required}
       FREQTRADE_PUBLIC_DOMAIN: ${FREQTRADE_PUBLIC_DOMAIN:-localhost}
       QUANT_RACK_STATE_PATH: /app/user_data/rack/state.json
+      QUANT_OBSERVABILITY_SUMMARY_PATH: /app/user_data/observability/summary-168h.json
     volumes:
       - ./user_data:/app/user_data:ro
     cpus: ${CONSOLE_CPU_LIMIT:-0.5}
@@ -114,6 +115,7 @@ services:
       FREQTRADE_PASSWORD: ${FREQTRADE_PASSWORD:?FREQTRADE_PASSWORD is required}
       OBS_CPU_WARN_PCT: ${OBS_CPU_WARN_PCT:-80}
       OBS_RAM_WARN_PCT: ${OBS_RAM_WARN_PCT:-80}
+      OBS_EXCHANGE_ERROR_WARN_COUNT: ${OBS_EXCHANGE_ERROR_WARN_COUNT:-3}
     cpus: ${OBSERVER_CPU_LIMIT:-0.10}
     mem_limit: ${OBSERVER_MEMORY_LIMIT:-64m}
     pids_limit: 32

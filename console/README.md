@@ -16,6 +16,7 @@ npm run dev
 - positions remontées par Freqtrade, sans donnée simulée ;
 - profil Quant Rack, stratégie, timeframe, budget et indicateurs chargés ;
 - CPU, RAM, version, exchange, fraîcheur et journaux réels ;
+- synthèse glissante des relevés VPS sur sept jours, incidents et erreurs exchange comptées sans conserver leur texte ;
 - checklist de mise en service, sans formulaire de secret ni commande de trading.
 
 L'ancienne interface à onglets, ses graphiques et ses panneaux décoratifs ont été retirés. Les commandes ne seront ajoutées qu'avec confirmation forte, journal d'audit, contrôle santé et rollback. Voir `../ROADMAP.md`.

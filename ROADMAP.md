@@ -81,7 +81,15 @@ On ne crée pas un nouveau moteur d'indicateurs. Les stratégies continuent d'ut
 
 ## P6 — Observabilité et budgets
 
-Le collecteur ponctuel `rack-observer` est codé et testé. Il reste à planifier son exécution toutes les cinq minutes dans Coolify, vérifier la remontée des échecs et conserver sept jours complets avant d'ajuster les seuils.
+Le collecteur ponctuel `rack-observer` est codé et testé. Il compte les erreurs exchange sans stocker le texte des logs, maintient un résumé glissant de 168 heures et l'expose dans la console par une route authentifiée qui filtre explicitement chaque champ. Il reste à planifier son exécution toutes les cinq minutes dans Coolify, vérifier la remontée des échecs et conserver sept jours complets avant d'ajuster les seuils.
+
+| ID | État | Action | Critère d'acceptation |
+|---|---|---|---|
+| OBS-01 | Terminé | Relever CPU, RAM, santé, fraîcheur, positions et redémarrages | Échantillon JSONL sans secret et tests d'indisponibilité |
+| OBS-02 | Terminé | Compter les erreurs exchange récentes | Aucun texte de log conservé ; seuil initial de trois erreurs |
+| OBS-03 | Terminé | Publier le résumé 168 h dans la console | Route authentifiée, liste blanche de champs et état vide explicite |
+| OBS-04 | En validation | Exécuter la collecte toutes les cinq minutes | Tâche Coolify active et échec visible sur alerte |
+| OBS-05 | À faire | Observer une semaine complète | Seuils revus seulement après 2 016 relevés attendus |
 
 | Signal | Seuil initial | Réaction |
 |---|---:|---|
@@ -90,7 +98,7 @@ Le collecteur ponctuel `rack-observer` est codé et testé. Il reste à planifie
 | Paires actives | 5 | Refus d'activation au-delà du profil |
 | Jobs de recherche | 1 | Mise en file obligatoire |
 | Fraîcheur des bougies | 2 intervalles | État dégradé et blocage des nouvelles entrées |
-| Échecs API exchange | 3 consécutifs | Alerte Telegram sans secret |
+| Erreurs exchange dans les 100 derniers logs | 3 | Échec de la tâche Coolify sans conserver le texte ; notification à raccorder |
 
 Les seuils seront ajustés après sept jours de mesures, jamais au ressenti.
 
