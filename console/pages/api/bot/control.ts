@@ -1,11 +1,14 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { isAuthorizedRequest } from '../auth';
-import { freqtradeGet, publicFreqtradeError } from '../../../lib/freqtrade-client';
+import { isAuthorizedRequest, verifyOwnerPassword } from '../auth';
+import { freqtradeGet, freqtradePost, publicFreqtradeError } from '../../../lib/freqtrade-client';
+import { sameOriginRequest } from '../../../lib/request-guard';
 
 type JsonObject = Record<string, any>;
 let cache: { expiresAt: number; state: JsonObject } | null = null;
 let lastGoodState: JsonObject | null = null;
 let consecutiveFailures = 0;
+
+export const config = { api: { bodyParser: { sizeLimit: '4kb' } } };
 
 function number(value: unknown, fallback = 0): number {
   const parsed = Number(value);
@@ -102,9 +105,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!isAuthorizedRequest(req)) {
     return res.status(401).json({ success: false, message: 'Authentification requise' });
   }
+  if (req.method === 'POST') {
+    res.setHeader('Cache-Control', 'private, no-store');
+    if (!sameOriginRequest(req.headers)) return res.status(403).json({ success: false, message: 'Origine refusée' });
+    if (!verifyOwnerPassword(req.body?.confirmPassword) || req.body?.confirmation !== 'CONFIRMER') {
+      return res.status(403).json({ success: false, message: 'Confirmation propriétaire requise' });
+    }
+    const endpoints: Record<string, string> = { start: '/start', pause: '/pause', reload: '/reload_config' };
+    const action = typeof req.body?.action === 'string' ? req.body.action : '';
+    const endpoint = endpoints[action];
+    if (!endpoint) return res.status(400).json({ success: false, message: 'Action refusée' });
+    try {
+      await freqtradePost(endpoint);
+      cache = null;
+      return res.status(200).json({ success: true, action, message: 'Commande appliquée' });
+    } catch (error) {
+      return res.status(503).json({ success: false, ...publicFreqtradeError(error) });
+    }
+  }
   if (req.method !== 'GET') {
-    res.setHeader('Allow', ['GET']);
-    return res.status(405).json({ success: false, message: 'Console en lecture seule' });
+    res.setHeader('Allow', ['GET', 'POST']);
+    return res.status(405).json({ success: false, message: 'Méthode refusée' });
   }
 
   res.setHeader('Cache-Control', 'private, no-store');

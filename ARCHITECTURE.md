@@ -40,7 +40,7 @@ Quant Rack se place au-dessus de la configuration du cœur. Il sélectionne un p
 
 ## Coffre de déploiement
 
-Les secrets exchange et Telegram vivent uniquement dans le gestionnaire de secrets Coolify. Le Compose les transmet directement au moteur avec les variables imbriquées `FREQTRADE__EXCHANGE__*` et `FREQTRADE__TELEGRAM__*`, qui prennent priorité sur le JSON. Next.js ne les lit pas et ne les renvoie jamais au navigateur.
+Au premier démarrage, le Compose peut importer les anciennes variables Coolify Exchange et Telegram dans `user_data/private/runtime-secrets.json`. Ensuite, la console authentifiée modifie ce second fichier de configuration avec des permissions `0600`, sans jamais renvoyer ses valeurs au navigateur. Freqtrade le charge après `config.json`, conformément à son mécanisme de configurations multiples. Une mise à jour déclenche `reload_config` et restaure la version précédente si le moteur la refuse.
 
 ## Frontière produit
 

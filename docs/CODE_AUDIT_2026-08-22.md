@@ -4,7 +4,7 @@
 
 Le dépôt forme désormais un seul produit mono-propriétaire : une cabine Next.js, un cœur officiel isolé et un rack d'outils ponctuels. Le portail historique, l'infrastructure AWS, puis les derniers restes SaaS (tenants, abonnements, PayPal, quotas, modèles multi-clients et orchestrateur FastAPI) ont été supprimés.
 
-Aucun défaut critique connu ne reste dans notre code applicatif en lecture seule. Une dette critique de dépendance subsiste toutefois : Next.js `14.2.3` est inférieur à `14.2.25`, version corrigée pour l'avis Middleware CVSS 9.1. L'application n'utilise actuellement aucun middleware Next.js ni App Router, ce qui réduit les chemins concernés, mais ne transforme pas une version ancienne en version saine. Next.js annonce en plus une publication critique le 26 août 2026 pour ses branches maintenues. L'exposition publique et le trading réel restent donc bloqués jusqu'à cette migration, la rotation des secrets, la validation Coolify, les résultats hors échantillon et sept jours d'observation.
+Aucun défaut critique connu ne reste dans le chemin de supervision. Les nouvelles mutations sont limitées aux réglages privés et aux commandes démarrer, pause et recharger, avec origine, session, mot de passe et confirmation. Une dette critique de dépendance subsiste toutefois : Next.js `14.2.3` est inférieur à `14.2.25`, version corrigée pour l'avis Middleware CVSS 9.1. L'application n'utilise actuellement aucun middleware Next.js ni App Router, ce qui réduit les chemins concernés, mais ne transforme pas une version ancienne en version saine. Next.js annonce en plus une publication critique le 26 août 2026 pour ses branches maintenues. L'exposition publique et le trading réel restent donc bloqués jusqu'à cette migration, la rotation des secrets, la validation Coolify, les résultats hors échantillon et sept jours d'observation.
 
 ## Périmètre et méthode
 
@@ -26,7 +26,7 @@ Aucun défaut critique connu ne reste dans notre code applicatif en lecture seul
 | Réseau | Conforme | Cœur accessible uniquement sur le réseau Docker privé, seule la console peut être publiée |
 | Santé HTTP | Renforcée | Réponse neutre, prérequis d'accès vérifiés, absence de cache et `HEALTHCHECK` natif |
 | En-têtes HTTP | Renforcée | CSP, anti-framing, `nosniff`, référent nul et capteurs désactivés |
-| Secrets | Conforme côté code | Aucun secret collecté par l'UI ; injection Coolify directe au cœur ; préflight sans affichage des valeurs |
+| Secrets | Renforcée | Saisie authentifiée, stockage privé `0600`, valeurs jamais renvoyées, configuration séparée et rollback |
 | Rack | Conforme en dry-run | Profils bornés, état public filtré, sauvegarde atomique, verrou, contrôle des positions, santé et rollback |
 | Recherche | Conforme comme atelier | Un job, conteneur jetable, CPU/RAM/PID bornés, timeout, registre et garde OOS |
 | Stratégies | À valider | Code lisible et indicateurs justifiés, mais aucun résultat réel n'est présumé avant rapports et dry-run |
@@ -43,6 +43,7 @@ Aucun défaut critique connu ne reste dans notre code applicatif en lecture seul
 7. Suppression de quatre lectures internes inutilisées par l'interface et espacement des rafraîchissements.
 8. Mise à jour des métadonnées et documents qui parlaient encore de démonstration, simulation ou SaaS.
 9. Ajout d'une sonde de santé neutre, d'un contrôle Docker et d'en-têtes HTTP défensifs ; requête de connexion bornée à 4 Kio et non mise en cache.
+10. Correction de la sonde pour refuser les placeholders, ajout d'un coffre serveur, d'une configuration privée Freqtrade séparée et d'un rechargement avec rollback.
 
 ## Risques restants
 
@@ -58,7 +59,7 @@ Aucun défaut critique connu ne reste dans notre code applicatif en lecture seul
 
 - le limiteur de connexion est local au processus ; il est adapté à une instance, pas à un cluster ;
 - les réponses du cœur sont normalisées défensivement mais sans validateur de schéma externe ;
-- l'interface tient encore dans une page de 354 lignes ; acceptable aujourd'hui, à extraire si des mutations apparaissent ;
+- l'interface principale a grossi avec le coffre ; extraire ses panneaux en composants après validation fonctionnelle sur le VPS, sans ajouter de dépendance UI ;
 - Basic Auth circule en HTTP sur le réseau Docker privé ; ne jamais publier le port interne.
 
 ### Faibles

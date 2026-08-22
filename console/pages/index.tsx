@@ -6,7 +6,11 @@ import {
   Cpu,
   Layers3,
   LogOut,
+  KeyRound,
+  Pause,
+  Play,
   RefreshCw,
+  Settings,
   ShieldCheck,
   TerminalSquare,
 } from 'lucide-react';
@@ -75,6 +79,15 @@ type ObservabilityState = {
   exchangeErrors?: { maxInLogWindow: number; samplesWithErrors: number; maxConsecutiveAlertSamples: number };
 };
 
+type SettingsState = {
+  exchangeConfigured: boolean;
+  exchangePasswordConfigured: boolean;
+  telegramConfigured: boolean;
+  telegramEnabled: boolean;
+  telegramAuthorizedUsers: number;
+  updatedAt: string | null;
+};
+
 const EMPTY_STATE: BotState = {
   dataMode: 'unavailable', status: 'unavailable', version: '—', strategy: '—', timeframe: '—',
   exchange: '—', tradingMode: '—', dryRun: null, walletBalance: 0, profitTotal: 0, profitPct: 0,
@@ -137,6 +150,16 @@ export default function Home() {
   const [observability, setObservability] = useState<ObservabilityState>({ status: 'not_configured' });
   const [logs, setLogs] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settings, setSettings] = useState<SettingsState | null>(null);
+  const [settingsForm, setSettingsForm] = useState({
+    exchangeKey: '', exchangeSecret: '', exchangePassword: '', exchangeUid: '',
+    telegramEnabled: false, telegramToken: '', telegramChatId: '', telegramAuthorizedUsers: '',
+    confirmPassword: '',
+  });
+  const [settingsBusy, setSettingsBusy] = useState(false);
+  const [settingsMessage, setSettingsMessage] = useState('');
+  const [settingsError, setSettingsError] = useState('');
 
   const logout = useCallback(async () => {
     await fetch('/api/auth', { method: 'DELETE' });
@@ -195,6 +218,16 @@ export default function Home() {
     }
   }, [fetchJson]);
 
+  const refreshSettings = useCallback(async () => {
+    try {
+      const { payload } = await fetchJson('/api/settings');
+      setSettings(payload);
+      setSettingsForm((current) => ({ ...current, telegramEnabled: Boolean(payload.telegramEnabled) }));
+    } catch (error) {
+      if ((error as Error).message !== 'Session expirée') setSettings(null);
+    }
+  }, [fetchJson]);
+
   useEffect(() => {
     fetch('/api/auth').then((response) => response.json()).then((data) => setAuthenticated(Boolean(data.authenticated)))
       .catch(() => setAuthenticated(false));
@@ -205,11 +238,48 @@ export default function Home() {
     refreshBot();
     refreshLogs();
     refreshRack();
+    refreshSettings();
     const botTimer = window.setInterval(refreshBot, 15_000);
     const logTimer = window.setInterval(refreshLogs, 30_000);
     const rackTimer = window.setInterval(refreshRack, 60_000);
     return () => { window.clearInterval(botTimer); window.clearInterval(logTimer); window.clearInterval(rackTimer); };
-  }, [authenticated, refreshBot, refreshLogs, refreshRack]);
+  }, [authenticated, refreshBot, refreshLogs, refreshRack, refreshSettings]);
+
+  async function saveSettings(event: FormEvent) {
+    event.preventDefault();
+    setSettingsBusy(true); setSettingsError(''); setSettingsMessage('');
+    try {
+      const response = await fetch('/api/settings', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...settingsForm, confirmation: 'APPLIQUER' }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.message || 'Réglages refusés');
+      setSettings(payload);
+      setSettingsMessage('Réglages enregistrés et rechargés.');
+      setSettingsForm((current) => ({
+        ...current, exchangeKey: '', exchangeSecret: '', exchangePassword: '', exchangeUid: '',
+        telegramToken: '', telegramChatId: '', telegramAuthorizedUsers: '', confirmPassword: '',
+      }));
+      await refreshBot();
+    } catch (error) { setSettingsError((error as Error).message); }
+    finally { setSettingsBusy(false); }
+  }
+
+  async function control(action: 'start' | 'pause' | 'reload') {
+    setSettingsBusy(true); setSettingsError(''); setSettingsMessage('');
+    try {
+      const response = await fetch('/api/bot/control', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, confirmPassword: settingsForm.confirmPassword, confirmation: 'CONFIRMER' }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.message || 'Commande refusée');
+      setSettingsMessage('Commande transmise.');
+      window.setTimeout(refreshBot, 1200);
+    } catch (error) { setSettingsError((error as Error).message); }
+    finally { setSettingsBusy(false); }
+  }
 
   async function login(event: FormEvent) {
     event.preventDefault();
@@ -230,7 +300,7 @@ export default function Home() {
   }
 
   const alert = useMemo(() => {
-    if (bot.dryRun === false) return { level: 'danger', title: 'Mode réel actif', text: 'Cette console est en lecture seule. Vérifiez le compte et les positions avant toute intervention.' };
+    if (bot.dryRun === false) return { level: 'danger', title: 'Mode réel actif', text: 'Vérifiez le compte et les positions avant toute commande.' };
     if (bot.dataMode === 'unavailable') return { level: 'danger', title: 'Noyau indisponible', text: bot.message || 'Aucune donnée exploitable.' };
     if (bot.stale) return { level: 'warning', title: 'Données anciennes', text: bot.message || 'Le dernier état sain est affiché.' };
     if (bot.degraded) return { level: 'warning', title: 'Service dégradé', text: `Endpoints indisponibles : ${bot.unavailableEndpoints.join(', ') || 'non précisé'}.` };
@@ -238,32 +308,22 @@ export default function Home() {
     return null;
   }, [bot, observability]);
 
-  if (authenticated === null) return <main className="boot"><Activity className="spin" size={24} /><span>Ouverture de Quant Core…</span></main>;
+  if (authenticated === null) return <main className="boot"><Activity className="spin" size={24} /></main>;
 
   if (!authenticated) {
     return (
-      <main className="login-shell">
-        <Head><title>Quant Core</title><meta name="description" content="Espace privé" /></Head>
+      <main className="login-shell login-shell--simple">
+        <Head><title>Accès</title><meta name="description" content="Espace privé" /></Head>
         <div className="login-grid" aria-hidden="true" />
-        <section className="login-intro">
-          <div className="login-brand"><span className="brand-mark"><Activity size={21} /></span><strong>QUANT CORE</strong></div>
-          <div>
-            <p className="eyebrow">Espace personnel</p>
-            <h1>Le calme avant<br />le mouvement.</h1>
-            <p>Un espace privé, précis et silencieux. Rien de plus à montrer avant d’entrer.</p>
-          </div>
-          <div className="login-signature"><span /><span /><span /></div>
-        </section>
         <section className="login-card">
-          <header><div><p className="eyebrow">Accès unique</p><h2>Bienvenue.</h2></div><span className="access-light" aria-label="Accès protégé" /></header>
-          <p className="muted">Retrouvez votre espace exactement là où vous l’avez laissé.</p>
+          <header><div><span className="brand-mark"><Activity size={20} /></span><h2>Accès</h2></div><span className="access-light" aria-label="Accès protégé" /></header>
           <form onSubmit={login}>
             <label>Identifiant<input autoFocus autoComplete="username" value={credentials.username} onChange={(e) => setCredentials({ ...credentials, username: e.target.value })} /></label>
             <label>Mot de passe<input type="password" autoComplete="current-password" value={credentials.password} onChange={(e) => setCredentials({ ...credentials, password: e.target.value })} /></label>
             {authError && <p className="form-error" role="alert">{authError}</p>}
-            <button className="button button--primary" disabled={authBusy}>{authBusy ? 'Ouverture…' : 'Ouvrir mon espace'}</button>
+            <button className="button button--primary" disabled={authBusy}>{authBusy ? 'Ouverture…' : 'Entrer'}</button>
           </form>
-          <p className="login-foot"><ShieldCheck size={14} /> Accès privé · session protégée</p>
+          <p className="login-foot"><ShieldCheck size={14} /> Accès privé</p>
         </section>
       </main>
     );
@@ -282,15 +342,51 @@ export default function Home() {
           <span className={`engine engine--${bot.status}`}><i />{bot.status === 'running' ? 'Actif' : bot.status}</span>
           <span className={`mode mode--${bot.dryRun === false ? 'live' : 'dry'}`}>{bot.dryRun === false ? 'RÉEL' : 'SIMULATION'}</span>
           <button className="icon-button" onClick={refreshBot} disabled={loading} aria-label="Actualiser"><RefreshCw className={loading ? 'spin' : ''} size={17} /></button>
+          <button className={`icon-button ${settingsOpen ? 'icon-button--active' : ''}`} onClick={() => setSettingsOpen((open) => !open)} aria-label="Réglages"><Settings size={17} /></button>
           <button className="icon-button" onClick={logout} aria-label="Déconnexion"><LogOut size={17} /></button>
         </div>
       </header>
 
       <div className="content">
+        {settingsOpen ? (
+          <>
+            <section className="page-heading"><div><p className="eyebrow">Coffre serveur</p><h1>Réglages</h1></div><button className="text-button" onClick={() => setSettingsOpen(false)}>Retour</button></section>
+            <form className="settings-grid" onSubmit={saveSettings}>
+              <section className="panel settings-card">
+                <div className="panel__head"><div><p className="eyebrow">Marché actif : {bot.exchange}</p><h2>Exchange</h2></div><KeyRound size={19} /></div>
+                <p className="status-line"><i className={settings?.exchangeConfigured ? 'ok' : ''} />{settings?.exchangeConfigured ? 'Clés configurées' : 'Clés absentes'}</p>
+                <label>Clé API<input type="password" autoComplete="off" placeholder={settings?.exchangeConfigured ? 'Laisser vide pour conserver' : 'Clé API'} value={settingsForm.exchangeKey} onChange={(event) => setSettingsForm({ ...settingsForm, exchangeKey: event.target.value })} /></label>
+                <label>Secret API<input type="password" autoComplete="off" placeholder={settings?.exchangeConfigured ? 'Laisser vide pour conserver' : 'Secret API'} value={settingsForm.exchangeSecret} onChange={(event) => setSettingsForm({ ...settingsForm, exchangeSecret: event.target.value })} /></label>
+                <label>Passphrase <small>Seulement si l’exchange l’exige</small><input type="password" autoComplete="off" placeholder={settings?.exchangePasswordConfigured ? 'Déjà configurée' : 'Optionnelle'} value={settingsForm.exchangePassword} onChange={(event) => setSettingsForm({ ...settingsForm, exchangePassword: event.target.value })} /></label>
+                <label>UID <small>Seulement si l’exchange l’exige</small><input autoComplete="off" placeholder="Optionnel" value={settingsForm.exchangeUid} onChange={(event) => setSettingsForm({ ...settingsForm, exchangeUid: event.target.value })} /></label>
+                <p className="form-note">Créer une clé limitée au trading, sans retrait. Le marché reste celui du profil actif.</p>
+              </section>
+
+              <section className="panel settings-card">
+                <div className="panel__head"><div><p className="eyebrow">Notifications</p><h2>Telegram</h2></div><Activity size={19} /></div>
+                <label className="switch-row"><span>Activer Telegram</span><input type="checkbox" checked={settingsForm.telegramEnabled} onChange={(event) => setSettingsForm({ ...settingsForm, telegramEnabled: event.target.checked })} /></label>
+                <p className="status-line"><i className={settings?.telegramConfigured ? 'ok' : ''} />{settings?.telegramConfigured ? `Configuré · ${settings.telegramAuthorizedUsers} utilisateur(s)` : 'Non configuré'}</p>
+                <label>Jeton du bot<input type="password" autoComplete="off" placeholder={settings?.telegramConfigured ? 'Laisser vide pour conserver' : '123456:ABC…'} value={settingsForm.telegramToken} onChange={(event) => setSettingsForm({ ...settingsForm, telegramToken: event.target.value })} /></label>
+                <label>Chat ID<input inputMode="numeric" placeholder="Identifiant numérique" value={settingsForm.telegramChatId} onChange={(event) => setSettingsForm({ ...settingsForm, telegramChatId: event.target.value })} /></label>
+                <label>Utilisateurs autorisés<input placeholder="12345, 67890" value={settingsForm.telegramAuthorizedUsers} onChange={(event) => setSettingsForm({ ...settingsForm, telegramAuthorizedUsers: event.target.value })} /></label>
+              </section>
+
+              <section className="panel settings-card settings-card--wide">
+                <div className="panel__head"><div><p className="eyebrow">Confirmation</p><h2>Appliquer</h2></div><ShieldCheck size={19} /></div>
+                <div className="confirmation-row"><label>Mot de passe actuel<input type="password" autoComplete="current-password" value={settingsForm.confirmPassword} onChange={(event) => setSettingsForm({ ...settingsForm, confirmPassword: event.target.value })} /></label><button className="button button--primary" disabled={settingsBusy || !settingsForm.confirmPassword}>{settingsBusy ? 'Application…' : 'Enregistrer et recharger'}</button></div>
+                {settingsError && <p className="form-error" role="alert">{settingsError}</p>}
+                {settingsMessage && <p className="form-success" role="status">{settingsMessage}</p>}
+                <div className="control-row"><button type="button" className="button button--secondary" disabled={settingsBusy || !settingsForm.confirmPassword} onClick={() => control('start')}><Play size={15} /> Démarrer</button><button type="button" className="button button--secondary" disabled={settingsBusy || !settingsForm.confirmPassword} onClick={() => control('pause')}><Pause size={15} /> Pause</button><button type="button" className="button button--secondary" disabled={settingsBusy || !settingsForm.confirmPassword} onClick={() => control('reload')}><RefreshCw size={15} /> Recharger</button></div>
+                <p className="form-note">Une sauvegarde est faite avant écriture. Si le moteur refuse la configuration, l’ancienne version est restaurée.</p>
+              </section>
+            </form>
+          </>
+        ) : (
+        <>
         {alert && <section className={`alert alert--${alert.level}`} role="alert"><strong>{alert.title}</strong><span>{alert.text}</span></section>}
 
         <section className="page-heading">
-          <div><p className="eyebrow">Supervision en lecture seule</p><h1>Vue d’ensemble</h1></div>
+          <div><p className="eyebrow">Supervision</p><h1>Vue d’ensemble</h1></div>
           <span className="freshness">Mis à jour {freshness(bot.lastUpdated)}</span>
         </section>
 
@@ -347,7 +443,9 @@ export default function Home() {
           </section>
         </div>
 
-        <footer><span>Espace personnel · lecture seule</span><span>{rack.status === 'configured' ? `Rack ${rack.profile_id}` : 'Rack non initialisé'}</span></footer>
+        <footer><span>Espace personnel</span><span>{rack.status === 'configured' ? `Rack ${rack.profile_id}` : 'Rack non initialisé'}</span></footer>
+        </>
+        )}
       </div>
     </main>
   );

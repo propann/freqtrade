@@ -18,7 +18,7 @@ Quant Core doit devenir une console Freqtrade simple à déployer sur Coolify, u
 - UI actuelle : porte neutre et cabine responsive mono-propriétaire.
 - Flux de marché décoratif : supprimé ; aucune donnée simulée dans la console.
 - Authentification console : session signée liée au propriétaire, variables obligatoires et limitation des échecs.
-- Contrôle réel : adaptateur REST serveur en lecture seule, cache court et état sain borné.
+- Contrôle réel : lectures en cache court, coffre privé et commandes démarrer, pause, recharger avec confirmation forte.
 - Journaux : lecture réelle, lignes bornées et secrets filtrés avant retour au navigateur.
 - Validation stratégie : script réel de backtest, lookahead et analyse récursive ; aucun résultat fabriqué dans l'UI.
 - Ancienne couche SaaS : supprimée avec ses tenants, abonnements, paiements, quotas et modèles multi-clients.

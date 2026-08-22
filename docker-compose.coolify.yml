@@ -16,10 +16,12 @@ services:
       FREQTRADE_ADMIN_USER: ${FREQTRADE_ADMIN_USER:?FREQTRADE_ADMIN_USER is required}
       FREQTRADE_ADMIN_PASSWORD: ${FREQTRADE_ADMIN_PASSWORD:?FREQTRADE_ADMIN_PASSWORD is required}
       FREQTRADE_JWT_SECRET: ${FREQTRADE_JWT_SECRET:?FREQTRADE_JWT_SECRET is required}
+      QUANT_RUNTIME_SECRETS_PATH: /app/user_data/private/runtime-secrets.json
       QUANT_RACK_STATE_PATH: /app/user_data/rack/state.json
       QUANT_OBSERVABILITY_SUMMARY_PATH: /app/user_data/observability/summary-168h.json
     volumes:
       - ./user_data:/app/user_data:ro
+      - ./user_data/private:/app/user_data/private
     cpus: ${CONSOLE_CPU_LIMIT:-0.5}
     mem_limit: ${CONSOLE_MEMORY_LIMIT:-512m}
     depends_on:
@@ -40,12 +42,15 @@ services:
       FREQTRADE__API_SERVER__LISTEN_PORT: 8080
       FREQTRADE__API_SERVER__JWT_SECRET_KEY: ${FREQTRADE_API_JWT_SECRET:?FREQTRADE_API_JWT_SECRET is required}
       FREQTRADE__API_SERVER__WS_TOKEN: ${FREQTRADE_WS_TOKEN:?FREQTRADE_WS_TOKEN is required}
-      FREQTRADE__EXCHANGE__KEY: ${EXCHANGE_API_KEY:-}
-      FREQTRADE__EXCHANGE__SECRET: ${EXCHANGE_API_SECRET:-}
-      FREQTRADE__TELEGRAM__ENABLED: ${TELEGRAM_ENABLED:-false}
-      FREQTRADE__TELEGRAM__TOKEN: ${TELEGRAM_BOT_TOKEN:-}
-      FREQTRADE__TELEGRAM__CHAT_ID: ${TELEGRAM_CHAT_ID:-}
-      FREQTRADE__TELEGRAM__AUTHORIZED_USERS: ${TELEGRAM_AUTHORIZED_USERS:-[]}
+      QUANT_RUNTIME_SECRETS_PATH: /freqtrade/user_data/private/runtime-secrets.json
+      QUANT_BOOTSTRAP_EXCHANGE_KEY: ${EXCHANGE_API_KEY:-}
+      QUANT_BOOTSTRAP_EXCHANGE_SECRET: ${EXCHANGE_API_SECRET:-}
+      QUANT_BOOTSTRAP_EXCHANGE_PASSWORD: ${EXCHANGE_API_PASSWORD:-}
+      QUANT_BOOTSTRAP_EXCHANGE_UID: ${EXCHANGE_API_UID:-}
+      QUANT_BOOTSTRAP_TELEGRAM_ENABLED: ${TELEGRAM_ENABLED:-false}
+      QUANT_BOOTSTRAP_TELEGRAM_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      QUANT_BOOTSTRAP_TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+      QUANT_BOOTSTRAP_TELEGRAM_AUTHORIZED_USERS: ${TELEGRAM_AUTHORIZED_USERS:-[]}
     expose:
       - "8080"
     cpus: ${FREQTRADE_CPU_LIMIT:-1.0}
@@ -54,10 +59,8 @@ services:
     volumes:
       - ./user_data:/freqtrade/user_data
       - ./strategies:/freqtrade/user_data/strategies:ro
-    command: >
-      trade
-      --config /freqtrade/user_data/config.json
-      --db-url sqlite:////freqtrade/user_data/tradesv3.sqlite
+      - ./scripts:/opt/quant/scripts:ro
+    entrypoint: ["/bin/sh", "/opt/quant/scripts/start-engine"]
     networks:
       - quant-network
 
@@ -133,6 +136,8 @@ services:
       - --process-env
       - --config
       - /workspace/repository/user_data/config.json
+      - --runtime-secrets
+      - /workspace/repository/user_data/private/runtime-secrets.json
     environment:
       QUANT_RACK_ROOT: /workspace/repository
       FREQTRADE_USERNAME: ${FREQTRADE_USERNAME:?FREQTRADE_USERNAME is required}

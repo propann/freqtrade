@@ -6,7 +6,7 @@ describe('runtime health', () => {
   test('is ready only when every access secret is usable', () => {
     expect(accessIsReady({
       FREQTRADE_ADMIN_USER: 'owner',
-      FREQTRADE_ADMIN_PASSWORD: 'strong-password',
+      FREQTRADE_ADMIN_PASSWORD: 'strong-password-42',
       FREQTRADE_JWT_SECRET: 'a'.repeat(32),
     })).toBe(true);
 
@@ -15,6 +15,11 @@ describe('runtime health', () => {
       FREQTRADE_ADMIN_USER: 'owner',
       FREQTRADE_ADMIN_PASSWORD: 'strong-password',
       FREQTRADE_JWT_SECRET: 'too-short',
+    })).toBe(false);
+    expect(accessIsReady({
+      FREQTRADE_ADMIN_USER: 'admin',
+      FREQTRADE_ADMIN_PASSWORD: 'change-me-console-password',
+      FREQTRADE_JWT_SECRET: 'change-me-with-at-least-32-random-bytes',
     })).toBe(false);
   });
 });
