@@ -47,6 +47,7 @@ Principes non négociables : secrets uniquement côté serveur, dry-run par déf
 | API-05 | P1 — En validation | Supprimer les routes et jeux de données simulés restants | Recherche `demo/mock/fake` vide dans `console/` |
 | UI-01 | P0 — Terminé | Remplacer l'ancienne interface à onglets par une page opérateur minimale | Moteur, capital, positions, rack, système et logs visibles sans graphique décoratif |
 | UI-02 | P0 — Terminé | Conserver une interface sûre sur ordinateur et mobile | Aucun secret ni bouton de trading côté navigateur ; mise en page responsive |
+| UI-03 | P0 — En validation | Recentrer l'interface sur un propriétaire unique | Porte d'entrée neutre, compte unique sans PIN ni rôles, rack et outils visibles après connexion |
 
 ## P3 — Activation et retour arrière
 
@@ -136,6 +137,7 @@ Toutes les conditions suivantes sont obligatoires :
 | 2026-08-22 | Profils déclaratifs et activation explicite | Réduire la charge sans comportement implicite |
 | 2026-08-22 | PR avant `main` pour le rack | Le déploiement existant peut redémarrer automatiquement |
 | 2026-08-22 | Cabine opérateur sans fioriture | Réduire la charge cognitive, le JavaScript et les dépendances de visualisation |
+| 2026-08-22 | Un seul propriétaire, un seul compte | Supprimer les rôles et accès alternatifs sans retirer la sécurité de session |
 
 ## Rythme de suivi
 

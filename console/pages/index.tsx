@@ -58,6 +58,7 @@ type RackState = {
   budget?: { cpu?: number; memory_mb?: number; max_parallel_jobs?: number };
   indicators?: string[];
   protections?: string[];
+  tools?: Record<string, 'on' | 'job' | 'warm' | 'off'>;
   config_applied?: boolean;
 };
 
@@ -79,6 +80,22 @@ const EMPTY_STATE: BotState = {
   exchange: '—', tradingMode: '—', dryRun: null, walletBalance: 0, profitTotal: 0, profitPct: 0,
   dailyProfit: 0, dailyProfitPct: 0, openTradesCount: 0, maxTrades: 0, stakeCurrency: 'USDT',
   activeTrades: [], system: null, degraded: false, stale: false, unavailableEndpoints: [], lastUpdated: '',
+};
+
+const TOOL_LABELS: Record<string, string> = {
+  telegram: 'Alertes',
+  backtest: 'Backtests',
+  lookahead_analysis: 'Anti-biais',
+  recursive_analysis: 'Stabilité',
+  hyperopt: 'Optimisation',
+  freqai: 'Intelligence',
+};
+
+const TOOL_STATES = {
+  on: 'Actif',
+  job: 'À la demande',
+  warm: 'Prêt',
+  off: 'Arrêté',
 };
 
 function money(value: number, currency: string) {
@@ -112,7 +129,7 @@ function Metric({ label, value, detail, tone = 'neutral', icon }: {
 
 export default function Home() {
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
-  const [credentials, setCredentials] = useState({ username: '', password: '', pin: '' });
+  const [credentials, setCredentials] = useState({ username: '', password: '' });
   const [authError, setAuthError] = useState('');
   const [authBusy, setAuthBusy] = useState(false);
   const [bot, setBot] = useState<BotState>(EMPTY_STATE);
@@ -206,7 +223,7 @@ export default function Home() {
 
   const alert = useMemo(() => {
     if (bot.dryRun === false) return { level: 'danger', title: 'Mode réel actif', text: 'Cette console est en lecture seule. Vérifiez le compte et les positions avant toute intervention.' };
-    if (bot.dataMode === 'unavailable') return { level: 'danger', title: 'Moteur indisponible', text: bot.message || 'Aucune donnée Freqtrade exploitable.' };
+    if (bot.dataMode === 'unavailable') return { level: 'danger', title: 'Noyau indisponible', text: bot.message || 'Aucune donnée exploitable.' };
     if (bot.stale) return { level: 'warning', title: 'Données anciennes', text: bot.message || 'Le dernier état sain est affiché.' };
     if (bot.degraded) return { level: 'warning', title: 'Service dégradé', text: `Endpoints indisponibles : ${bot.unavailableEndpoints.join(', ') || 'non précisé'}.` };
     if ((observability.statusCounts?.critical || 0) > 0) return { level: 'warning', title: 'Incidents observés', text: `${observability.statusCounts?.critical} relevé(s) critique(s) dans la fenêtre de surveillance.` };
@@ -218,21 +235,27 @@ export default function Home() {
   if (!authenticated) {
     return (
       <main className="login-shell">
-        <Head><title>Connexion · Quant Core</title></Head>
+        <Head><title>Quant Core</title><meta name="description" content="Espace privé" /></Head>
+        <div className="login-grid" aria-hidden="true" />
+        <section className="login-intro">
+          <div className="login-brand"><span className="brand-mark"><Activity size={21} /></span><strong>QUANT CORE</strong></div>
+          <div>
+            <p className="eyebrow">Espace personnel</p>
+            <h1>Le calme avant<br />le mouvement.</h1>
+            <p>Un espace privé, précis et silencieux. Rien de plus à montrer avant d’entrer.</p>
+          </div>
+          <div className="login-signature"><span /><span /><span /></div>
+        </section>
         <section className="login-card">
-          <div className="brand-mark"><Activity size={20} /></div>
-          <p className="eyebrow">Console privée</p>
-          <h1>Quant Core</h1>
-          <p className="muted">Une seule vue pour surveiller le moteur, le risque et le rack.</p>
+          <header><div><p className="eyebrow">Accès unique</p><h2>Bienvenue.</h2></div><span className="access-light" aria-label="Accès protégé" /></header>
+          <p className="muted">Retrouvez votre espace exactement là où vous l’avez laissé.</p>
           <form onSubmit={login}>
-            <label>Utilisateur<input autoComplete="username" value={credentials.username} onChange={(e) => setCredentials({ ...credentials, username: e.target.value })} /></label>
+            <label>Identifiant<input autoFocus autoComplete="username" value={credentials.username} onChange={(e) => setCredentials({ ...credentials, username: e.target.value })} /></label>
             <label>Mot de passe<input type="password" autoComplete="current-password" value={credentials.password} onChange={(e) => setCredentials({ ...credentials, password: e.target.value })} /></label>
-            <div className="login-separator"><span>ou PIN</span></div>
-            <label>Code PIN<input type="password" inputMode="numeric" autoComplete="one-time-code" value={credentials.pin} onChange={(e) => setCredentials({ ...credentials, pin: e.target.value })} /></label>
             {authError && <p className="form-error" role="alert">{authError}</p>}
-            <button className="button button--primary" disabled={authBusy}>{authBusy ? 'Connexion…' : 'Entrer'}</button>
+            <button className="button button--primary" disabled={authBusy}>{authBusy ? 'Ouverture…' : 'Ouvrir mon espace'}</button>
           </form>
-          <p className="login-foot"><ShieldCheck size={14} /> Clés exchange et Telegram jamais envoyées au navigateur.</p>
+          <p className="login-foot"><ShieldCheck size={14} /> Accès privé · session protégée</p>
         </section>
       </main>
     );
@@ -244,12 +267,12 @@ export default function Home() {
 
   return (
     <main className="app-shell">
-      <Head><title>Quant Core</title><meta name="description" content="Console Freqtrade privée" /></Head>
+      <Head><title>Quant Core</title><meta name="description" content="Espace de pilotage privé" /></Head>
       <header className="topbar">
-        <div className="brand"><span className="brand-mark"><Activity size={18} /></span><div><strong>Quant Core</strong><small>Cabine Freqtrade</small></div></div>
+        <div className="brand"><span className="brand-mark"><Activity size={18} /></span><div><strong>Quant Core</strong><small>Control room</small></div></div>
         <div className="topbar__actions">
-          <span className={`engine engine--${bot.status}`}><i />{bot.status === 'running' ? 'Moteur actif' : bot.status}</span>
-          <span className={`mode mode--${bot.dryRun === false ? 'live' : 'dry'}`}>{bot.dryRun === false ? 'RÉEL' : 'DRY-RUN'}</span>
+          <span className={`engine engine--${bot.status}`}><i />{bot.status === 'running' ? 'Actif' : bot.status}</span>
+          <span className={`mode mode--${bot.dryRun === false ? 'live' : 'dry'}`}>{bot.dryRun === false ? 'RÉEL' : 'SIMULATION'}</span>
           <button className="icon-button" onClick={refreshBot} disabled={loading} aria-label="Actualiser"><RefreshCw className={loading ? 'spin' : ''} size={17} /></button>
           <button className="icon-button" onClick={logout} aria-label="Déconnexion"><LogOut size={17} /></button>
         </div>
@@ -264,7 +287,7 @@ export default function Home() {
         </section>
 
         <section className="metrics-grid" aria-label="Indicateurs clés">
-          <Metric label="Capital bot" value={money(bot.walletBalance, currency)} detail={`${bot.exchange} · ${currency}`} icon={<CircleDollarSign size={18} />} />
+          <Metric label="Capital suivi" value={money(bot.walletBalance, currency)} detail={`${bot.exchange} · ${currency}`} icon={<CircleDollarSign size={18} />} />
           <Metric label="Positions ouvertes" value={`${bot.openTradesCount}`} detail={`Limite ${bot.maxTrades < 0 ? 'illimitée' : bot.maxTrades}`} icon={<Activity size={18} />} />
           <Metric label="P&L total" value={money(bot.profitTotal, currency)} detail={percent(bot.profitPct)} tone={totalTone} icon={<Layers3 size={18} />} />
           <Metric label="P&L du jour" value={money(bot.dailyProfit, currency)} detail={percent(bot.dailyProfitPct)} tone={dailyTone} icon={<Activity size={18} />} />
@@ -276,12 +299,12 @@ export default function Home() {
             <div className="table-wrap"><table><thead><tr><th>Paire</th><th>Entrée</th><th>Actuel</th><th>Mise</th><th>P&L</th><th>Durée</th></tr></thead><tbody>
               {bot.activeTrades.map((trade) => <tr key={trade.id}><td><strong>{trade.pair}</strong></td><td>{trade.entryPrice.toLocaleString('fr-FR')}</td><td>{trade.currentPrice.toLocaleString('fr-FR')}</td><td>{money(trade.stake, currency)}</td><td className={trade.profit >= 0 ? 'positive' : 'negative'}>{money(trade.profit, currency)} <small>{percent(trade.profitPct)}</small></td><td>{trade.duration}</td></tr>)}
             </tbody></table></div>
-          ) : <div className="empty"><ShieldCheck size={22} /><strong>Aucune position ouverte</strong><span>Le moteur ne signale aucune exposition active.</span></div>}
+          ) : <div className="empty"><ShieldCheck size={22} /><strong>Aucune position ouverte</strong><span>Aucune exposition active.</span></div>}
         </section>
 
         <div className="two-columns">
           <section className="panel">
-            <div className="panel__head"><div><p className="eyebrow">Profil actif</p><h2>Stratégie & rack</h2></div><Layers3 size={19} /></div>
+            <div className="panel__head"><div><p className="eyebrow">Configuration active</p><h2>Rack</h2></div><Layers3 size={19} /></div>
             <dl className="facts"><div><dt>Profil</dt><dd>{rack.profile_id || 'Non configuré'}</dd></div><div><dt>Stratégie</dt><dd>{rack.strategy || bot.strategy}</dd></div><div><dt>Timeframe</dt><dd>{rack.timeframe || bot.timeframe}</dd></div><div><dt>Paires max.</dt><dd>{rack.pair_limit ?? bot.maxTrades}</dd></div><div><dt>Budget</dt><dd>{rack.budget ? `${rack.budget.cpu ?? '—'} CPU · ${rack.budget.memory_mb ?? '—'} Mio` : '—'}</dd></div><div><dt>Config appliquée</dt><dd>{rack.config_applied ? 'Oui' : 'Non / inconnue'}</dd></div></dl>
             <div className="tag-list">{rack.indicators?.length ? rack.indicators.map((item) => <span key={item}>{item}</span>) : <span>Aucun registre chargé</span>}</div>
           </section>
@@ -289,11 +312,11 @@ export default function Home() {
           <section className="panel">
             <div className="panel__head"><div><p className="eyebrow">Petit VPS</p><h2>Système</h2></div><Cpu size={19} /></div>
             <div className="gauges"><div><span>CPU moyen</span><strong>{bot.system ? `${bot.system.cpuAveragePct.toFixed(1)} %` : '—'}</strong><progress max="100" value={bot.system?.cpuAveragePct || 0} /></div><div><span>RAM</span><strong>{bot.system ? `${bot.system.ramPct.toFixed(1)} %` : '—'}</strong><progress max="100" value={bot.system?.ramPct || 0} /></div></div>
-            <dl className="facts facts--compact"><div><dt>Freqtrade</dt><dd>{bot.version}</dd></div><div><dt>Exchange</dt><dd>{bot.exchange}</dd></div><div><dt>Trading</dt><dd>{bot.tradingMode}</dd></div><div><dt>Cœurs</dt><dd>{bot.system?.cpuCount ?? '—'}</dd></div></dl>
+            <dl className="facts facts--compact"><div><dt>Noyau</dt><dd>{bot.version}</dd></div><div><dt>Marché</dt><dd>{bot.exchange}</dd></div><div><dt>Mode</dt><dd>{bot.tradingMode}</dd></div><div><dt>Cœurs</dt><dd>{bot.system?.cpuCount ?? '—'}</dd></div></dl>
             <div className="observation">
               <div className="observation__head"><strong>Observation 7 jours</strong><span className={`observation__status observation__status--${observability.status}`}>{observability.status === 'configured' ? `${observability.samples ?? 0} relevés` : 'En attente'}</span></div>
               {observability.status === 'configured' ? <>
-                <div className="observation__grid"><div><span>CPU max.</span><strong>{observability.cpuAveragePct?.max != null ? `${observability.cpuAveragePct.max.toFixed(1)} %` : '—'}</strong></div><div><span>RAM max.</span><strong>{observability.ramPct?.max != null ? `${observability.ramPct.max.toFixed(1)} %` : '—'}</strong></div><div><span>Critiques</span><strong>{observability.statusCounts?.critical ?? 0}</strong></div><div><span>Erreurs exchange</span><strong>{observability.exchangeErrors?.maxInLogWindow ?? 0}</strong></div></div>
+                <div className="observation__grid"><div><span>CPU max.</span><strong>{observability.cpuAveragePct?.max != null ? `${observability.cpuAveragePct.max.toFixed(1)} %` : '—'}</strong></div><div><span>RAM max.</span><strong>{observability.ramPct?.max != null ? `${observability.ramPct.max.toFixed(1)} %` : '—'}</strong></div><div><span>Critiques</span><strong>{observability.statusCounts?.critical ?? 0}</strong></div><div><span>Erreurs marché</span><strong>{observability.exchangeErrors?.maxInLogWindow ?? 0}</strong></div></div>
                 <small>{observability.restartCountLowerBound ?? 0} redémarrage(s) minimum · fraîcheur max. {observability.freshnessAgeSeconds?.max != null ? `${Math.round(observability.freshnessAgeSeconds.max)} s` : '—'} · généré {freshness(observability.generatedAt || '')}</small>
               </> : <p>L’historique apparaîtra après le premier passage de <code>rack-observer</code>.</p>}
             </div>
@@ -302,16 +325,21 @@ export default function Home() {
 
         <div className="two-columns two-columns--lower">
           <section className="panel">
-            <div className="panel__head"><div><p className="eyebrow">Derniers événements</p><h2>Journal moteur</h2></div><TerminalSquare size={19} /></div>
+            <div className="panel__head"><div><p className="eyebrow">Derniers événements</p><h2>Journal système</h2></div><TerminalSquare size={19} /></div>
             <div className="log-view">{logs.length ? logs.map((line, index) => <div key={`${index}-${line.slice(0, 20)}`}>{line}</div>) : <div className="log-empty">Aucun journal disponible.</div>}</div>
           </section>
-          <section className="panel checklist">
-            <div className="panel__head"><div><p className="eyebrow">Avant le test</p><h2>Checklist Coolify</h2></div><ShieldCheck size={19} /></div>
-            <ol><li><span>1</span><div><strong>Secrets serveur</strong><small>Clés exchange limitées, sans retrait.</small></div></li><li><span>2</span><div><strong>Telegram renouvelé</strong><small>Ancien jeton révoqué avant démarrage.</small></div></li><li><span>3</span><div><strong>Dry-run confirmé</strong><small>Ne pas basculer en réel pendant la validation.</small></div></li><li><span>4</span><div><strong>Positions contrôlées</strong><small>Aucune position non gérée avant redémarrage.</small></div></li></ol>
+          <section className="panel tool-rack">
+            <div className="panel__head"><div><p className="eyebrow">Charge maîtrisée</p><h2>Outils du rack</h2></div><Layers3 size={19} /></div>
+            <div className="tool-rack__list">
+              {rack.tools && Object.keys(rack.tools).length ? Object.entries(rack.tools).map(([name, state]) => (
+                <div key={name}><span className={`tool-light tool-light--${state}`} /><strong>{TOOL_LABELS[name] || name}</strong><small>{TOOL_STATES[state]}</small></div>
+              )) : <p className="muted">Le rack apparaîtra après son initialisation.</p>}
+            </div>
+            {rack.protections?.length ? <p className="tool-rack__foot">{rack.protections.length} protections chargées avec le profil actif.</p> : null}
           </section>
         </div>
 
-        <footer><span>Lecture seule · secrets côté serveur</span><span>{rack.status === 'configured' ? `Rack ${rack.profile_id}` : 'Rack non initialisé'}</span></footer>
+        <footer><span>Espace personnel · lecture seule</span><span>{rack.status === 'configured' ? `Rack ${rack.profile_id}` : 'Rack non initialisé'}</span></footer>
       </div>
     </main>
   );

@@ -7,7 +7,7 @@ Quant Core doit devenir une console Freqtrade simple à déployer sur Coolify, u
 ## Règles de travail
 
 - Le dry-run reste le mode par défaut jusqu'à validation complète du chemin réel.
-- Aucun secret, identifiant ou PIN de secours dans Git.
+- Aucun secret ou identifiant de secours dans Git.
 - Une donnée simulée doit être explicitement identifiée comme simulée.
 - Une action affichée comme réussie doit avoir été confirmée par Freqtrade.
 - L'API REST Freqtrade reste privée sur le réseau Docker.

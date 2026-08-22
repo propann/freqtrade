@@ -3,7 +3,6 @@ import crypto from 'crypto';
 
 const ADMIN_USERNAME = process.env.FREQTRADE_ADMIN_USER || '';
 const ADMIN_PASSWORD = process.env.FREQTRADE_ADMIN_PASSWORD || '';
-const PIN_CODE = process.env.FREQTRADE_PIN_CODE || '';
 const JWT_SECRET = process.env.FREQTRADE_JWT_SECRET || '';
 
 function authIsConfigured(): boolean {
@@ -18,11 +17,10 @@ function safeEqual(left: string, right: string): boolean {
 
 function generateAuthToken(user: string): string {
   if (!authIsConfigured()) {
-    throw new Error('Console authentication is not configured');
+    throw new Error('Personal access is not configured');
   }
   const payload = {
     user,
-    role: 'operator_chief',
     created: Date.now(),
     exp: Date.now() + 1000 * 60 * 60 * 24 * 7 // 7 days
   };
@@ -64,8 +62,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(200).json({
         authenticated: true,
         user: ADMIN_USERNAME,
-        domain: process.env.FREQTRADE_PUBLIC_DOMAIN || 'localhost',
-        role: 'Trading Lead & Operator'
+        domain: process.env.FREQTRADE_PUBLIC_DOMAIN || 'localhost'
       });
     }
     return res.status(200).json({ authenticated: false });
@@ -75,18 +72,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!authIsConfigured()) {
       return res.status(503).json({
         success: false,
-        message: 'Authentification non configurée : variables FREQTRADE_ADMIN_* et FREQTRADE_JWT_SECRET requises.'
+        message: 'Accès personnel non configuré côté serveur.'
       });
     }
 
-    const { username, password, pin } = req.body || {};
+    const { username, password } = req.body || {};
 
     const isValidUserPass = typeof username === 'string' && typeof password === 'string'
       && safeEqual(username, ADMIN_USERNAME) && safeEqual(password, ADMIN_PASSWORD);
-    const isValidPin = Boolean(PIN_CODE && typeof pin === 'string' && safeEqual(pin, PIN_CODE));
-
-    if (isValidUserPass || isValidPin) {
-      const token = generateAuthToken(username || 'admin');
+    if (isValidUserPass) {
+      const token = generateAuthToken(username);
       
       // Set secure cookie
       const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
@@ -94,14 +89,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       
       return res.status(200).json({
         success: true,
-        user: username || 'admin',
-        message: 'Authentification QuantApex réussie'
+        user: username,
+        message: 'Accès ouvert'
       });
     }
 
     return res.status(401).json({
       success: false,
-      message: 'Identifiants ou Code PIN incorrects'
+      message: 'Identifiants incorrects'
     });
   }
 

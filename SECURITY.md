@@ -4,7 +4,7 @@ Ce logiciel pilote potentiellement un moteur de trading. Une fausse réussite, u
 
 ## Garanties actuelles
 
-- aucun identifiant, mot de passe, PIN ou JWT de secours n'est accepté par le code ;
+- aucun identifiant, mot de passe ou JWT de secours n'est accepté par le code ;
 - l'authentification refuse de démarrer si les variables requises manquent ;
 - les routes conservées de contrôle et de logs exigent une session valide ; les anciennes routes de faux backtest et de collecte d'identifiants ont été supprimées ;
 - le cookie de session est `HttpOnly`, `SameSite=Strict` et `Secure` en production ;

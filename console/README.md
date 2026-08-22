@@ -1,6 +1,6 @@
 # Console web (Next.js)
 
-Interface Next.js minimale de Quant Core. Une page unique et responsive montre uniquement l'essentiel : moteur, capital, positions, stratégie, rack, ressources, alertes et derniers journaux. Son adaptateur serveur interroge Freqtrade sur le réseau Docker privé avec authentification, timeout, cache court et états dégradés. Aucun secret Freqtrade ou exchange n'est envoyé au navigateur. Les mutations sont bloquées pendant la phase lecture seule.
+Interface Next.js personnelle de Quant Core. Une porte d'entrée neutre ne révèle ni la nature ni les composants du service ; après connexion, une page unique et responsive montre uniquement l'essentiel : capital, positions, stratégie, rack, outils, ressources, alertes et derniers journaux. Le compte unique remplace les anciens rôles et le raccourci PIN. Son adaptateur serveur interroge le cœur sur le réseau Docker privé avec authentification, timeout, cache court et états dégradés. Aucun secret n'est envoyé au navigateur. Les mutations sont bloquées pendant la phase lecture seule.
 
 ## Démarrer en local
 ```bash
