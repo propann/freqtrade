@@ -36,7 +36,7 @@ Quant Rack se place au-dessus de la configuration du cœur. Il sélectionne un p
 | Stratégie de base | Recherche spot 15m, non validée | `strategies/QuantCoreBaseline.py` |
 | Stratégie Ichimoku | Modernisée depuis le fichier fourni, non validée | `strategies/IchiV1Research.py` |
 | Quant Rack | Profils et état lisible par la console | `quant_rack/`, `scripts/rackctl.py` |
-| Orchestrateur FastAPI | Prototype non déployé, à supprimer après vérification d'absence de dépendance | `orchestrator/` |
+| Ancienne couche SaaS | Supprimée : aucun tenant, abonnement, paiement ou plan de contrôle parallèle | — |
 
 ## Coffre de déploiement
 

@@ -1,6 +1,9 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import crypto from 'crypto';
 
+import { createSessionToken, verifySessionToken } from '../../lib/auth-session';
+import { clearLoginFailures, loginAllowance, recordLoginFailure } from '../../lib/login-guard';
+
 const ADMIN_USERNAME = process.env.FREQTRADE_ADMIN_USER || '';
 const ADMIN_PASSWORD = process.env.FREQTRADE_ADMIN_PASSWORD || '';
 const JWT_SECRET = process.env.FREQTRADE_JWT_SECRET || '';
@@ -15,35 +18,8 @@ function safeEqual(left: string, right: string): boolean {
   return leftBuffer.length === rightBuffer.length && crypto.timingSafeEqual(leftBuffer, rightBuffer);
 }
 
-function generateAuthToken(user: string): string {
-  if (!authIsConfigured()) {
-    throw new Error('Personal access is not configured');
-  }
-  const payload = {
-    user,
-    created: Date.now(),
-    exp: Date.now() + 1000 * 60 * 60 * 24 * 7 // 7 days
-  };
-  const str = Buffer.from(JSON.stringify(payload)).toString('base64');
-  const signature = crypto.createHmac('sha256', JWT_SECRET).update(str).digest('hex');
-  return `${str}.${signature}`;
-}
-
 export function verifyAuthToken(token: string): boolean {
-  if (!token || !authIsConfigured()) return false;
-  try {
-    const parts = token.split('.');
-    if (parts.length !== 2) return false;
-    const [payloadBase64, signature] = parts;
-    const expectedSignature = crypto.createHmac('sha256', JWT_SECRET).update(payloadBase64).digest('hex');
-    if (!safeEqual(signature, expectedSignature)) return false;
-
-    const payload = JSON.parse(Buffer.from(payloadBase64, 'base64').toString('utf-8'));
-    if (Date.now() > payload.exp) return false;
-    return true;
-  } catch (err) {
-    return false;
-  }
+  return authIsConfigured() && verifySessionToken(token, ADMIN_USERNAME, JWT_SECRET);
 }
 
 export function isAuthorizedRequest(req: NextApiRequest): boolean {
@@ -61,8 +37,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (token && verifyAuthToken(token)) {
       return res.status(200).json({
         authenticated: true,
-        user: ADMIN_USERNAME,
-        domain: process.env.FREQTRADE_PUBLIC_DOMAIN || 'localhost'
+        user: ADMIN_USERNAME
       });
     }
     return res.status(200).json({ authenticated: false });
@@ -76,23 +51,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
+    const allowance = loginAllowance();
+    if (!allowance.allowed) {
+      res.setHeader('Retry-After', String(allowance.retryAfterSeconds));
+      return res.status(429).json({ success: false, message: 'Trop de tentatives. Réessayez plus tard.' });
+    }
+
     const { username, password } = req.body || {};
 
     const isValidUserPass = typeof username === 'string' && typeof password === 'string'
       && safeEqual(username, ADMIN_USERNAME) && safeEqual(password, ADMIN_PASSWORD);
     if (isValidUserPass) {
-      const token = generateAuthToken(username);
-      
+      clearLoginFailures();
+      const token = createSessionToken(username, JWT_SECRET);
+
       // Set secure cookie
       const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
       res.setHeader('Set-Cookie', `quant_session=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=604800${secure}`);
-      
+
       return res.status(200).json({
         success: true,
         user: username,
         message: 'Accès ouvert'
       });
     }
+
+    recordLoginFailure();
 
     return res.status(401).json({
       success: false,

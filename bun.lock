@@ -3,10 +3,10 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "freqtrade-app",
+      "name": "quant-core",
     },
     "console": {
-      "name": "freqtrade-saas-console",
+      "name": "quant-core-console",
       "version": "0.1.0",
       "dependencies": {
         "lucide-react": "^1.33.0",
@@ -431,7 +431,7 @@
 
     "forwarded": ["forwarded@0.2.0", "", {}, "sha512-buRG0fpBtRHSTCOASe6hD258tEubFoRLb4ZNA6NxMVHNw2gOcwHo9wyablzMzOA5z9xA9L1KNjk/Nt6MT9aYow=="],
 
-    "freqtrade-saas-console": ["freqtrade-saas-console@workspace:console"],
+    "quant-core-console": ["quant-core-console@workspace:console"],
 
     "fresh": ["fresh@0.5.2", "", {}, "sha512-zJ2mQYM18rEFOudeV4GShTGIQ7RbzA7ozbU9I/XBpm7kqgMywgmylMwXHxZJmkVoYkna9d2pVXVXPdYTP9ej8Q=="],
 

@@ -4,14 +4,19 @@ Quant Core est une console personnelle destinée à un déploiement Docker/Cooli
 
 > État réel : la console lit l'état du moteur Freqtrade via son réseau Docker privé. Positions, soldes, profits, configuration, santé, ressources et logs ne possèdent aucun repli fictif. Les commandes restent volontairement verrouillées jusqu'à la phase d'activation auditée et réversible.
 
+> Blocage sécurité : la migration de Next.js `14.2.3` vers la branche maintenue doit intégrer le correctif de sécurité annoncé pour le 26 août 2026 avant exposition publique ou capital réel. En attendant, conserver la console derrière le contrôle d'accès Coolify et le TLS.
+
 ## Composants actifs
 
-- `console/` : interface Next.js et routes API de la console.
-- `docker-compose.coolify.yml` : console + moteur Freqtrade sur un réseau Docker privé.
-- `templates/` : exemples de configuration Freqtrade et règles de risque.
-- `orchestrator/` : prototype FastAPI conservé pour une future couche de contrôle ; il n'est pas connecté à la console actuelle.
-- `clients/` : modèles historiques utiles à une future gestion multi-instance ; ils ne sont pas utilisés par le Compose actuel.
-- `quant_rack/` : profils légers décrivant stratégie, indicateurs, protections, outils et budget VPS.
+| Dossier | Rôle | Présence au repos |
+|---|---|---|
+| `console/` | Porte d'entrée, cabine et adaptateur serveur en lecture seule | Oui |
+| `quant_rack/` | Profils légers : stratégie, indicateurs, protections et budget | Fichiers uniquement |
+| `strategies/` | Stratégies locales soumises aux portes de validation | Chargée selon le profil |
+| `scripts/` | Activation, observation, préflight et recherche reproductible | À la demande |
+| `tests/` | Contrôles des opérations sensibles et des scénarios d'échec | CI uniquement |
+
+Le produit est volontairement mono-propriétaire. Il ne contient plus de tenants, abonnements, facturation, portail client ou orchestrateur multi-instance.
 
 L'ancien portail Express situé dans `portal/placeholder`, son infrastructure AWS et sa documentation ont été supprimés le 22 août 2026. L'ancienne console à onglets et graphiques a également été remplacée par une cabine de supervision sans données simulées ni commande dangereuse.
 
@@ -63,8 +68,6 @@ openssl rand -hex 32
 bun run lint
 bun run build
 bun test console/lib
-python -m pip install -r orchestrator/requirements-dev.txt
-python -m pytest orchestrator/tests
 python -m unittest discover -s tests
 ```
 
@@ -93,4 +96,4 @@ La dernière commande initialise uniquement l'état du rack. Pour modifier la co
 
 Le pilotage du chantier se trouve dans la [feuille de route et le tableau de suivi](ROADMAP.md). La mise en production suit obligatoirement le [runbook Coolify](docs/COOLIFY_CUTOVER_RUNBOOK.md).
 
-Voir aussi [l'audit du code](docs/CODE_AUDIT_2026-08-22.md), [l'étude outils et stratégies](docs/STRATEGY_TOOLING_STUDY_2026-08-22.md), [la cartographie Freqtrade/Rack](docs/FREQTRADE_RACK_MAP_2026-08-22.md) et [l'architecture](ARCHITECTURE.md) avant de brancher un compte d'échange.
+Voir aussi [l'audit du code](docs/CODE_AUDIT_2026-08-22.md), [le bilan de performance](docs/PERFORMANCE_AUDIT_2026-08-22.md), [l'étude outils et stratégies](docs/STRATEGY_TOOLING_STUDY_2026-08-22.md), [la cartographie du rack](docs/FREQTRADE_RACK_MAP_2026-08-22.md) et [l'architecture](ARCHITECTURE.md) avant de brancher un compte d'échange.
