@@ -4,18 +4,16 @@
   "workspaces": {
     "": {
       "name": "freqtrade-app",
-      "dependencies": {
-        "lucide-react": "^1.33.0",
-        "recharts": "^3.10.1",
-      },
     },
     "console": {
       "name": "freqtrade-saas-console",
       "version": "0.1.0",
       "dependencies": {
+        "lucide-react": "^1.33.0",
         "next": "14.2.3",
         "react": "18.3.1",
         "react-dom": "18.3.1",
+        "recharts": "^3.10.1",
       },
       "devDependencies": {
         "@types/node": "20.12.12",
@@ -24,16 +22,6 @@
         "eslint": "8.57.0",
         "eslint-config-next": "14.2.3",
         "typescript": "5.4.5",
-      },
-    },
-    "portal/placeholder": {
-      "name": "freqtrade-aws-portal",
-      "version": "0.2.0",
-      "dependencies": {
-        "bcryptjs": "^2.4.3",
-        "express": "^4.19.2",
-        "jsonwebtoken": "^9.0.2",
-        "pg": "^8.11.5",
       },
     },
   },
@@ -443,8 +431,6 @@
     "foreground-child": ["foreground-child@3.3.1", "", { "dependencies": { "cross-spawn": "^7.0.6", "signal-exit": "^4.0.1" } }, "sha512-gIXjKqtFuWEgzFRJA9WCQeSJLZDjgJUOMCMzxtvFq/37KojM1BFGufqsCy0r4qSQmYLsZYMeyRqzIWOMup03sw=="],
 
     "forwarded": ["forwarded@0.2.0", "", {}, "sha512-buRG0fpBtRHSTCOASe6hD258tEubFoRLb4ZNA6NxMVHNw2gOcwHo9wyablzMzOA5z9xA9L1KNjk/Nt6MT9aYow=="],
-
-    "freqtrade-aws-portal": ["freqtrade-aws-portal@workspace:portal/placeholder"],
 
     "freqtrade-saas-console": ["freqtrade-saas-console@workspace:console"],
 

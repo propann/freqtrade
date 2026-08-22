@@ -1,22 +1,7 @@
-
-# Local env (secrets)
-.env
-**/.env
-
-# Local env (secrets)
-.env
-**/.env
-
-# Local env (secrets)
-.env
-**/.env
-
-# Local env (secrets)
-.env
-**/.env
-
+# Local configuration and secrets
 .env
 .env.*
+!.env.example
 *.sqlite
 *.db
 user_data/
@@ -26,5 +11,5 @@ __pycache__/
 .DS_Store
 
 # Node build artifacts
-portal/placeholder/node_modules/
 **/node_modules/
+**/.next/

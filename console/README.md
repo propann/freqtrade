@@ -1,6 +1,6 @@
 # Console web (Next.js)
 
-Interface dark UI permettant de piloter l'orchestrateur FastAPI sans exposer de promesses de gains financiers.
+Interface dark Next.js de Quant Core. Elle ne pilote pas encore l'orchestrateur FastAPI ni le moteur Freqtrade réel : les routes de contrôle et de logs sont simulées. La vue Validation affiche uniquement le protocole CLI réel et aucun rendement fabriqué.
 
 ## Démarrer en local
 ```bash
@@ -9,11 +9,12 @@ npm install
 npm run dev
 ```
 
-## Pages incluses
-- **Overview** : état global, quotas et incidents.
-- **Performance** : indicateurs techniques issus des bots (toujours en dry-run par défaut).
-- **Risk** : limites appliquées côté orchestrateur.
-- **Events** : audit trail et alertes.
-- **Actions** : commandes start/pause/restart, rotation des secrets, restauration.
+## Vues incluses
+- **Terminal Démo & Positions** : état, positions et logs explicitement simulés.
+- **Marché & Graphique** : données Binance publiques avec repli signalé comme simulé.
+- **Risque** : protections réellement définies dans la baseline.
+- **Validation** : commandes de backtest, lookahead et analyse récursive.
+- **Stratégies** : baseline installée et pistes de recherche.
+- **Connexions, Réglages, Déploiement** : état d'intégration et configuration sûre.
 
-La console consomme les endpoints du service orchestrateur (port 9000 par défaut). Aucun secret n'est exposé dans le frontend.
+La console doit évoluer vers un adaptateur serveur Freqtrade unique. Aucun secret ne doit être exposé dans le frontend. Voir `../docs/CODE_AUDIT_2026-08-22.md`.

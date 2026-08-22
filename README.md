@@ -1,70 +1,68 @@
-# freqtrade-aws (SaaS multi-tenant)
+# Quant Core
 
-Service payant par abonnement (PayPal en MVP) basé sur Freqtrade, opéré sur **EC2 + Docker Compose** avec trajectoire vers ECS/Fargate. Le dépôt ne modifie pas le cœur de Freqtrade : seules des surcouches et templates sont fournis. Aucune promesse ou garantie de gains financiers.
+Console de pilotage Freqtrade destinée à un déploiement Docker/Coolify. Le dépôt ne contient plus qu'une seule interface : `console/`, construite avec Next.js.
 
-## Arborescence
-- `orchestrator/` : API FastAPI multi-tenant (création/start/pause/restart/status/logs/audit).
-- `console/` : UI Next.js dark mode pour piloter les bots.
-- `infra/` : compose EC2, scripts, Nginx, docker-socket-proxy, utilitaires backup/restore/onboarding.
-- `templates/` : modèles de config Freqtrade + validateurs de risque/quotas.
-- `docs/` : architecture, sécurité, opérations, légal, coûts AWS, plan d'exécution.
-- `clients/` : dossiers générés par tenant (configs, données, logs).
+> État réel : l'interface est une maquette fonctionnelle avancée. Le flux de marché Binance est réel quand l'API publique répond, mais les positions, performances, logs et actions du bot sont encore simulés par les routes API Next.js. La vue Validation ne fabrique aucun résultat de backtest. Ne pas utiliser les chiffres de démonstration pour prendre une décision financière.
 
-## Déploiement EC2 (Ubuntu)
-1. Préparer l'hôte :
-```bash
-cd /opt
-git clone <repo> freqtrade-aws && cd freqtrade-aws
-infra/scripts/install-ec2.sh
-```
-2. Copier la configuration :
+## Composants actifs
+
+- `console/` : interface Next.js et routes API de la console.
+- `docker-compose.coolify.yml` : console + moteur Freqtrade sur un réseau Docker privé.
+- `templates/` : exemples de configuration Freqtrade et règles de risque.
+- `orchestrator/` : prototype FastAPI conservé pour une future couche de contrôle ; il n'est pas connecté à la console actuelle.
+- `clients/` : modèles historiques utiles à une future gestion multi-instance ; ils ne sont pas utilisés par le Compose actuel.
+
+L'ancien portail Express situé dans `portal/placeholder`, son infrastructure AWS et sa documentation ont été supprimés le 22 août 2026. Ils faisaient doublon avec la console et ne correspondaient plus au code déployable.
+
+## Démarrage local de la console
+
 ```bash
 cp .env.example .env
-# Renseigner PUBLIC_DOMAIN, PORTAL_HTTP_PORT, POSTGRES_*, PAYPAL_* (placeholders uniquement), JWT...
+# Remplacer tous les change-me dans .env
+corepack enable
+bun install --frozen-lockfile
+bun run dev
 ```
-3. Démarrer l'infra :
+
+Puis ouvrir `http://localhost:3000`.
+
+## Déploiement Docker / Coolify
+
+1. Créer `user_data/config.json` avec une configuration Freqtrade valide et une stratégie réellement présente dans `user_data/strategies/`.
+2. Copier `.env.example` vers `.env`, puis remplacer tous les secrets.
+3. Valider et démarrer :
+
 ```bash
-infra/scripts/deploy.sh
+docker compose --env-file .env -f docker-compose.coolify.yml config
+docker compose --env-file .env -f docker-compose.coolify.yml up -d --build
 ```
-4. Vérifier :
+
+Le port REST Freqtrade n'est pas publié sur l'hôte. Seule la console est publiée, sur `127.0.0.1:3000` par défaut. Pour Coolify, définir `CONSOLE_BIND_ADDRESS=0.0.0.0` si la plateforme doit joindre directement le conteneur via le port hôte.
+
+## Variables obligatoires
+
+- `FREQTRADE_USERNAME` / `FREQTRADE_PASSWORD` : compte REST du moteur Freqtrade.
+- `FREQTRADE_ADMIN_USER` / `FREQTRADE_ADMIN_PASSWORD` : accès à la console.
+- `FREQTRADE_JWT_SECRET` : secret aléatoire d'au moins 32 octets.
+- `FREQTRADE_PIN_CODE` : optionnel ; vide désactive l'authentification par PIN.
+- `EXCHANGE_API_KEY` / `EXCHANGE_API_SECRET` : optionnels en dry-run, à stocker uniquement comme secrets serveur/Coolify.
+- `TELEGRAM_ENABLED`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` et `TELEGRAM_AUTHORIZED_USERS` : intégration Telegram native de Freqtrade. Un jeton publié doit être révoqué avant utilisation.
+
+La console est accessible depuis plusieurs ordinateurs via son domaine HTTPS avec le même compte opérateur. Les clés exchange et Telegram restent côté serveur : les variables `FREQTRADE__...` surchargent la configuration Freqtrade au démarrage et ne sont jamais renvoyées au navigateur.
+
+Générer un secret robuste :
+
 ```bash
-infra/scripts/status.sh
+openssl rand -hex 32
 ```
-Le portail reste bindé en loopback (`127.0.0.1:${PORTAL_HTTP_PORT}`) et passe par Nginx.
 
-## Orchestrateur FastAPI
+## Qualité
+
 ```bash
-cd orchestrator
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements-dev.txt
-uvicorn orchestrator.app.main:app --reload --port 9000
+bun run lint
+bun run build
+python -m pip install -r orchestrator/requirements-dev.txt
+pytest orchestrator/tests
 ```
-Endpoints clés : création de tenant/bot, start/pause/restart, statut, logs, audit. Les actions sensibles exigent `subscription_status=active`.
 
-## Console Next.js
-```bash
-cd console
-npm install
-npm run dev
-```
-La console consomme l'API orchestrateur, affiche Overview/Performance/Risk/Events/Actions sans exposer de secrets ni promettre de gains.
-
-## Scripts utilitaires
-- `infra/scripts/onboard-tenant.sh <id> <email>` : bootstrap tenant + appel API.
-- `infra/scripts/backup-client.sh <id>` : archive `clients/<id>` + dump ciblé Postgres (sans secrets).
-- `infra/scripts/restore-client.sh <id> <archive>` : restaure les fichiers + option de réimport meta.
-
-## Rappels sécurité
-- Aucun secret réel dans Git; utiliser AWS SSM/Secrets Manager pour injecter au runtime.
-- Conteneurs durcis (`cap_drop: ["ALL"]`, `no-new-privileges`, quotas CPU/RAM/PIDs).
-- Pas d'accès direct au socket Docker (utiliser docker-socket-proxy).
-- Toujours privilégier le **dry-run** par défaut.
-
-## Documentation détaillée (français)
-- `docs/ARCHITECTURE.md` : vue d'ensemble des composants (orchestrateur, console Next.js, Postgres, docker-socket-proxy) et options ECS/Fargate.
-- `docs/OPERATIONS.md` : prérequis EC2, déploiement Compose, gestion des bots et procédures de backup/restore.
-- `docs/SECURITY.md` : principes d'isolation réseau, gestion des secrets AWS, durcissement des conteneurs et journalisation.
-- `docs/AWS_COSTS.md` : estimation indicative des coûts (EC2, EBS, S3, Secrets Manager, SSM) et pistes d'optimisation.
-- `docs/EXECUTION_PLAN.md` : feuille de route par étapes (baseline infra, orchestrateur, console, billing PayPal, migration Fargate).
-- `docs/paypal.md` : statut d'abonnement, contrôle d'accès et webhook de synchronisation.
-- `docs/pricing.md` : principes de tarification MVP et quotas associés aux plans 20/30/+.
+Voir [l'audit du code](docs/CODE_AUDIT_2026-08-22.md), [l'étude outils et stratégies](docs/STRATEGY_TOOLING_STUDY_2026-08-22.md) et [l'architecture](ARCHITECTURE.md) avant de brancher un compte d'échange.

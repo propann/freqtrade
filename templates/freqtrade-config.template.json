@@ -2,8 +2,8 @@
   "dry_run": true,
   "exchange": {
     "name": "binance",
-    "key": "{{AWS_SSM:/freqtrade/{{tenant_id}}/{{bot_id}}/api_key}}",
-    "secret": "{{AWS_SSM:/freqtrade/{{tenant_id}}/{{bot_id}}/api_secret}}",
+    "key": "{{EXCHANGE_API_KEY}}",
+    "secret": "{{EXCHANGE_API_SECRET}}",
     "ccxt_config": {
       "enableRateLimit": true
     }
@@ -18,6 +18,6 @@
   "runmode": "dry_run",
   "telegram": {
     "enabled": false,
-    "token": "{{AWS_SECRETSMGR:freqtrade/telegram/token}}"
+    "token": "{{TELEGRAM_TOKEN}}"
   }
 }

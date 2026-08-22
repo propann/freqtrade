@@ -1,42 +1,52 @@
-version: '3.8'
-
 services:
-  # Next-gen Quant UI Trading Terminal
   trading-terminal:
     build:
-      context: ./console
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: console/Dockerfile
     container_name: quantapex-ui-terminal
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "${CONSOLE_BIND_ADDRESS:-127.0.0.1}:${CONSOLE_PORT:-3000}:3000"
     environment:
-      - NODE_ENV=production
-      - FREQTRADE_API_URL=http://freqtrade-engine:8080
-      - FREQTRADE_USERNAME=${FREQTRADE_USERNAME:-freqtrade_user}
-      - FREQTRADE_PASSWORD=${FREQTRADE_PASSWORD:-SuperSecretQuantPassword2026!}
-      - FREQTRADE_JWT_SECRET=${FREQTRADE_JWT_SECRET:-quant-apex-ultra-secure-jwt-key-2026-coolify}
+      NODE_ENV: production
+      FREQTRADE_API_URL: http://freqtrade-engine:8080
+      FREQTRADE_USERNAME: ${FREQTRADE_USERNAME:?FREQTRADE_USERNAME is required}
+      FREQTRADE_PASSWORD: ${FREQTRADE_PASSWORD:?FREQTRADE_PASSWORD is required}
+      FREQTRADE_ADMIN_USER: ${FREQTRADE_ADMIN_USER:?FREQTRADE_ADMIN_USER is required}
+      FREQTRADE_ADMIN_PASSWORD: ${FREQTRADE_ADMIN_PASSWORD:?FREQTRADE_ADMIN_PASSWORD is required}
+      FREQTRADE_PIN_CODE: ${FREQTRADE_PIN_CODE:-}
+      FREQTRADE_JWT_SECRET: ${FREQTRADE_JWT_SECRET:?FREQTRADE_JWT_SECRET is required}
+      FREQTRADE_PUBLIC_DOMAIN: ${FREQTRADE_PUBLIC_DOMAIN:-localhost}
     depends_on:
       - freqtrade-engine
     networks:
       - quant-network
 
-  # Freqtrade Core Engine (Latest Stable Multi-Timeframe)
   freqtrade-engine:
     image: freqtradeorg/freqtrade:stable
     container_name: quantapex-freqtrade-core
     restart: unless-stopped
-    ports:
-      - "8080:8080"
+    environment:
+      TZ: UTC
+      FREQTRADE__API_SERVER__USERNAME: ${FREQTRADE_USERNAME:?FREQTRADE_USERNAME is required}
+      FREQTRADE__API_SERVER__PASSWORD: ${FREQTRADE_PASSWORD:?FREQTRADE_PASSWORD is required}
+      FREQTRADE__API_SERVER__JWT_SECRET_KEY: ${FREQTRADE_API_JWT_SECRET:?FREQTRADE_API_JWT_SECRET is required}
+      FREQTRADE__API_SERVER__WS_TOKEN: ${FREQTRADE_WS_TOKEN:?FREQTRADE_WS_TOKEN is required}
+      FREQTRADE__EXCHANGE__KEY: ${EXCHANGE_API_KEY:-}
+      FREQTRADE__EXCHANGE__SECRET: ${EXCHANGE_API_SECRET:-}
+      FREQTRADE__TELEGRAM__ENABLED: ${TELEGRAM_ENABLED:-false}
+      FREQTRADE__TELEGRAM__TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      FREQTRADE__TELEGRAM__CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+      FREQTRADE__TELEGRAM__AUTHORIZED_USERS: ${TELEGRAM_AUTHORIZED_USERS:-[]}
+    expose:
+      - "8080"
     volumes:
       - ./user_data:/freqtrade/user_data
+      - ./strategies:/freqtrade/user_data/strategies:ro
     command: >
       trade
       --config /freqtrade/user_data/config.json
-      --strategy NostalgiaHyperComboStrategy
       --db-url sqlite:////freqtrade/user_data/tradesv3.sqlite
-    environment:
-      - TZ=UTC
     networks:
       - quant-network
 

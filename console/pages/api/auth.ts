@@ -1,13 +1,25 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import crypto from 'crypto';
 
-// Default credentials if not configured in environment
-const ADMIN_USERNAME = process.env.FREQTRADE_ADMIN_USER || 'admin';
-const ADMIN_PASSWORD = process.env.FREQTRADE_ADMIN_PASSWORD || 'quant2026';
-const PIN_CODE = process.env.FREQTRADE_PIN_CODE || '2026';
-const JWT_SECRET = process.env.FREQTRADE_JWT_SECRET || 'quant-apex-ultra-secure-jwt-key-2026-coolify';
+const ADMIN_USERNAME = process.env.FREQTRADE_ADMIN_USER || '';
+const ADMIN_PASSWORD = process.env.FREQTRADE_ADMIN_PASSWORD || '';
+const PIN_CODE = process.env.FREQTRADE_PIN_CODE || '';
+const JWT_SECRET = process.env.FREQTRADE_JWT_SECRET || '';
+
+function authIsConfigured(): boolean {
+  return Boolean(ADMIN_USERNAME && ADMIN_PASSWORD && JWT_SECRET.length >= 32);
+}
+
+function safeEqual(left: string, right: string): boolean {
+  const leftBuffer = Buffer.from(left);
+  const rightBuffer = Buffer.from(right);
+  return leftBuffer.length === rightBuffer.length && crypto.timingSafeEqual(leftBuffer, rightBuffer);
+}
 
 function generateAuthToken(user: string): string {
+  if (!authIsConfigured()) {
+    throw new Error('Console authentication is not configured');
+  }
   const payload = {
     user,
     role: 'operator_chief',
@@ -20,13 +32,13 @@ function generateAuthToken(user: string): string {
 }
 
 export function verifyAuthToken(token: string): boolean {
-  if (!token) return false;
+  if (!token || !authIsConfigured()) return false;
   try {
     const parts = token.split('.');
     if (parts.length !== 2) return false;
     const [payloadBase64, signature] = parts;
     const expectedSignature = crypto.createHmac('sha256', JWT_SECRET).update(payloadBase64).digest('hex');
-    if (signature !== expectedSignature) return false;
+    if (!safeEqual(signature, expectedSignature)) return false;
 
     const payload = JSON.parse(Buffer.from(payloadBase64, 'base64').toString('utf-8'));
     if (Date.now() > payload.exp) return false;
@@ -34,6 +46,12 @@ export function verifyAuthToken(token: string): boolean {
   } catch (err) {
     return false;
   }
+}
+
+export function isAuthorizedRequest(req: NextApiRequest): boolean {
+  const authHeader = req.headers.authorization;
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : req.cookies.quant_session;
+  return Boolean(token && verifyAuthToken(token));
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -46,7 +64,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(200).json({
         authenticated: true,
         user: ADMIN_USERNAME,
-        domain: 'azoth-tech.duckdns.org',
+        domain: process.env.FREQTRADE_PUBLIC_DOMAIN || 'localhost',
         role: 'Trading Lead & Operator'
       });
     }
@@ -54,21 +72,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   if (req.method === 'POST') {
+    if (!authIsConfigured()) {
+      return res.status(503).json({
+        success: false,
+        message: 'Authentification non configurée : variables FREQTRADE_ADMIN_* et FREQTRADE_JWT_SECRET requises.'
+      });
+    }
+
     const { username, password, pin } = req.body || {};
 
-    const isValidUserPass = (username === ADMIN_USERNAME || username === 'enzo' || username === 'admin') && 
-                            (password === ADMIN_PASSWORD || password === 'SuperSecretQuantPassword2026!' || password === 'quant2026');
-    const isValidPin = pin && (pin === PIN_CODE || pin === '2026' || pin === '0000');
+    const isValidUserPass = typeof username === 'string' && typeof password === 'string'
+      && safeEqual(username, ADMIN_USERNAME) && safeEqual(password, ADMIN_PASSWORD);
+    const isValidPin = Boolean(PIN_CODE && typeof pin === 'string' && safeEqual(pin, PIN_CODE));
 
     if (isValidUserPass || isValidPin) {
       const token = generateAuthToken(username || 'admin');
       
       // Set secure cookie
-      res.setHeader('Set-Cookie', `quant_session=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800`);
+      const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
+      res.setHeader('Set-Cookie', `quant_session=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=604800${secure}`);
       
       return res.status(200).json({
         success: true,
-        token,
         user: username || 'admin',
         message: 'Authentification QuantApex réussie'
       });
@@ -82,7 +107,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method === 'DELETE') {
     // Logout
-    res.setHeader('Set-Cookie', `quant_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`);
+    const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
+    res.setHeader('Set-Cookie', `quant_session=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0${secure}`);
     return res.status(200).json({ success: true, message: 'Déconnexion effectuée' });
   }
 

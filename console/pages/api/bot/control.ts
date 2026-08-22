@@ -1,16 +1,16 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { isAuthorizedRequest } from '../auth';
 
 let botState = {
+  dataMode: 'simulated',
   status: 'running',
   version: 'Freqtrade 2026.1 (Latest Open-Source)',
-  strategy: 'NostalgiaForInfinityX',
+  strategy: 'QuantCoreBaseline',
   availableStrategies: [
-    { id: 'NostalgiaForInfinityX', name: 'NostalgiaForInfinityX (NFI-X)', type: 'Multi-Signal & Flash Crash Shield', timeframe: '5m / 1h', winrate: '78.2%' },
-    { id: 'NostalgiaHyperComboStrategy', name: 'Nostalgia Hyper Combo (MTF)', type: 'Trend Momentum 1h/15m/5m', timeframe: '5m / 15m / 1h', winrate: '76.4%' },
-    { id: 'FreqaiLightGBMStrategy', name: 'FreqAI LightGBM (Machine Learning)', type: 'Gradient Boosted Trees AI', timeframe: '5m AI Model', winrate: '81.5%' },
-    { id: 'ClucHaxDipBuyer', name: 'ClucHax Mean Reversion', type: 'Bollinger Band Squeeze & Oversold', timeframe: '5m', winrate: '72.9%' }
+    { id: 'QuantCoreBaseline', name: 'Quant Core Baseline', type: 'Trend/pullback spot — recherche', timeframe: '15m', winrate: 'À mesurer' },
+    { id: 'IchiV1Research', name: 'Ichi V1 Research', type: 'Ichimoku/EMA spot — non validée', timeframe: '15m', winrate: 'À mesurer' }
   ],
-  timeframe: '5m (Multi-TF: 15m, 1h)',
+  timeframe: '15m',
   exchange: 'binance',
   tradingMode: 'spot',
   dryRun: true,
@@ -27,7 +27,7 @@ let botState = {
   stoploss: -3.8,
   trailingStop: true,
   trailingOffset: 2.2,
-  apiServerStatus: 'online',
+  apiServerStatus: 'simulated',
   activeTrades: [
     {
       id: 201,
@@ -114,12 +114,17 @@ let botState = {
     filtered: 20,
     active: 9,
     method: 'VolumePairList + AgeFilter + SpreadFilter',
-    lastRefresh: 'Il y a 3 min (Binance Live)'
+    lastRefresh: 'Données de démonstration'
   },
   lastUpdated: new Date().toISOString()
 };
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (!isAuthorizedRequest(req)) {
+    return res.status(401).json({ success: false, message: 'Authentification requise' });
+  }
+
+  res.setHeader('X-Quant-Core-Data-Mode', 'simulated');
   if (req.method === 'GET') {
     return res.status(200).json(botState);
   }
@@ -202,10 +207,12 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
       botState.whitelist = botState.whitelist.filter(p => p !== payload.pair);
       botState.dynamicPairlistStats.active = botState.whitelist.length;
     } else if (action === 'update_settings' && payload) {
-      if (typeof payload.dryRun === 'boolean') botState.dryRun = payload.dryRun;
+      botState.dryRun = true;
       if (payload.maxTrades) botState.maxTrades = Number(payload.maxTrades);
       if (payload.stoploss) botState.stoploss = Number(payload.stoploss);
-      if (payload.strategy) botState.strategy = payload.strategy;
+      if (payload.strategy && botState.availableStrategies.some(strategy => strategy.id === payload.strategy)) {
+        botState.strategy = payload.strategy;
+      }
       if (payload.trailingStop !== undefined) botState.trailingStop = payload.trailingStop;
       if (payload.trailingOffset) botState.trailingOffset = Number(payload.trailingOffset);
       if (payload.stakeAmount) botState.stakeAmount = Number(payload.stakeAmount);

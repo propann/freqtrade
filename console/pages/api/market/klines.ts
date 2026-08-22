@@ -137,7 +137,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // fallback
   }
 
-  // Generate realistic candles based on base price
+  // Generate synthetic candles based on a reference price.
   const basePrice = pair.includes('BTC') ? 97800 : pair.includes('ETH') ? 2810 : pair.includes('SOL') ? 198 : 6.8;
   const simulatedCandles: Candle[] = [];
   const closes: number[] = [];

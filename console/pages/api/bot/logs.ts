@@ -1,8 +1,9 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { isAuthorizedRequest } from '../auth';
 
-const liveMessages = [
-  '[2026.1-CORE] Freqtrade Engine v2026.1 en écoute sur 0.0.0.0:8080 (REST + WebSocket)',
-  '[STRATEGY-MTF] NostalgiaHyperComboStrategy: Calcul des bougies 1h & 15m synchronisé',
+const simulatedMessages = [
+  '[DEMO] Flux de logs simulé — aucun moteur Freqtrade connecté',
+  '[DEMO-STRATEGY] Calcul fictif des bougies 1h & 15m',
   '[INDICATORS] BTC/USDT: 1h_EMA200=95400 (Bullish), 5m_RSI=39.2, ADX=28.4 (Signal d\'entrée fort)',
   '[INDICATORS] ETH/USDT: Momentum MACD haussier (+8.7), Trailing Stop déplacé à 2792.00 USDT',
   '[INDICATORS] SOL/USDT: RSI 62.4, Cible Take-Profit #1 approchée (+3.33% en cours)',
@@ -14,6 +15,11 @@ const liveMessages = [
 ];
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (!isAuthorizedRequest(req)) {
+    return res.status(401).json({ success: false, message: 'Authentification requise' });
+  }
+
+  res.setHeader('X-Quant-Core-Data-Mode', 'simulated');
   if (req.headers.accept && req.headers.accept.includes('text/event-stream')) {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache, no-transform');
@@ -24,7 +30,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
       (res as any).flushHeaders();
     }
 
-    res.write(`data: [QUANTAPEX-INIT] Connexion établie avec le conteneur Freqtrade Engine Pro v2026.1\n\n`);
+    res.write('data: [QUANT-CORE-DEMO] Flux SSE simulé initialisé — aucun moteur réel connecté\n\n');
 
     let idx = 0;
     const interval = setInterval(() => {
@@ -33,7 +39,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
         return;
       }
       const time = new Date().toLocaleTimeString('fr-FR');
-      const msg = liveMessages[idx % liveMessages.length];
+      const msg = simulatedMessages[idx % simulatedMessages.length];
       res.write(`data: [${time}] ${msg}\n\n`);
       idx++;
     }, 2500);
@@ -49,5 +55,5 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
   }
 
   // Regular JSON endpoint
-  return res.status(200).json({ success: true, messages: liveMessages });
+  return res.status(200).json({ success: true, dataMode: 'simulated', messages: simulatedMessages });
 }

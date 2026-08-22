@@ -1,22 +1,26 @@
-# Freqtrade AWS PAYANT - CONTEXT
+# Contexte projet
 
-## Vision
-- Construire un service PAYANT de Bot-as-a-Service basé sur Freqtrade pour des clients en France.
-- Facturation mensuelle par abonnement (PayPal en MVP) avec possibilité de paliers basés sur la consommation (CPU/RAM/temps de jobs).
-- Sécurité et isolation multi-clients en priorité : chaque client possède ses données et réseaux dédiés, aucun port client exposé.
-- Infrastructure actuelle en **EC2 + Docker Compose** pour le déploiement simple (one-command boot), avec une trajectoire de migration vers **ECS/Fargate**.
+## Direction
 
-## Règles non négociables
-- Aucun secret réel dans le dépôt. Uniquement des placeholders et `.env.example`.
-- Aucun bot client ou job exposé publiquement. Le portail écoute sur `127.0.0.1` et est servi via Nginx.
-- Pas d'accès direct au socket Docker : utiliser **docker-socket-proxy** avec permissions minimales.
-- Isolation stricte : réseaux par client, volumes dédiés, conteneurs durcis (`cap_drop: ["ALL"]`, `no-new-privileges`, quotas CPU/RAM/PIDs, `read_only` quand possible).
-- Journalisation sans secrets en clair.
+Quant Core doit devenir une console Freqtrade simple à déployer sur Coolify, un VPS ou un Raspberry Pi 5. Une seule interface est maintenue : la console Next.js `console/`.
 
-## Choix d'architecture
-- **Compute** : EC2 avec Docker/Compose pour le MVP; migration prévue vers ECS/Fargate (modèle job éphémère conservé).
-- **Réseau** : un réseau Docker de contrôle `${DOCKER_NETWORK}` pour le portail/proxy/base. Réseaux clients créés dynamiquement (`fta-client-<id>`).
-- **Persistance** : Postgres pour les métadonnées (tenants, abonnements, audit). Volumes dédiés pour chaque bot/job.
-- **Sécurité** : Nginx en frontal (loopback), docker-socket-proxy filtré, conteneurs durcis et quotas par défaut (CPU 1.0 / RAM 1024m / pids 256).
-- **Exécution** : une action = un conteneur job éphémère (backtest/hyperopt/dry-run) par client. Les résultats sont écrits dans l'espace du client puis le conteneur s'arrête.
-- **Facturation** : gating minimal via `subscriptions.status` (`active|past_due|canceled`). Le portail refuse provision/start/backtest si status != `active`.
+## Règles de travail
+
+- Le dry-run reste le mode par défaut jusqu'à validation complète du chemin réel.
+- Aucun secret, identifiant ou PIN de secours dans Git.
+- Une donnée simulée doit être explicitement identifiée comme simulée.
+- Une action affichée comme réussie doit avoir été confirmée par Freqtrade.
+- L'API REST Freqtrade reste privée sur le réseau Docker.
+- La documentation décrit le code présent, pas une architecture passée ou rêvée.
+
+## État au 22 août 2026
+
+- UI actuelle : présente, monolithique, construisible après installation des dépendances.
+- Flux Binance public : présent avec repli simulé.
+- Authentification console : présente, variables d'environnement obligatoires.
+- Contrôle réel de Freqtrade : non connecté ; routes actuelles simulées.
+- Stockage des réglages du simulateur : mémoire du processus uniquement.
+- Validation stratégie : script réel de backtest, lookahead et analyse récursive ; aucun résultat fabriqué dans l'UI.
+- Orchestrateur FastAPI : prototype testé séparément, non câblé à l'UI.
+
+Priorité absolue : remplacer les routes simulées par un adaptateur Freqtrade typé, testé et observable avant toute utilisation en capital réel.

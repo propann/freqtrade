@@ -69,7 +69,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
   } catch (err) {
-    // Graceful fallback to real-time generated ticker stream
+    // Explicitly labeled synthetic fallback when Binance is unavailable.
   }
 
   const fallbackList: TickerData[] = Object.entries(FALLBACK_TICKERS).map(([pair, val]) => ({
