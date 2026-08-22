@@ -62,6 +62,24 @@ services:
     networks:
       - quant-network
 
+  strategy-lab:
+    profiles: ["research"]
+    image: freqtradeorg/freqtrade:stable
+    environment:
+      TZ: UTC
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+      NUMEXPR_NUM_THREADS: "1"
+    cpus: ${RESEARCH_CPU_LIMIT:-1.0}
+    mem_limit: ${RESEARCH_MEMORY_LIMIT:-1024m}
+    pids_limit: ${RESEARCH_PIDS_LIMIT:-256}
+    volumes:
+      - ./user_data:/freqtrade/user_data
+      - ./strategies:/freqtrade/user_data/strategies:ro
+    networks:
+      - quant-network
+
 networks:
   quant-network:
     driver: bridge

@@ -81,3 +81,7 @@ Rollback : redéployer l'image/commit précédent, restaurer `user_data` uniquem
 ## 7. Passage ultérieur en live
 
 Le passage en live est une opération distincte. Il exige la totalité des portes P7 de [`ROADMAP.md`](../ROADMAP.md), une nouvelle sauvegarde, une confirmation manuelle et un démarrage avec exposition minimale. Ne jamais transformer automatiquement un déploiement de code en activation de fonds réels.
+
+## 8. Recherche hors moteur live
+
+Ne jamais lancer backtest ou hyperopt dans le conteneur `freqtrade-engine`. Utiliser `scripts/researchctl` : le profil Compose `strategy-lab` est éphémère, limité à un job et supprimé après le travail. Vérifier l'espace disque disponible avant l'export et archiver uniquement les expériences utiles.

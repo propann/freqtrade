@@ -74,6 +74,7 @@ python -m unittest discover -s tests
 scripts/rackctl list
 scripts/rackctl plan baseline
 scripts/rackctl activate baseline
+scripts/researchctl plan baseline --timerange 20260101-20260630
 ```
 
 La dernière commande initialise uniquement l'état du rack. Pour modifier la configuration, utiliser explicitement `--apply-config`, examiner la sauvegarde, puis redémarrer le moteur. Voir [`quant_rack/README.md`](quant_rack/README.md).

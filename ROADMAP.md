@@ -17,7 +17,7 @@ Principes non négociables : secrets uniquement côté serveur, dry-run par déf
 | P2 — Vérité terrain | En validation | Console alimentée par l'API REST Freqtrade en lecture seule | Zéro métrique simulée sur les vues opérateur |
 | P3 — Activation contrôlée | En validation | Changement de profil, rechargement, contrôle santé, rollback | Validation sur le moteur Coolify en dry-run |
 | P4 — Bibliothèque indicateurs | À faire | Indicateurs partagés, calculés une seule fois si cela apporte un gain mesuré | Benchmark avant/après et API stable |
-| P5 — Atelier stratégie | À faire | Backtest/hyperopt ponctuels, file d'un seul job, arrêt automatique | Aucun processus de recherche résident |
+| P5 — Atelier stratégie | En validation | Backtest ponctuel, file d'un seul job, arrêt automatique | Exécution réelle sur le VPS et export vérifié |
 | P6 — Observabilité VPS | À faire | CPU, RAM, latence bougie, erreurs exchange et fraîcheur des données | Alertes testées et budget tenu 7 jours |
 | P7 — Passage réel | Bloqué | Déploiement progressif et réversible | Accord opérateur + dry-run concluant + aucune position non gérée |
 
@@ -71,10 +71,10 @@ On ne crée pas un nouveau moteur d'indicateurs. Les stratégies continuent d'ut
 
 | ID | Priorité | Action | Critère d'acceptation |
 |---|---|---|---|
-| LAB-01 | P0 | File locale limitée à un job | Deuxième travail mis en attente, jamais lancé en parallèle |
-| LAB-02 | P0 | Conteneur backtest jetable avec limites | CPU/RAM bornés, suppression après export des résultats |
+| LAB-01 | P0 — En validation | File locale limitée à un job | Test de verrou concurrent réussi |
+| LAB-02 | P0 — En validation | Conteneur backtest jetable avec limites | Service Compose à profil, CPU/RAM/PID bornés et `run --rm` |
 | LAB-03 | P1 | Hyperopt opt-in uniquement | Paquet et processus absents du moteur live |
-| LAB-04 | P1 | Registre des expériences | Données, période, commit, paramètres et résultat traçables |
+| LAB-04 | P1 — En validation | Registre des expériences | Profil, commit, hashes stratégie/config, période, durée, sortie et logs enregistrés |
 | LAB-05 | P0 | Garde anti-surapprentissage | Validation hors échantillon et frais/slippage inclus |
 
 ## P6 — Observabilité et budgets

@@ -56,3 +56,19 @@ scripts/rackctl deploy baseline --confirm DRY-RUN
 - Hyperopt et FreqAI désactivés par défaut ;
 - limites Docker configurables ;
 - état du rack lu par la console depuis un montage en lecture seule.
+
+## Atelier de recherche éphémère
+
+Préparer les données Freqtrade, puis examiner le plan sans lancer de conteneur :
+
+```bash
+scripts/researchctl plan baseline --timerange 20260101-20260630
+```
+
+Lancer ensuite exactement un backtest borné :
+
+```bash
+scripts/researchctl run baseline --timerange 20260101-20260630 --confirm RESEARCH
+```
+
+Le service Compose `strategy-lab` ne démarre jamais avec le bot normal. `researchctl` le crée pour le travail demandé, refuse un second job concurrent, puis `docker compose run --rm` le supprime. Chaque expérience conserve le profil, la période, l'empreinte de la stratégie, la durée, le résultat et les logs sous `user_data/research/`.
