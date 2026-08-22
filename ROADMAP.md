@@ -14,7 +14,7 @@ Principes non négociables : secrets uniquement côté serveur, dry-run par déf
 |---|---|---|---|
 | P0 — Nettoyage et sécurité | Terminé | Ancien portail/AWS retiré, secrets sortis du code, docs alignées | Audit et scan de secrets validés |
 | P1 — Socle Quant Rack | En validation | Profils, budgets VPS, activation locale sûre, affichage console | CI verte sur la PR #33 |
-| P2 — Vérité terrain | À faire | Console alimentée par l'API REST Freqtrade en lecture seule | Zéro métrique simulée sur les vues opérateur |
+| P2 — Vérité terrain | En validation | Console alimentée par l'API REST Freqtrade en lecture seule | Zéro métrique simulée sur les vues opérateur |
 | P3 — Activation contrôlée | À faire | Changement de profil, rechargement, contrôle santé, rollback | Test d'échec injecté et retour arrière réussi |
 | P4 — Bibliothèque indicateurs | À faire | Indicateurs partagés, calculés une seule fois si cela apporte un gain mesuré | Benchmark avant/après et API stable |
 | P5 — Atelier stratégie | À faire | Backtest/hyperopt ponctuels, file d'un seul job, arrêt automatique | Aucun processus de recherche résident |
@@ -39,11 +39,11 @@ Principes non négociables : secrets uniquement côté serveur, dry-run par déf
 
 | ID | Priorité | Action | Critère d'acceptation |
 |---|---|---|---|
-| API-01 | P0 | Client serveur avec timeout, authentification et erreurs typées | Tests unitaires succès, 401, timeout et réponse invalide |
-| API-02 | P0 | Brancher `ping`, `show_config` et `sysinfo` | État moteur et ressources réels dans la console |
-| API-03 | P0 | Brancher `status`, `balance` et historique des trades | Aucun fallback silencieux vers des données fictives |
-| API-04 | P0 | Marquer clairement indisponibilité et ancienneté | Badge dégradé après deux échecs ou données périmées |
-| API-05 | P1 | Supprimer les routes et jeux de données simulés restants | Recherche `demo/mock/fake` revue et documentée |
+| API-01 | P0 — En validation | Client serveur avec timeout, authentification et erreurs typées | Tests unitaires succès, 401, timeout et réponse invalide |
+| API-02 | P0 — En validation | Brancher `ping`, `show_config` et `sysinfo` | État moteur et ressources réels dans la console |
+| API-03 | P0 — En validation | Brancher `status`, `balance` et historique des trades | Aucun fallback silencieux vers des données fictives |
+| API-04 | P0 — En validation | Marquer clairement indisponibilité et ancienneté | Dernier état connu après un échec, indisponible au deuxième |
+| API-05 | P1 — En validation | Supprimer les routes et jeux de données simulés restants | Recherche `demo/mock/fake` vide dans `console/` |
 
 ## P3 — Activation et retour arrière
 
@@ -108,7 +108,7 @@ Toutes les conditions suivantes sont obligatoires :
 |---|---|---|---|
 | Auto-déploiement Coolify lors d'une fusion | Critique | Fusion uniquement pendant une fenêtre contrôlée | Ouvert |
 | Secret Telegram divulgué dans une conversation | Critique | Révocation et rotation avant déploiement | Bloquant opérateur |
-| Console encore partiellement simulée | Élevé | P2 avant toute confiance opérateur | Ouvert |
+| Console connectée mais non validée sur le VPS | Élevé | P2 doit être observée en dry-run sur Coolify | En validation |
 | Positions réelles durant un redémarrage | Critique | Vérifier mode et positions avant action | Ouvert |
 | Surcharge petit VPS par la recherche | Élevé | Recherche éphémère, une tâche, quotas | Couvert par conception |
 | Fork du cœur Freqtrade difficile à maintenir | Élevé | Conserver le cœur officiel et ses extensions natives | Décision actée |
@@ -130,4 +130,4 @@ Toutes les conditions suivantes sont obligatoires :
 - Chaque semaine en phase de test : relever CPU/RAM, erreurs, fraîcheur et nombre de redémarrages.
 - Aucune phase suivante ne masque une porte de sortie non satisfaite ; elle reste explicitement bloquée.
 
-Prochaine séquence : rendre la CI verte, exécuter le pré-déploiement Coolify, fusionner pendant une fenêtre validée, puis commencer `API-01` à `API-04`.
+Prochaine séquence : valider P2 en CI, exécuter le pré-déploiement Coolify, observer l'adaptateur en dry-run, puis ouvrir P3 sans activer de mutation en production.

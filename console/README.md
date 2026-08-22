@@ -1,6 +1,6 @@
 # Console web (Next.js)
 
-Interface dark Next.js de Quant Core. Elle ne pilote pas encore l'orchestrateur FastAPI ni le moteur Freqtrade réel : les routes de contrôle et de logs sont simulées. La vue Validation affiche uniquement le protocole CLI réel et aucun rendement fabriqué.
+Interface Next.js de Quant Core. Son adaptateur serveur interroge le moteur Freqtrade sur le réseau Docker privé avec authentification, timeout, cache court et états dégradés. Aucun secret Freqtrade ou exchange n'est envoyé au navigateur. Les mutations sont bloquées pendant la phase lecture seule.
 
 ## Démarrer en local
 ```bash
@@ -10,11 +10,11 @@ npm run dev
 ```
 
 ## Vues incluses
-- **Terminal Démo & Positions** : état, positions et logs explicitement simulés.
-- **Marché & Graphique** : données Binance publiques avec repli signalé comme simulé.
+- **Terminal & Positions** : état, positions, soldes, profits et logs Freqtrade réels.
+- **Marché & Graphique** : données Binance publiques ou état indisponible, sans bougie synthétique.
 - **Risque** : protections réellement définies dans la baseline.
 - **Validation** : commandes de backtest, lookahead et analyse récursive.
 - **Stratégies** : baseline installée et pistes de recherche.
 - **Connexions, Réglages, Déploiement** : état d'intégration et configuration sûre.
 
-La console doit évoluer vers un adaptateur serveur Freqtrade unique. Aucun secret ne doit être exposé dans le frontend. Voir `../docs/CODE_AUDIT_2026-08-22.md`.
+Les commandes ne seront ajoutées qu'avec confirmation forte, journal d'audit, contrôle santé et rollback. Voir `../ROADMAP.md`.

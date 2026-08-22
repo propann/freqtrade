@@ -2,7 +2,7 @@
 
 Console de pilotage Freqtrade destinée à un déploiement Docker/Coolify. Le dépôt ne contient plus qu'une seule interface : `console/`, construite avec Next.js.
 
-> État réel : l'interface est une maquette fonctionnelle avancée. Le flux de marché Binance est réel quand l'API publique répond, mais les positions, performances, logs et actions du bot sont encore simulés par les routes API Next.js. La vue Validation ne fabrique aucun résultat de backtest. Ne pas utiliser les chiffres de démonstration pour prendre une décision financière.
+> État réel : la console lit l'état du moteur Freqtrade via son réseau Docker privé. Positions, soldes, profits, configuration, santé, ressources et logs ne possèdent aucun repli fictif. Les commandes restent volontairement verrouillées jusqu'à la phase d'activation auditée et réversible.
 
 ## Composants actifs
 
@@ -62,6 +62,7 @@ openssl rand -hex 32
 ```bash
 bun run lint
 bun run build
+bun test console/lib
 python -m pip install -r orchestrator/requirements-dev.txt
 python -m pytest orchestrator/tests
 python -m unittest discover -s tests

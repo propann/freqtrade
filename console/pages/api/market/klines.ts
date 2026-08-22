@@ -133,52 +133,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(200).json({ success: true, source: 'binance-klines', pair, interval, candles });
       }
     }
-  } catch (err) {
-    // fallback
-  }
+  } catch (err) {}
 
-  // Generate synthetic candles based on a reference price.
-  const basePrice = pair.includes('BTC') ? 97800 : pair.includes('ETH') ? 2810 : pair.includes('SOL') ? 198 : 6.8;
-  const simulatedCandles: Candle[] = [];
-  const closes: number[] = [];
-  let current = basePrice * 0.98;
-
-  for (let i = 0; i < 50; i++) {
-    const time = new Date(Date.now() - (50 - i) * 5 * 60 * 1000);
-    const timeStr = `${time.getHours().toString().padStart(2, '0')}:${time.getMinutes().toString().padStart(2, '0')}`;
-    const delta = (Math.random() - 0.48) * (basePrice * 0.004);
-    const open = current;
-    const close = open + delta;
-    const high = Math.max(open, close) + Math.random() * (basePrice * 0.002);
-    const low = Math.min(open, close) - Math.random() * (basePrice * 0.002);
-    const volume = Math.floor(Math.random() * 500) + 100;
-    current = close;
-    closes.push(close);
-
-    simulatedCandles.push({
-      time: timeStr,
-      timestamp: time.getTime(),
-      open: parseFloat(open.toFixed(2)),
-      high: parseFloat(high.toFixed(2)),
-      low: parseFloat(low.toFixed(2)),
-      close: parseFloat(close.toFixed(2)),
-      volume,
-    });
-  }
-
-  const ema20 = calculateEMA(closes, 20);
-  const ema50 = calculateEMA(closes, 50);
-  const rsi = calculateRSI(closes, 14);
-
-  simulatedCandles.forEach((c, idx) => {
-    c.ema20 = parseFloat((ema20[idx] || c.close).toFixed(2));
-    c.ema50 = parseFloat((ema50[idx] || c.close).toFixed(2));
-    c.ema200 = parseFloat((c.ema50 * 0.99).toFixed(2));
-    c.rsi = parseFloat((rsi[idx] || 50).toFixed(1));
-    c.bbUpper = parseFloat((c.ema20 * 1.012).toFixed(2));
-    c.bbLower = parseFloat((c.ema20 * 0.988).toFixed(2));
-    c.macdHist = parseFloat(((c.ema20 - c.ema50) * 0.4).toFixed(2));
-  });
-
-  return res.status(200).json({ success: true, source: 'quant-feed-cache', pair, interval, candles: simulatedCandles });
+  return res.status(503).json({ success: false, source: 'unavailable', pair, interval, candles: [], message: 'Bougies publiques indisponibles' });
 }

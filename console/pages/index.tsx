@@ -69,7 +69,7 @@ interface Ticker {
   lowPrice: number;
   volume: number;
   quoteVolume: number;
-  rsi: number;
+  rsi?: number;
   trend: 'bullish' | 'bearish' | 'neutral';
 }
 
@@ -108,11 +108,11 @@ interface Trade {
   profitPct: number;
   openTime: string;
   duration: string;
-  rsi: number;
-  macdHist: number;
+  rsi?: number;
+  macdHist?: number;
   stopLoss: number;
   trailingStopActive: boolean;
-  indicators: {
+  indicators?: {
     adx: number;
     ema50: number;
     ema200: number;
@@ -129,8 +129,8 @@ interface ClosedTrade {
 }
 
 interface BotState {
-  dataMode: 'simulated' | 'live';
-  status: 'running' | 'stopped' | 'reloading';
+  dataMode: 'live' | 'unavailable';
+  status: 'running' | 'stopped' | 'reloading' | 'unavailable';
   version: string;
   strategy: string;
   availableStrategies: StrategyInfo[];
@@ -163,165 +163,50 @@ interface BotState {
     lastRefresh: string;
   };
   lastUpdated: string;
+  degraded?: boolean;
+  stale?: boolean;
+  unavailableEndpoints?: string[];
+  message?: string;
+  system?: { cpuAveragePct: number; cpuCount: number; ramPct: number } | null;
 }
 
-const DEFAULT_BOT_STATE: BotState = {
-  dataMode: 'simulated',
-  status: 'running',
-  version: 'Freqtrade 2026.1 (Latest Open-Source)',
-  strategy: 'QuantCoreBaseline',
-  availableStrategies: [
-    { id: 'QuantCoreBaseline', name: 'Quant Core Baseline', type: 'Trend/pullback spot — recherche', timeframe: '15m', winrate: 'À mesurer' },
-    { id: 'IchiV1Research', name: 'Ichi V1 Research', type: 'Ichimoku/EMA spot — non validée', timeframe: '15m', winrate: 'À mesurer' }
-  ],
-  timeframe: '15m',
-  exchange: 'binance',
-  tradingMode: 'spot',
+const EMPTY_BOT_STATE: BotState = {
+  dataMode: 'unavailable',
+  status: 'unavailable',
+  version: '—',
+  strategy: '—',
+  availableStrategies: [],
+  timeframe: '—',
+  exchange: '—',
+  tradingMode: '—',
   dryRun: true,
-  walletBalance: 2489.65,
-  initialWallet: 2000.00,
-  profitTotal: 489.65,
-  profitPct: 24.48,
-  dailyProfit: 34.20,
-  dailyProfitPct: 1.71,
-  openTradesCount: 4,
-  maxTrades: 5,
-  stakeAmount: 490.00,
-  stakeCurrency: 'USDT',
-  stoploss: -3.8,
-  trailingStop: true,
-  trailingOffset: 2.2,
-  apiServerStatus: 'simulated',
-  activeTrades: [
-    {
-      id: 201,
-      pair: 'BTC/USDT',
-      entryPrice: 96420.00,
-      currentPrice: 97840.50,
-      amount: 0.0051,
-      stake: 491.74,
-      profit: 7.25,
-      profitPct: 1.47,
-      openTime: '2026-08-21 11:15',
-      duration: '45m',
-      rsi: 39.2,
-      macdHist: 14.2,
-      stopLoss: 92756.00,
-      trailingStopActive: true,
-      indicators: { adx: 28.4, ema50: 96100, ema200: 95400 }
-    },
-    {
-      id: 202,
-      pair: 'ETH/USDT',
-      entryPrice: 2740.00,
-      currentPrice: 2815.20,
-      amount: 0.18,
-      stake: 493.20,
-      profit: 13.54,
-      profitPct: 2.74,
-      openTime: '2026-08-21 10:30',
-      duration: '1h 30m',
-      rsi: 58.6,
-      macdHist: 8.7,
-      stopLoss: 2635.88,
-      trailingStopActive: true,
-      indicators: { adx: 32.1, ema50: 2760, ema200: 2710 }
-    },
-    {
-      id: 203,
-      pair: 'SOL/USDT',
-      entryPrice: 192.20,
-      currentPrice: 198.60,
-      amount: 2.55,
-      stake: 490.11,
-      profit: 16.32,
-      profitPct: 3.33,
-      openTime: '2026-08-21 09:40',
-      duration: '2h 20m',
-      rsi: 62.4,
-      macdHist: -1.2,
-      stopLoss: 184.89,
-      trailingStopActive: true,
-      indicators: { adx: 24.5, ema50: 194.2, ema200: 188.0 }
-    },
-    {
-      id: 204,
-      pair: 'RENDER/USDT',
-      entryPrice: 6.55,
-      currentPrice: 6.88,
-      amount: 74.8,
-      stake: 489.94,
-      profit: 24.68,
-      profitPct: 5.04,
-      openTime: '2026-08-21 08:15',
-      duration: '3h 45m',
-      rsi: 68.2,
-      macdHist: 0.85,
-      stopLoss: 6.30,
-      trailingStopActive: true,
-      indicators: { adx: 41.2, ema50: 6.62, ema200: 6.35 }
-    }
-  ],
-  closedTrades: [
-    { id: 198, pair: 'LINK/USDT', profit: 14.20, profitPct: 2.9, exitReason: 'trailing_stop_exit', closeTime: '2026-08-21 07:10' },
-    { id: 199, pair: 'AVAX/USDT', profit: 21.80, profitPct: 4.45, exitReason: 'roi_target_hit', closeTime: '2026-08-21 06:25' },
-    { id: 200, pair: 'NEAR/USDT', profit: -6.40, profitPct: -1.3, exitReason: 'hard_stoploss', closeTime: '2026-08-21 05:00' }
-  ],
-  whitelist: ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'RENDER/USDT', 'BNB/USDT', 'AVAX/USDT', 'LINK/USDT', 'SUI/USDT'],
+  walletBalance: 0,
+  initialWallet: 0,
+  profitTotal: 0,
+  profitPct: 0,
+  dailyProfit: 0,
+  dailyProfitPct: 0,
+  openTradesCount: 0,
+  maxTrades: 0,
+  stakeAmount: 0,
+  stakeCurrency: '—',
+  stoploss: 0,
+  trailingStop: false,
+  trailingOffset: 0,
+  apiServerStatus: 'unavailable',
+  activeTrades: [],
+  closedTrades: [],
+  whitelist: [],
   dynamicPairlistStats: {
-    scanned: 184,
-    filtered: 32,
-    active: 8,
-    method: 'VolumePairList + VolatilityFilter',
-    lastRefresh: 'Données de démonstration'
+    scanned: 0,
+    filtered: 0,
+    active: 0,
+    method: '—',
+    lastRefresh: 'Indisponible'
   },
-  lastUpdated: '12:00:00'
+  lastUpdated: new Date(0).toISOString(),
+  message: 'Connexion au moteur en attente',
 };
-
-const DEFAULT_TICKERS: Ticker[] = [
-  { symbol: 'BTCUSDT', pair: 'BTC/USDT', lastPrice: 97840.50, priceChangePercent: 2.85, highPrice: 98450.00, lowPrice: 95120.00, volume: 28450.12, quoteVolume: 2783560000, rsi: 42, trend: 'bullish' },
-  { symbol: 'ETHUSDT', pair: 'ETH/USDT', lastPrice: 2815.20, priceChangePercent: 3.42, highPrice: 2860.00, lowPrice: 2710.00, volume: 184500.50, quoteVolume: 519400000, rsi: 58, trend: 'bullish' },
-  { symbol: 'SOLUSDT', pair: 'SOL/USDT', lastPrice: 198.60, priceChangePercent: 5.14, highPrice: 202.40, lowPrice: 188.50, volume: 950200.00, quoteVolume: 188700000, rsi: 62, trend: 'bullish' },
-  { symbol: 'BNBUSDT', pair: 'BNB/USDT', lastPrice: 684.30, priceChangePercent: 1.12, highPrice: 692.00, lowPrice: 675.00, volume: 45200.00, quoteVolume: 30930000, rsi: 49, trend: 'neutral' },
-  { symbol: 'RENDERUSDT', pair: 'RENDER/USDT', lastPrice: 6.88, priceChangePercent: 6.80, highPrice: 7.15, lowPrice: 6.40, volume: 780000.00, quoteVolume: 5366400, rsi: 68, trend: 'bullish' },
-  { symbol: 'AVAXUSDT', pair: 'AVAX/USDT', lastPrice: 34.80, priceChangePercent: 4.60, highPrice: 35.90, lowPrice: 32.80, volume: 412000.00, quoteVolume: 14337600, rsi: 55, trend: 'bullish' },
-  { symbol: 'LINKUSDT', pair: 'LINK/USDT', lastPrice: 18.90, priceChangePercent: 2.10, highPrice: 19.40, lowPrice: 18.20, volume: 320000.00, quoteVolume: 6048000, rsi: 51, trend: 'bullish' },
-  { symbol: 'SUIUSDT', pair: 'SUI/USDT', lastPrice: 3.45, priceChangePercent: 8.20, highPrice: 3.60, lowPrice: 3.12, volume: 1250000.00, quoteVolume: 4312500, rsi: 72, trend: 'bullish' },
-];
-
-function generateDefaultCandles(basePrice: number): Candle[] {
-  const candles: Candle[] = [];
-  let current = basePrice * 0.98;
-  for (let i = 0; i < 40; i++) {
-    const time = new Date(Date.now() - (40 - i) * 5 * 60 * 1000);
-    const timeStr = `${time.getHours().toString().padStart(2, '0')}:${time.getMinutes().toString().padStart(2, '0')}`;
-    const open = current;
-    const change = (Math.sin(i * 0.4) * 0.005 + (Math.random() - 0.48) * 0.008) * open;
-    const close = Math.max(open + change, open * 0.9);
-    const high = Math.max(open, close) + Math.random() * open * 0.004;
-    const low = Math.min(open, close) - Math.random() * open * 0.004;
-    const volume = Math.round(500 + Math.random() * 2500);
-    current = close;
-
-    candles.push({
-      time: timeStr,
-      timestamp: time.getTime(),
-      open: parseFloat(open.toFixed(2)),
-      high: parseFloat(high.toFixed(2)),
-      low: parseFloat(low.toFixed(2)),
-      close: parseFloat(close.toFixed(2)),
-      volume,
-      ema20: parseFloat((close * 0.998).toFixed(2)),
-      ema50: parseFloat((close * 0.992).toFixed(2)),
-      ema200: parseFloat((close * 0.982).toFixed(2)),
-      rsi: Math.round(40 + Math.sin(i * 0.3) * 20),
-      bbUpper: parseFloat((close * 1.015).toFixed(2)),
-      bbLower: parseFloat((close * 0.985).toFixed(2)),
-      macdHist: parseFloat((Math.sin(i * 0.4) * 4).toFixed(2))
-    });
-  }
-  return candles;
-}
 
 function formatNumber(val: number | undefined | null, minDecimals: number = 0, maxDecimals: number = 2): string {
   if (val === undefined || val === null || isNaN(val)) return '0';
@@ -344,25 +229,19 @@ function formatPrice(val: number | undefined | null): string {
 }
 
 export default function QuantApexTradingStation() {
-  const [state, setState] = useState<BotState>(DEFAULT_BOT_STATE);
-  const [logs, setLogs] = useState<string[]>([
-    '[DEMO] Flux de logs simulé — aucun moteur Freqtrade connecté',
-    '[DEMO-STRATEGY] Calcul fictif des bougies 1h & 15m',
-    '[INDICATORS] BTC/USDT: 1h_EMA200=95400 (Bullish), 5m_RSI=39.2, ADX=28.4 (Signal d\'entrée fort)',
-    '[INDICATORS] ETH/USDT: Momentum MACD haussier (+8.7), Trailing Stop déplacé à 2792.00 USDT',
-    '[INDICATORS] SOL/USDT: RSI 62.4, Cible Take-Profit #1 approchée (+3.33% en cours)',
-    '[PAIRLIST] VolumePairList: 140 paires scannées sur Binance -> 8 paires sélectionnées par volatilité/liquidité'
-  ]);
+  const [state, setState] = useState<BotState>(EMPTY_BOT_STATE);
+  const [logs, setLogs] = useState<string[]>(['Connexion au journal Freqtrade en attente…']);
   const [activeTab, setActiveTab] = useState<'live' | 'risk' | 'chart' | 'backtest' | 'strategy' | 'apikeys' | 'settings' | 'coolify'>('live');
-  const [isActionLoading, setIsActionLoading] = useState(false);
+  const isActionLoading = true;
+  const handleControlAction = (_action?: string, _payload?: unknown) => setLogs((current) => [...current.slice(-99), '[SÉCURITÉ] Commandes désactivées pendant la phase lecture seule.']);
 
   // Market & Chart State
   const [selectedPair, setSelectedPair] = useState<string>('BTC/USDT');
   const [selectedInterval, setSelectedInterval] = useState<string>('5m');
-  const [candles, setCandles] = useState<Candle[]>(() => generateDefaultCandles(97840));
+  const [candles, setCandles] = useState<Candle[]>([]);
   const [chartLoading, setChartLoading] = useState(false);
-  const [marketTickers, setMarketTickers] = useState<Ticker[]>(DEFAULT_TICKERS);
-  const [marketDataSource, setMarketDataSource] = useState<'binance-live' | 'simulated'>('simulated');
+  const [marketTickers, setMarketTickers] = useState<Ticker[]>([]);
+  const [marketDataSource, setMarketDataSource] = useState<'binance-live' | 'unavailable'>('unavailable');
   const [rackState, setRackState] = useState<RackState>({ status: 'not_configured' });
   const [chartOverlay, setChartOverlay] = useState<{ ema20: boolean; ema50: boolean; ema200: boolean; bb: boolean; rsi: boolean; volume: boolean }>({
     ema20: true,
@@ -383,9 +262,6 @@ export default function QuantApexTradingStation() {
     dryRun: true,
     trailingStop: true
   });
-
-  // Manual Buy Modal / Form
-  const [manualTradeAmount, setManualTradeAmount] = useState('490');
 
   // Authentication & Secure Access Gate
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -463,9 +339,9 @@ export default function QuantApexTradingStation() {
   const fetchState = async () => {
     try {
       const res = await fetch('/api/bot/control');
-      if (res.ok) {
-        const data = await res.json();
-        if (data && data.status) {
+      const data = await res.json();
+      if (data && data.status) {
+        if (res.ok) {
           setState(data);
           setSettingsForm(prev => ({
             ...prev,
@@ -477,10 +353,12 @@ export default function QuantApexTradingStation() {
             dryRun: data.dryRun !== undefined ? data.dryRun : prev.dryRun,
             trailingStop: data.trailingStop !== undefined ? data.trailingStop : prev.trailingStop
           }));
+        } else {
+          setState({ ...EMPTY_BOT_STATE, ...data });
         }
       }
     } catch (e) {
-      // Keep running with existing state
+      setState({ ...EMPTY_BOT_STATE, message: 'Console incapable de joindre son adaptateur Freqtrade', lastUpdated: new Date().toISOString() });
     }
   };
 
@@ -492,13 +370,15 @@ export default function QuantApexTradingStation() {
         const data = await res.json();
         if (data && Array.isArray(data.tickers) && data.tickers.length > 0) {
           setMarketTickers(data.tickers);
-          setMarketDataSource(data.source === 'binance-live' ? 'binance-live' : 'simulated');
+          setMarketDataSource('binance-live');
         }
+      } else {
+        setMarketTickers([]);
+        setMarketDataSource('unavailable');
       }
     } catch (e) {
-      // Keep running with fallback tickers
-    } finally {
-      // Keep the last known market source.
+      setMarketTickers([]);
+      setMarketDataSource('unavailable');
     }
   };
 
@@ -512,9 +392,11 @@ export default function QuantApexTradingStation() {
         if (data && Array.isArray(data.candles) && data.candles.length > 0) {
           setCandles(data.candles);
         }
+      } else {
+        setCandles([]);
       }
     } catch (e) {
-      // Retain or simulate locally
+      setCandles([]);
     } finally {
       setChartLoading(false);
     }
@@ -554,31 +436,25 @@ export default function QuantApexTradingStation() {
     return () => clearInterval(intervalCandles);
   }, [isAuthenticated, selectedPair, selectedInterval]);
 
-  // Simulated logs via SSE
+  // Read-only Freqtrade logs, polled to avoid a permanent SSE worker on the small VPS.
   useEffect(() => {
     if (!isAuthenticated) return;
-    let es: EventSource | null = null;
-    try {
-      es = new EventSource('/api/bot/logs');
-      es.onmessage = (event) => {
-        if (event.data) {
-          setLogs((prev) => [...prev.slice(-90), event.data]);
+    const fetchLogs = async () => {
+      try {
+        const response = await fetch('/api/bot/logs');
+        const payload = await response.json();
+        if (response.ok && Array.isArray(payload.messages)) {
+          setLogs(payload.messages.length ? payload.messages : ['Journal Freqtrade vide']);
+        } else {
+          setLogs([payload.message || 'Journal Freqtrade indisponible']);
         }
-      };
-      es.onerror = () => {
-        if (es) {
-          es.close();
-        }
-      };
-    } catch (err) {
-      // fallback
-    }
-
-    return () => {
-      if (es) {
-        es.close();
+      } catch {
+        setLogs(['Journal Freqtrade indisponible']);
       }
     };
+    fetchLogs();
+    const interval = setInterval(fetchLogs, 10_000);
+    return () => clearInterval(interval);
   }, [isAuthenticated]);
 
   // Scroll logs to bottom
@@ -588,47 +464,20 @@ export default function QuantApexTradingStation() {
     }
   }, [logs]);
 
-  // Handle Control Actions
-  const handleControlAction = async (action: string, payload?: any) => {
-    setIsActionLoading(true);
-    try {
-      const res = await fetch('/api/bot/control', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, payload }),
-      });
-      if (res.ok) {
-        const json = await res.json();
-        setState(json.state);
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setIsActionLoading(false);
-    }
-  };
-
   // Selected Ticker Info
   const currentTicker = marketTickers.find(t => t.pair === selectedPair) || {
     pair: selectedPair,
-    lastPrice: selectedPair.includes('BTC') ? 97840.50 : selectedPair.includes('ETH') ? 2815.20 : selectedPair.includes('SOL') ? 198.60 : 6.88,
-    priceChangePercent: 2.85,
-    highPrice: 98450.00,
-    lowPrice: 95120.00,
-    volume: 28450.12,
-    rsi: 42,
-    trend: 'bullish'
+    lastPrice: 0,
+    priceChangePercent: 0,
+    highPrice: 0,
+    lowPrice: 0,
+    volume: 0,
+    trend: 'neutral' as const,
   };
 
-  // Performance Area Chart data
+  // A single real point is preferable to a beautiful fictional curve.
   const equityCurve = [
-    { time: '04:00', balance: 2000.00, pnl: 0 },
-    { time: '06:00', balance: 2045.20, pnl: 45.20 },
-    { time: '08:00', balance: 2110.80, pnl: 110.80 },
-    { time: '10:00', balance: 2240.50, pnl: 240.50 },
-    { time: '12:00', balance: 2365.10, pnl: 365.10 },
-    { time: '14:00', balance: 2420.30, pnl: 420.30 },
-    { time: '16:00', balance: state?.walletBalance || 2489.65, pnl: state?.profitTotal || 489.65 },
+    { time: new Date(state.lastUpdated).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }), balance: state.walletBalance, pnl: state.profitTotal },
   ];
 
   return (
@@ -950,7 +799,7 @@ export default function QuantApexTradingStation() {
                   border: `1px solid ${state?.dryRun ? 'rgba(245, 158, 11, 0.3)' : 'rgba(16, 185, 129, 0.3)'}`,
                 }}
               >
-                DÉMONSTRATION — AUCUN CAPITAL RÉEL
+                {state.dataMode === 'live' ? (state.dryRun ? 'FREQTRADE RÉEL — DRY-RUN' : 'FREQTRADE RÉEL — LIVE') : 'MOTEUR INDISPONIBLE'}
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#94a3b8', margin: 0, marginTop: '3px' }}>
@@ -960,7 +809,7 @@ export default function QuantApexTradingStation() {
                 <span>Stratégie:</span>
                 <select
                   value={state?.strategy || 'QuantCoreBaseline'}
-                  onChange={(e) => handleControlAction('update_settings', { strategy: e.target.value })}
+                  disabled
                   style={{
                     backgroundColor: 'rgba(56, 189, 248, 0.1)',
                     border: '1px solid rgba(56, 189, 248, 0.3)',
@@ -1011,7 +860,7 @@ export default function QuantApexTradingStation() {
               className={state?.status === 'running' ? 'pulse-dot' : ''}
             />
             <span style={{ fontWeight: '600', color: state?.status === 'running' ? '#10b981' : '#f43f5e' }}>
-              {state?.status === 'running' ? 'Moteur Algorithmique En Ligne' : 'Moteur en Pause'}
+              {state?.status === 'running' ? 'Moteur Freqtrade en ligne' : state?.status === 'stopped' ? 'Moteur arrêté' : 'Moteur indisponible'}
             </span>
           </div>
 
@@ -1143,7 +992,9 @@ export default function QuantApexTradingStation() {
           textAlign: 'center',
         }}
       >
-        MODE DÉMONSTRATION — positions, performances, logs et commandes sont simulés. La validation n&apos;affiche aucun résultat inventé et aucun ordre réel n&apos;est envoyé.
+        {state.dataMode === 'live'
+          ? `DONNÉES FREQTRADE RÉELLES — console en lecture seule${state.stale ? ' — dernier état connu' : state.degraded ? ` — mode dégradé (${state.unavailableEndpoints?.join(', ')})` : ''}.`
+          : `MOTEUR INDISPONIBLE — aucune donnée fictive affichée. ${state.message || ''}`}
       </div>
 
       {/* Market ticker ribbon */}
@@ -1162,7 +1013,7 @@ export default function QuantApexTradingStation() {
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#38bdf8', fontWeight: '700' }}>
           <Radio size={14} className={marketDataSource === 'binance-live' ? 'pulse-dot' : ''} />
-          {marketDataSource === 'binance-live' ? 'BINANCE PUBLIC LIVE :' : 'MARCHÉ SIMULÉ :'}
+          {marketDataSource === 'binance-live' ? 'BINANCE PUBLIC LIVE :' : 'MARCHÉ INDISPONIBLE'}
         </div>
         {marketTickers.map((t) => {
           const isSelected = selectedPair === t.pair;
@@ -1325,29 +1176,8 @@ export default function QuantApexTradingStation() {
                     <h2 style={{ fontSize: '17px', fontWeight: '700', margin: 0 }}>Positions Ouvertes en Direct ({state?.activeTrades.length || 0})</h2>
                   </div>
 
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    {['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'RENDER/USDT'].map((p) => {
-                      const ticker = marketTickers.find(t => t.pair === p);
-                      const price = ticker?.lastPrice || (p.includes('BTC') ? 97800 : p.includes('ETH') ? 2815 : p.includes('SOL') ? 198 : 6.88);
-                      return (
-                        <button
-                          key={p}
-                          onClick={() => handleControlAction('force_buy', { pair: p, price, stake: 490 })}
-                          style={{
-                            padding: '5px 12px',
-                            borderRadius: '6px',
-                            backgroundColor: 'rgba(56, 189, 248, 0.12)',
-                            border: '1px solid rgba(56, 189, 248, 0.3)',
-                            color: '#38bdf8',
-                            fontSize: '11px',
-                            fontWeight: '700',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          + Entrée {p.split('/')[0]}
-                        </button>
-                      );
-                    })}
+                  <div style={{ padding: '5px 12px', borderRadius: '6px', backgroundColor: 'rgba(56, 189, 248, 0.08)', border: '1px solid rgba(56, 189, 248, 0.22)', color: '#94a3b8', fontSize: '11px', fontWeight: '700' }}>
+                    LECTURE SEULE
                   </div>
                 </div>
 
@@ -1377,25 +1207,8 @@ export default function QuantApexTradingStation() {
                           </td>
                           <td style={{ padding: '14px 10px' }}>
                             <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                              <span style={{
-                                padding: '2px 6px',
-                                borderRadius: '4px',
-                                fontSize: '10px',
-                                fontWeight: '700',
-                                backgroundColor: t.rsi < 40 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
-                                color: t.rsi < 40 ? '#10b981' : '#f59e0b',
-                              }}>
-                                RSI {t.rsi}
-                              </span>
-                              <span style={{
-                                padding: '2px 6px',
-                                borderRadius: '4px',
-                                fontSize: '10px',
-                                fontWeight: '700',
-                                backgroundColor: 'rgba(56, 189, 248, 0.15)',
-                                color: '#38bdf8',
-                              }}>
-                                ADX {t.indicators.adx}
+                              <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: '700', backgroundColor: 'rgba(100, 116, 139, 0.15)', color: '#94a3b8' }}>
+                                Indicateurs via stratégie
                               </span>
                             </div>
                           </td>
@@ -1410,7 +1223,7 @@ export default function QuantApexTradingStation() {
                           </td>
                           <td style={{ padding: '14px 10px', textAlign: 'right' }}>
                             <button
-                              onClick={() => handleControlAction('force_exit', { tradeId: t.id })}
+                              disabled
                               style={{
                                 padding: '5px 12px',
                                 borderRadius: '6px',
@@ -1419,10 +1232,10 @@ export default function QuantApexTradingStation() {
                                 border: '1px solid rgba(244, 63, 94, 0.3)',
                                 fontSize: '11px',
                                 fontWeight: '700',
-                                cursor: 'pointer',
+                                cursor: 'not-allowed',
                               }}
                             >
-                              Exit Forcé
+                              Lecture seule
                             </button>
                           </td>
                         </tr>
@@ -1439,7 +1252,7 @@ export default function QuantApexTradingStation() {
                     <BarChart3 size={20} color="#10b981" />
                     <h2 style={{ fontSize: '17px', fontWeight: '700', margin: 0 }}>Courbe d&apos;Équité & Performance Cumulée (USDT)</h2>
                   </div>
-                  <span style={{ fontSize: '12px', color: '#10b981', fontWeight: '700' }}>Rendement Cumulé : +24.48%</span>
+                  <span style={{ fontSize: '12px', color: state.profitPct >= 0 ? '#10b981' : '#f43f5e', fontWeight: '700' }}>Rendement Freqtrade : {state.profitPct >= 0 ? '+' : ''}{state.profitPct.toFixed(2)}%</span>
                 </div>
                 
                 <div style={{ height: '230px', width: '100%' }}>
@@ -1474,7 +1287,7 @@ export default function QuantApexTradingStation() {
                     <Terminal size={16} color="#38bdf8" />
                     <span style={{ fontSize: '13px', fontWeight: '700', color: '#f8fafc' }}>Freqtrade Core Engine Stream</span>
                   </div>
-                  <span style={{ fontSize: '11px', color: '#fbbf24', fontWeight: '600' }}>● Flux SSE simulé</span>
+                  <span style={{ fontSize: '11px', color: state.dataMode === 'live' ? '#10b981' : '#fbbf24', fontWeight: '600' }}>● Journal REST {state.dataMode === 'live' ? 'réel' : 'indisponible'}</span>
                 </div>
                 
                 <div
@@ -1564,7 +1377,7 @@ export default function QuantApexTradingStation() {
                   <div>Haut 24h : <strong style={{ color: '#f8fafc' }}>${formatPrice(currentTicker.highPrice)}</strong></div>
                   <div>Bas 24h : <strong style={{ color: '#f8fafc' }}>${formatPrice(currentTicker.lowPrice)}</strong></div>
                   <div>Vol 24h : <strong style={{ color: '#f8fafc' }}>{formatNumber(currentTicker.volume, 0, 2)}</strong></div>
-                  <div>RSI (14) : <strong style={{ color: currentTicker.rsi < 35 ? '#10b981' : currentTicker.rsi > 70 ? '#f43f5e' : '#38bdf8' }}>{currentTicker.rsi}</strong></div>
+                  <div>RSI (14) : <strong style={{ color: '#94a3b8' }}>{currentTicker.rsi ?? '—'}</strong></div>
                 </div>
               </div>
 
@@ -1675,64 +1488,8 @@ export default function QuantApexTradingStation() {
             </div>
 
             {/* Quick Order Execution Dock */}
-            <div style={{ marginTop: '20px', padding: '16px', borderRadius: '10px', backgroundColor: 'rgba(12, 18, 34, 0.9)', border: '1px solid rgba(255, 255, 255, 0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                <div style={{ fontSize: '13px', fontWeight: '700' }}>Ordre Manuel ({selectedPair}) :</div>
-                <input
-                  type="number"
-                  value={manualTradeAmount}
-                  onChange={(e) => setManualTradeAmount(e.target.value)}
-                  style={{
-                    backgroundColor: '#040711',
-                    border: '1px solid rgba(255, 255, 255, 0.15)',
-                    color: '#f8fafc',
-                    padding: '8px 12px',
-                    borderRadius: '6px',
-                    fontSize: '13px',
-                    width: '120px'
-                  }}
-                  placeholder="Montant USDT"
-                />
-                <span style={{ fontSize: '12px', color: '#94a3b8' }}>USDT</span>
-              </div>
-
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <button
-                  onClick={() => handleControlAction('force_buy', { pair: selectedPair, price: currentTicker.lastPrice, stake: Number(manualTradeAmount) })}
-                  style={{
-                    padding: '9px 20px',
-                    borderRadius: '8px',
-                    backgroundColor: '#10b981',
-                    color: '#060913',
-                    fontWeight: '800',
-                    fontSize: '13px',
-                    border: 'none',
-                    cursor: 'pointer',
-                    boxShadow: '0 0 15px rgba(16, 185, 129, 0.3)'
-                  }}
-                >
-                  Acheter Long ({selectedPair.split('/')[0]})
-                </button>
-
-                <button
-                  onClick={() => {
-                    const active = state?.activeTrades.find(t => t.pair === selectedPair);
-                    if (active) handleControlAction('force_exit', { tradeId: active.id });
-                  }}
-                  style={{
-                    padding: '9px 20px',
-                    borderRadius: '8px',
-                    backgroundColor: 'rgba(244, 63, 94, 0.2)',
-                    color: '#f43f5e',
-                    border: '1px solid rgba(244, 63, 94, 0.4)',
-                    fontWeight: '800',
-                    fontSize: '13px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  Vendre / Clôturer
-                </button>
-              </div>
+            <div style={{ marginTop: '20px', padding: '16px', borderRadius: '10px', backgroundColor: 'rgba(12, 18, 34, 0.9)', border: '1px solid rgba(56, 189, 248, 0.2)', color: '#94a3b8', fontSize: '13px' }}>
+              Les ordres manuels sont retirés de cette phase. Ils reviendront uniquement avec confirmation forte, journal d&apos;audit et rollback validé.
             </div>
 
           </div>
@@ -1871,7 +1628,7 @@ export default function QuantApexTradingStation() {
               <div>
                 <h2 style={{ fontSize: '20px', fontWeight: '800', margin: 0 }}>Connexions</h2>
                 <p style={{ color: '#94a3b8', fontSize: '13px', marginTop: '4px' }}>
-                  La console ne collecte aucun secret tant que le coffre et le client Freqtrade réels ne sont pas implémentés.
+                  Les secrets restent côté serveur. Le navigateur reçoit uniquement les données opérateur nécessaires.
                 </p>
               </div>
             </div>
@@ -1880,34 +1637,34 @@ export default function QuantApexTradingStation() {
               <div style={{ padding: '18px', borderRadius: '10px', backgroundColor: 'rgba(12, 18, 34, 0.8)', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
                 <strong style={{ color: '#fbbf24' }}>Moteur Freqtrade</strong>
                 <p style={{ color: '#cbd5e1', fontSize: '13px', lineHeight: 1.6 }}>
-                  Non connecté à cette interface. Les routes de contrôle restent simulées.
+                  Connecté par adaptateur serveur privé. État : {state.apiServerStatus}.
                 </p>
               </div>
               <div style={{ padding: '18px', borderRadius: '10px', backgroundColor: 'rgba(12, 18, 34, 0.8)', border: '1px solid rgba(56, 189, 248, 0.25)' }}>
                 <strong style={{ color: '#38bdf8' }}>Exchange</strong>
                 <p style={{ color: '#cbd5e1', fontSize: '13px', lineHeight: 1.6 }}>
-                  À configurer côté serveur dans Freqtrade ou via les secrets Coolify. Ne saisissez jamais une clé réelle dans une interface de démonstration.
+                  Configuré uniquement dans Freqtrade ou les secrets Coolify. Aucune clé n&apos;est exposée au navigateur.
                 </p>
               </div>
               <div style={{ padding: '18px', borderRadius: '10px', backgroundColor: 'rgba(12, 18, 34, 0.8)', border: '1px solid rgba(16, 185, 129, 0.25)' }}>
-                <strong style={{ color: '#10b981' }}>Étape suivante</strong>
+                <strong style={{ color: '#10b981' }}>Sécurité active</strong>
                 <p style={{ color: '#cbd5e1', fontSize: '13px', lineHeight: 1.6 }}>
-                  Brancher d&apos;abord ping, santé, état, trades et balance en lecture seule ; les commandes viendront ensuite.
+                  Les commandes restent bloquées jusqu&apos;à l&apos;activation contrôlée avec audit, contrôle santé et rollback.
                 </p>
               </div>
             </div>
           </div>
         )}
 
-        {/* Simulation settings */}
+        {/* Read-only settings snapshot */}
         {activeTab === 'settings' && (
           <div className="glass-card" style={{ padding: '28px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
               <Settings size={24} color="#38bdf8" />
               <div>
-                <h2 style={{ fontSize: '20px', fontWeight: '800', margin: 0 }}>Réglages de la simulation</h2>
+                <h2 style={{ fontSize: '20px', fontWeight: '800', margin: 0 }}>Configuration Freqtrade observée</h2>
                 <p style={{ color: '#94a3b8', fontSize: '13px', marginTop: '4px' }}>
-                  Ces réglages modifient uniquement la démonstration locale, pas le moteur Freqtrade.
+                  Lecture seule pendant P2. Les valeurs viennent de `show_config` et ne peuvent pas être modifiées ici.
                 </p>
               </div>
             </div>
@@ -1921,7 +1678,7 @@ export default function QuantApexTradingStation() {
                   </label>
                   <select
                     value={settingsForm.strategy}
-                    onChange={(e) => setSettingsForm({ ...settingsForm, strategy: e.target.value })}
+                    disabled
                     style={{ width: '100%', padding: '10px', borderRadius: '8px', backgroundColor: '#040711', border: '1px solid rgba(255, 255, 255, 0.15)', color: '#f8fafc', fontSize: '13px' }}
                   >
                     {state?.availableStrategies.map(s => (
@@ -1940,7 +1697,7 @@ export default function QuantApexTradingStation() {
                     max="-1"
                     step="0.1"
                     value={settingsForm.stoploss}
-                    onChange={(e) => setSettingsForm({ ...settingsForm, stoploss: parseFloat(e.target.value) })}
+                    disabled
                     style={{ width: '100%' }}
                   />
                 </div>
@@ -1955,7 +1712,7 @@ export default function QuantApexTradingStation() {
                     max="5.0"
                     step="0.1"
                     value={settingsForm.trailingOffset}
-                    onChange={(e) => setSettingsForm({ ...settingsForm, trailingOffset: parseFloat(e.target.value) })}
+                    disabled
                     style={{ width: '100%' }}
                   />
                 </div>
@@ -1971,7 +1728,7 @@ export default function QuantApexTradingStation() {
                     min="1"
                     max="15"
                     value={settingsForm.maxTrades}
-                    onChange={(e) => setSettingsForm({ ...settingsForm, maxTrades: parseInt(e.target.value) })}
+                    disabled
                     style={{ width: '100%', padding: '10px', borderRadius: '8px', backgroundColor: '#040711', border: '1px solid rgba(255, 255, 255, 0.15)', color: '#f8fafc', fontSize: '13px' }}
                   />
                 </div>
@@ -1985,7 +1742,7 @@ export default function QuantApexTradingStation() {
                     min="50"
                     max="5000"
                     value={settingsForm.stakeAmount}
-                    onChange={(e) => setSettingsForm({ ...settingsForm, stakeAmount: parseFloat(e.target.value) })}
+                    disabled
                     style={{ width: '100%', padding: '10px', borderRadius: '8px', backgroundColor: '#040711', border: '1px solid rgba(255, 255, 255, 0.15)', color: '#f8fafc', fontSize: '13px' }}
                   />
                 </div>
@@ -1999,7 +1756,7 @@ export default function QuantApexTradingStation() {
                     style={{ width: '18px', height: '18px' }}
                   />
                   <label htmlFor="dryRunToggle" style={{ fontSize: '13px', color: '#cbd5e1', fontWeight: '600', cursor: 'pointer' }}>
-                    Dry-run forcé tant que le moteur réel n&apos;est pas connecté
+                    Mode actuellement déclaré par Freqtrade : {state.dryRun ? 'dry-run' : 'live'}
                   </label>
                 </div>
               </div>
@@ -2008,7 +1765,7 @@ export default function QuantApexTradingStation() {
 
             <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
               <button
-                onClick={() => handleControlAction('update_settings', settingsForm)}
+                disabled
                 style={{
                   padding: '11px 24px',
                   borderRadius: '8px',
@@ -2017,10 +1774,11 @@ export default function QuantApexTradingStation() {
                   fontWeight: '800',
                   fontSize: '13px',
                   border: 'none',
-                  cursor: 'pointer'
+                  cursor: 'not-allowed',
+                  opacity: 0.55
                 }}
               >
-                Sauvegarder dans la simulation
+                Modification verrouillée
               </button>
             </div>
           </div>
