@@ -1,61 +1,70 @@
-# Audit du code — 22 août 2026
+# Audit complet du code — 22 août 2026
 
 ## Verdict
 
-Le dépôt contenait deux produits superposés : un ancien portail Express/AWS de décembre 2025 et une nouvelle console Next.js ajoutée le 21 août 2026. L'ancien portail et toute sa chaîne de déploiement ont été retirés. La console actuelle est visuellement riche, mais reste majoritairement une démonstration : elle n'est pas encore un poste de trading réel.
+Le dépôt forme désormais un seul produit mono-propriétaire : une cabine Next.js, un cœur officiel isolé et un rack d'outils ponctuels. Le portail historique, l'infrastructure AWS, puis les derniers restes SaaS (tenants, abonnements, PayPal, quotas, modèles multi-clients et orchestrateur FastAPI) ont été supprimés.
 
-## Nettoyage effectué
+Aucun défaut critique connu ne reste dans notre code applicatif en lecture seule. Une dette critique de dépendance subsiste toutefois : Next.js `14.2.3` est inférieur à `14.2.25`, version corrigée pour l'avis Middleware CVSS 9.1. L'application n'utilise actuellement aucun middleware Next.js ni App Router, ce qui réduit les chemins concernés, mais ne transforme pas une version ancienne en version saine. Next.js annonce en plus une publication critique le 26 août 2026 pour ses branches maintenues. L'exposition publique et le trading réel restent donc bloqués jusqu'à cette migration, la rotation des secrets, la validation Coolify, les résultats hors échantillon et sept jours d'observation.
 
-- suppression de `portal/placeholder/` et des deux README associés ;
-- suppression de l'ancien Compose EC2, Nginx, scripts systemd/ops et docs AWS/PayPal qui déployaient ce portail ;
-- suppression des rapports historiques sans extension et du guide de session obsolète ;
-- retrait du workspace portal dans `package.json` et `bun.lock` ;
-- ajout d'un Dockerfile pour la console actuelle ;
-- réécriture des documents racine selon le code présent ;
-- suppression du vocabulaire « portail » restant dans l'UI active.
+## Périmètre et méthode
 
-## Problèmes bloquants trouvés
+- base historique : `79d30d1`, dernière révision avant le nettoyage du 22 août ;
+- chemin actif : `console/`, `docker-compose.coolify.yml`, `quant_rack/`, `scripts/` et `strategies/` ;
+- contrôles : recherches de secrets et de données fictives, revue des frontières réseau, appels périodiques, écritures disque, sous-processus, sauvegarde/rollback et scénarios d'échec ;
+- validation automatique : tests Bun, lint/build Next.js, compilation Python, tests unitaires, profils Rack, YAML Compose et `git diff --check`.
 
-### 1. Authentification contournable — corrigé
+## Résultats par zone
 
-La route acceptait plusieurs comptes, mots de passe et PIN codés en dur, dont `0000`. Le Compose et le script de déploiement publiaient aussi des secrets par défaut. Ces valeurs ont été supprimées et les secrets sont désormais obligatoires.
+| Zone | Verdict | Éléments contrôlés |
+|---|---|---|
+| Produit | Conforme | Un propriétaire, une interface, aucun flux SaaS ou multi-tenant |
+| Authentification | Renforcée | Compte obligatoire, comparaison constante, token HMAC lié au propriétaire, durée fixe de 7 jours, cookie protégé |
+| Anti-bruteforce | Renforcée | Verrou local après 8 échecs sur 15 minutes, réponse `429` et `Retry-After` |
+| Routes API | Conforme en lecture | Session exigée, méthodes refusées, erreurs typées, aucun endpoint de mutation exposé |
+| Données | Conforme | État réel uniquement, aucun ticker, bougie, position ou résultat simulé |
+| Journaux | Renforcée | 100 événements maximum, 2 000 caractères par ligne, formes usuelles et valeurs configurées masquées |
+| Réseau | Conforme | Cœur accessible uniquement sur le réseau Docker privé, seule la console peut être publiée |
+| Secrets | Conforme côté code | Aucun secret collecté par l'UI ; injection Coolify directe au cœur ; préflight sans affichage des valeurs |
+| Rack | Conforme en dry-run | Profils bornés, état public filtré, sauvegarde atomique, verrou, contrôle des positions, santé et rollback |
+| Recherche | Conforme comme atelier | Un job, conteneur jetable, CPU/RAM/PID bornés, timeout, registre et garde OOS |
+| Stratégies | À valider | Code lisible et indicateurs justifiés, mais aucun résultat réel n'est présumé avant rapports et dry-run |
+| Documentation | Alignée | Architecture, sécurité, contexte, README, roadmap et performance décrivent le code présent |
 
-### 2. Endpoints sensibles non protégés — corrigé
+## Corrections réalisées pendant l'audit
 
-Les routes de contrôle, identifiants, logs et backtest étaient appelables sans session. Les routes conservées vérifient maintenant le cookie ou le bearer token signé ; la route de faux backtest et la route d'identifiants ont été supprimées.
+1. Suppression de `orchestrator/`, `clients/`, des modèles multi-instances et des validateurs de quotas.
+2. Retrait du job CI FastAPI et recentrage sur les outils actifs et la console.
+3. Renommage des paquets en `quant-core` et `quant-core-console`.
+4. Extraction et tests du format de session signé ; rejet des tokens modifiés, expirés ou liés à un autre propriétaire.
+5. Ajout d'un verrou temporaire contre les rafales de connexion.
+6. Filtrage et limitation des journaux avant leur arrivée dans le navigateur.
+7. Suppression de quatre lectures internes inutilisées par l'interface et espacement des rafraîchissements.
+8. Mise à jour des métadonnées et documents qui parlaient encore de démonstration, simulation ou SaaS.
 
-### 3. Interface présentée comme live alors que les données sont simulées — corrigé visuellement, intégration réelle à faire
+## Risques restants
 
-`control.ts` et `logs.ts` fabriquent encore positions, performances et événements. `ticker.ts` et `klines.ts` utilisent Binance quand disponible, puis génèrent des données artificielles. Le bandeau global et les indicateurs de source signalent maintenant le mode démonstration ; la route et les résultats de faux backtest ont été supprimés.
+### Élevés — portes opérationnelles
 
-Action requise : remplacer les routes simulées par le client Freqtrade réel et étendre `dataMode` à `delayed` et `unavailable`.
+- Next.js doit migrer vers la branche maintenue intégrant le correctif annoncé le 26 août 2026 ; régénérer le lockfile et refaire la CI, sans mise à jour partielle improvisée ;
+- l'image `freqtradeorg/freqtrade:stable` flotte ; pinner une version testée avant le capital réel ;
+- tout jeton Telegram déjà publié doit être révoqué et remplacé dans Coolify ;
+- les deux stratégies sont des candidates de recherche, pas des promesses de rendement ;
+- la restauration de `user_data` et de SQLite doit être réellement testée sur le VPS.
 
-### 4. Aucun adaptateur Freqtrade réel — à construire
+### Moyens — dette maîtrisée
 
-`FREQTRADE_API_URL`, le nom d'utilisateur et le mot de passe sont injectés dans le conteneur, mais les routes de contrôle ne les utilisent pas. Les boutons ne pilotent donc pas le moteur.
+- le limiteur de connexion est local au processus ; il est adapté à une instance, pas à un cluster ;
+- les réponses du cœur sont normalisées défensivement mais sans validateur de schéma externe ;
+- l'interface tient encore dans une page de 354 lignes ; acceptable aujourd'hui, à extraire si des mutations apparaissent ;
+- Basic Auth circule en HTTP sur le réseau Docker privé ; ne jamais publier le port interne.
 
-Action requise : implémenter un client REST serveur typé, avec timeout, gestion de token, validation de schéma, journalisation et tests d'intégration.
+### Faibles
 
-### 5. Collecte de secrets dangereuse — supprimée
+- les conteneurs ponctuels Python utilisent l'utilisateur par défaut de leur image ; leurs montages et profils limitent déjà leur portée, mais un UID dédié serait un durcissement supplémentaire ;
+- la conservation et la rotation des rapports de recherche restent à définir après mesure du disque réel.
 
-La console collectait des clés exchange en mémoire et pouvait les écrire en clair dans le JSON Freqtrade, tout en simulant le test de connexion. La route et le formulaire ont été supprimés.
+## Décision de passage
 
-Action requise avant réintroduction : choisir une source de vérité chiffrée côté serveur, sans retour de secret complet dans les réponses API ou logs.
+Le code peut continuer en déploiement personnel et en dry-run. Le passage réel reste bloqué tant que le préflight, la rotation des secrets, le rollback, la fenêtre OOS et l'observation de sept jours ne sont pas validés sur la machine cible.
 
-### 6. Monolithe frontend — dette élevée
-
-`console/pages/index.tsx` a été réduit d'environ 4 400 à 2 100 lignes en retirant les anciens onglets, les classements inventés, le faux laboratoire de backtest et le formulaire de secrets. Il mélange encore navigation, données de démonstration et formulaires.
-
-Action requise : extraire layout, navigation, cartes, tableaux, formulaires, hooks API et types par domaine. Commencer par l'authentification, le terminal, le risque et les réglages.
-
-### 7. Déploiement incomplet — partiellement corrigé
-
-Le Compose référençait un Dockerfile absent, exposait Freqtrade sur l'hôte et utilisait une stratégie/configuration non fournies. Le Dockerfile a été ajouté et le port moteur est maintenant interne. L'utilisateur doit encore fournir `user_data/config.json` et la stratégie correspondante.
-
-## Ordre recommandé
-
-1. Construire et tester `FreqtradeClient` en lecture seule : ping, état, balance, trades.
-2. Brancher les mutations avec confirmations et dry-run forcé.
-3. Extraire le monolithe UI en composants.
-4. Ajouter tests API/auth, rate limiting, CSRF et stockage de secrets.
-5. Décider si `orchestrator/` devient le backend officiel ou s'il doit être supprimé ; ne pas conserver deux plans de contrôle.
+Références officielles : [avis Middleware GHSA-f82v-jwr5-mffw](https://github.com/vercel/next.js/security/advisories/GHSA-f82v-jwr5-mffw), [publication de sécurité Next.js annoncée pour le 26 août 2026](https://nextjs.org/blog).

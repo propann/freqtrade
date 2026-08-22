@@ -13,7 +13,7 @@ Principes non négociables : secrets uniquement côté serveur, dry-run par déf
 | Phase | État | Résultat attendu | Porte de sortie |
 |---|---|---|---|
 | P0 — Nettoyage et sécurité | Terminé | Ancien portail/AWS retiré, secrets sortis du code, docs alignées | Audit et scan de secrets validés |
-| P1 — Socle Quant Rack | En validation | Profils, budgets VPS, activation locale sûre, affichage console | CI verte sur la PR #33 |
+| P1 — Socle Quant Rack | Terminé | Profils, budgets VPS, activation locale sûre, affichage console | CI verte sur la PR #33 |
 | P2 — Vérité terrain | En validation | Console minimale alimentée par l'API REST Freqtrade en lecture seule | Validation visuelle et réseau sur le VPS |
 | P3 — Activation contrôlée | En validation | Changement de profil, rechargement, contrôle santé, rollback | Validation sur le moteur Coolify en dry-run |
 | P4 — Bibliothèque indicateurs | À faire | Indicateurs partagés, calculés une seule fois si cela apporte un gain mesuré | Benchmark avant/après et API stable |
@@ -23,7 +23,7 @@ Principes non négociables : secrets uniquement côté serveur, dry-run par déf
 
 États autorisés : `À faire`, `En cours`, `En validation`, `Bloqué`, `Terminé`.
 
-## Lot actif — rendre la PR #33 fusionnable
+## Lot actif — produit personnel et audit final
 
 | ID | État | Action | Critère d'acceptation |
 |---|---|---|---|
@@ -36,6 +36,16 @@ Principes non négociables : secrets uniquement côté serveur, dry-run par déf
 | RACK-07 | À faire | Exécuter la procédure de pré-déploiement | Checklist du runbook signée par l'opérateur |
 | RACK-08 | Terminé | Automatiser le contrôle des secrets et du mode avant démarrage | Préflight sans valeur secrète, dépôt monté en lecture seule, mode réel refusé |
 
+| ID | État | Action | Critère d'acceptation |
+|---|---|---|---|
+| CLEAN-01 | Terminé | Retirer la couche SaaS résiduelle | Aucun tenant, paiement, abonnement, quota ou orchestrateur dans le dépôt |
+| CLEAN-02 | Terminé | Retirer les modèles multi-clients et leurs validations CI | Une seule cible de déploiement et une CI centrée sur le produit actif |
+| SEC-01 | Terminé | Durcir l'accès personnel | Session liée au propriétaire, rafales bloquées et tests unitaires |
+| SEC-02 | Terminé | Filtrer les journaux avant affichage | Secrets usuels et configurés masqués, lignes bornées et tests unitaires |
+| PERF-01 | Terminé | Réduire le trafic périodique de la cabine | 8 requêtes navigateur/minute et 30 lectures internes/minute au régime nominal |
+| DOC-01 | Terminé | Réaligner audit, architecture, contexte et performances | Aucun document actif ne décrit le prototype SaaS comme un composant présent |
+| DEP-01 | Bloqué | Migrer Next.js vers la branche maintenue | Correctif annoncé le 26 août 2026 publié, lockfile régénéré, audit dépendances et CI verts |
+
 ## P2 — Client Freqtrade en lecture seule
 
 | ID | Priorité | Action | Critère d'acceptation |
@@ -47,7 +57,7 @@ Principes non négociables : secrets uniquement côté serveur, dry-run par déf
 | API-05 | P1 — En validation | Supprimer les routes et jeux de données simulés restants | Recherche `demo/mock/fake` vide dans `console/` |
 | UI-01 | P0 — Terminé | Remplacer l'ancienne interface à onglets par une page opérateur minimale | Moteur, capital, positions, rack, système et logs visibles sans graphique décoratif |
 | UI-02 | P0 — Terminé | Conserver une interface sûre sur ordinateur et mobile | Aucun secret ni bouton de trading côté navigateur ; mise en page responsive |
-| UI-03 | P0 — En validation | Recentrer l'interface sur un propriétaire unique | Porte d'entrée neutre, compte unique sans PIN ni rôles, rack et outils visibles après connexion |
+| UI-03 | P0 — Terminé | Recentrer l'interface sur un propriétaire unique | Porte d'entrée neutre, compte unique sans PIN ni rôles, rack et outils visibles après connexion |
 
 ## P3 — Activation et retour arrière
 
@@ -122,6 +132,7 @@ Toutes les conditions suivantes sont obligatoires :
 |---|---|---|---|
 | Auto-déploiement Coolify lors d'une fusion | Critique | Fusion uniquement pendant une fenêtre contrôlée | Ouvert |
 | Secret Telegram divulgué dans une conversation | Critique | Révocation et rotation avant déploiement | Bloquant opérateur |
+| Next.js 14.2.3 hors branche maintenue | Critique | Migration après le correctif annoncé du 26 août 2026 ; accès amont obligatoire jusque-là | Bloquant exposition publique/live |
 | Console connectée mais non validée sur le VPS | Élevé | P2 doit être observée en dry-run sur Coolify | En validation |
 | Positions réelles durant un redémarrage | Critique | Vérifier mode et positions avant action | Ouvert |
 | Surcharge petit VPS par la recherche | Élevé | Recherche éphémère, une tâche, quotas | Couvert par conception |
@@ -138,6 +149,8 @@ Toutes les conditions suivantes sont obligatoires :
 | 2026-08-22 | PR avant `main` pour le rack | Le déploiement existant peut redémarrer automatiquement |
 | 2026-08-22 | Cabine opérateur sans fioriture | Réduire la charge cognitive, le JavaScript et les dépendances de visualisation |
 | 2026-08-22 | Un seul propriétaire, un seul compte | Supprimer les rôles et accès alternatifs sans retirer la sécurité de session |
+| 2026-08-22 | Supprimer la couche SaaS résiduelle | Éviter deux produits, deux plans de contrôle et une CI sans rapport avec l'usage réel |
+| 2026-08-22 | Rafraîchir selon le rythme utile | Une stratégie 15 min n'a pas besoin d'une pluie d'appels toutes les cinq secondes |
 
 ## Rythme de suivi
 
@@ -146,4 +159,4 @@ Toutes les conditions suivantes sont obligatoires :
 - Chaque semaine en phase de test : relever CPU/RAM, erreurs, fraîcheur et nombre de redémarrages.
 - Aucune phase suivante ne masque une porte de sortie non satisfaite ; elle reste explicitement bloquée.
 
-Prochaine séquence : déployer la branche de validation, poser les secrets renouvelés dans Coolify, confirmer le dry-run et l'absence de positions non gérées, puis observer P2/P3/P5 sur le VPS avant toute fusion dans `main`.
+Prochaine séquence : déployer le commit audité, poser les secrets renouvelés dans Coolify, confirmer le dry-run et l'absence de positions non gérées, puis observer P2/P3/P5 sur le VPS avant tout passage réel.

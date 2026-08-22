@@ -1,6 +1,6 @@
 {
-  "name": "Quant Core - Freqtrade Console",
-  "description": "Next.js demonstration console for a future Freqtrade control plane. Market data can be live; trading actions and performance data are currently simulated.",
+  "name": "Quant Core",
+  "description": "Personal control room with a neutral entry, a lightweight tool rack and real server-side operational data.",
   "requestFramePermissions": [],
   "majorCapabilities": []
 }

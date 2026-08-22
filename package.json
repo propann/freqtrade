@@ -1,5 +1,5 @@
 {
-  "name": "freqtrade-app",
+  "name": "quant-core",
   "version": "1.0.0",
   "private": true,
   "workspaces": [

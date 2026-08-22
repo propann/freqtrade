@@ -15,12 +15,12 @@ Quant Core doit devenir une console Freqtrade simple à déployer sur Coolify, u
 
 ## État au 22 août 2026
 
-- UI actuelle : présente, monolithique, construisible après installation des dépendances.
-- Flux Binance public : présent avec repli simulé.
-- Authentification console : présente, variables d'environnement obligatoires.
-- Contrôle réel de Freqtrade : non connecté ; routes actuelles simulées.
-- Stockage des réglages du simulateur : mémoire du processus uniquement.
+- UI actuelle : porte neutre et cabine responsive mono-propriétaire.
+- Flux de marché décoratif : supprimé ; aucune donnée simulée dans la console.
+- Authentification console : session signée liée au propriétaire, variables obligatoires et limitation des échecs.
+- Contrôle réel : adaptateur REST serveur en lecture seule, cache court et état sain borné.
+- Journaux : lecture réelle, lignes bornées et secrets filtrés avant retour au navigateur.
 - Validation stratégie : script réel de backtest, lookahead et analyse récursive ; aucun résultat fabriqué dans l'UI.
-- Orchestrateur FastAPI : prototype testé séparément, non câblé à l'UI.
+- Ancienne couche SaaS : supprimée avec ses tenants, abonnements, paiements, quotas et modèles multi-clients.
 
-Priorité absolue : remplacer les routes simulées par un adaptateur Freqtrade typé, testé et observable avant toute utilisation en capital réel.
+Priorité absolue : valider le chemin complet sur le VPS en dry-run, observer sept jours, puis examiner les rapports de stratégie avant toute utilisation en capital réel.

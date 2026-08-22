@@ -53,26 +53,18 @@ async function optional<T>(endpoint: string, errors: string[]): Promise<T | null
 
 async function buildState() {
   const errors: string[] = [];
-  const [ping, config, openTrades, balances, tradeHistory, profit, whitelist, strategies, sysinfo, health, daily] = await Promise.all([
+  const [ping, config, openTrades, balances, profit, sysinfo, daily] = await Promise.all([
     freqtradeGet<JsonObject>('/ping'),
     freqtradeGet<JsonObject>('/show_config'),
     freqtradeGet<JsonObject[]>('/status'),
     optional<JsonObject>('/balance', errors),
-    optional<JsonObject>('/trades?limit=20&offset=0&order_by_id=false', errors),
     optional<JsonObject>('/profit', errors),
-    optional<JsonObject>('/whitelist', errors),
-    optional<JsonObject>('/strategies', errors),
     optional<JsonObject>('/sysinfo', errors),
-    optional<JsonObject>('/health', errors),
     optional<JsonObject>('/daily?timescale=1', errors),
   ]);
 
   if (ping.status !== 'pong') throw new Error('Freqtrade readiness check failed');
 
-  const strategyNames = Array.isArray(strategies?.strategies) ? strategies.strategies : [];
-  const closedTrades = Array.isArray(tradeHistory?.trades)
-    ? tradeHistory.trades.filter((trade: JsonObject) => !trade.is_open).map(mapTrade)
-    : [];
   const dailyRecord = Array.isArray(daily?.data) ? daily.data[0] : null;
   const maxTrades = config.max_open_trades === 'inf' ? -1 : number(config.max_open_trades);
 
@@ -81,47 +73,24 @@ async function buildState() {
     status: ['running', 'stopped', 'reloading'].includes(config.state) ? config.state : 'unavailable',
     version: text(config.version),
     strategy: text(config.strategy),
-    availableStrategies: strategyNames.map((name: string) => ({
-      id: name,
-      name,
-      type: name === config.strategy ? 'Active' : 'Disponible',
-      timeframe: text(config.timeframe),
-      winrate: 'À mesurer',
-    })),
     timeframe: text(config.timeframe),
     exchange: text(config.exchange),
     tradingMode: text(config.trading_mode),
     dryRun: Boolean(config.dry_run),
     walletBalance: number(balances?.total_bot, number(balances?.total)),
-    initialWallet: number(balances?.starting_capital),
     profitTotal: number(profit?.profit_all_coin),
     profitPct: number(profit?.profit_all_percent),
     dailyProfit: number(dailyRecord?.abs_profit),
     dailyProfitPct: number(dailyRecord?.rel_profit) * 100,
     openTradesCount: openTrades.length,
     maxTrades,
-    stakeAmount: number(config.stake_amount),
     stakeCurrency: text(config.stake_currency),
-    stoploss: number(config.stoploss) * 100,
-    trailingStop: Boolean(config.trailing_stop),
-    trailingOffset: number(config.trailing_stop_positive_offset) * 100,
-    apiServerStatus: errors.length ? 'degraded' : 'connected',
     activeTrades: openTrades.map(mapTrade),
-    closedTrades,
-    whitelist: Array.isArray(whitelist?.whitelist) ? whitelist.whitelist : [],
-    dynamicPairlistStats: {
-      scanned: 0,
-      filtered: 0,
-      active: number(whitelist?.length),
-      method: Array.isArray(whitelist?.method) ? whitelist.method.join(' + ') : '—',
-      lastRefresh: 'État Freqtrade en direct',
-    },
     system: sysinfo ? {
       cpuAveragePct: number(sysinfo.cpu_avg),
       cpuCount: number(sysinfo.cpu_count),
       ramPct: number(sysinfo.ram_pct),
     } : null,
-    health: health || null,
     degraded: errors.length > 0,
     stale: false,
     unavailableEndpoints: errors,

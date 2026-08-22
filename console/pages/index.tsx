@@ -160,17 +160,23 @@ export default function Home() {
   const refreshBot = useCallback(async () => {
     setLoading(true);
     try {
-      const [{ payload: state }, { payload: logState }] = await Promise.all([
-        fetchJson('/api/bot/control'), fetchJson('/api/bot/logs'),
-      ]);
+      const { payload: state } = await fetchJson('/api/bot/control');
       setBot({ ...EMPTY_STATE, ...state, activeTrades: state.activeTrades || [], unavailableEndpoints: state.unavailableEndpoints || [] });
-      setLogs(Array.isArray(logState.messages) ? logState.messages.slice(-50).reverse() : []);
     } catch (error) {
       if ((error as Error).message !== 'Session expirée') {
         setBot((current) => ({ ...current, dataMode: 'unavailable', degraded: true, message: 'Console momentanément indisponible' }));
       }
     } finally {
       setLoading(false);
+    }
+  }, [fetchJson]);
+
+  const refreshLogs = useCallback(async () => {
+    try {
+      const { payload } = await fetchJson('/api/bot/logs');
+      setLogs(Array.isArray(payload.messages) ? payload.messages.slice(-50).reverse() : []);
+    } catch (error) {
+      if ((error as Error).message !== 'Session expirée') setLogs([]);
     }
   }, [fetchJson]);
 
@@ -197,11 +203,13 @@ export default function Home() {
   useEffect(() => {
     if (!authenticated) return;
     refreshBot();
+    refreshLogs();
     refreshRack();
-    const botTimer = window.setInterval(refreshBot, 10_000);
-    const rackTimer = window.setInterval(refreshRack, 30_000);
-    return () => { window.clearInterval(botTimer); window.clearInterval(rackTimer); };
-  }, [authenticated, refreshBot, refreshRack]);
+    const botTimer = window.setInterval(refreshBot, 15_000);
+    const logTimer = window.setInterval(refreshLogs, 30_000);
+    const rackTimer = window.setInterval(refreshRack, 60_000);
+    return () => { window.clearInterval(botTimer); window.clearInterval(logTimer); window.clearInterval(rackTimer); };
+  }, [authenticated, refreshBot, refreshLogs, refreshRack]);
 
   async function login(event: FormEvent) {
     event.preventDefault();
