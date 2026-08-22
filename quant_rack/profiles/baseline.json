@@ -24,6 +24,13 @@
     "max_drawdown",
     "low_profit_pairs"
   ],
+  "validation": {
+    "oos": {
+      "min_trades": 20,
+      "min_profit_factor": 1.05,
+      "max_drawdown_account": 0.2
+    }
+  },
   "tools": {
     "telegram": "on",
     "backtest": "job",

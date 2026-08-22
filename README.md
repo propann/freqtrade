@@ -79,6 +79,7 @@ scripts/preflight --require-telegram --require-exchange
 scripts/researchctl plan baseline --timerange 20260101-20260630
 scripts/researchctl benchmark baseline --rows 10000 --repeats 5 --confirm BENCHMARK
 scripts/researchctl validate baseline --timerange 20260101-20260630 --confirm VALIDATE
+scripts/researchctl oos baseline --timerange 20250101-20260101 --split-date 20251001 --fee 0.001 --confirm OOS
 docker compose --env-file .env -f docker-compose.coolify.yml run --rm rack-observer sample
 ```
 

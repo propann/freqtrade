@@ -94,6 +94,8 @@ Le passage en live est une opération distincte. Il exige la totalité des porte
 
 Ne jamais lancer backtest ou hyperopt dans le conteneur `freqtrade-engine`. Utiliser `scripts/researchctl` : le profil Compose `strategy-lab` est éphémère, limité à un job et supprimé après le travail. Vérifier l'espace disque disponible avant l'export et archiver uniquement les expériences utiles.
 
+Avant de promouvoir une stratégie, fixer une date de séparation non utilisée pendant son réglage puis exécuter `scripts/researchctl oos` avec un ratio de frais prudent. Un verdict `passed` ne dispense ni de lire les rapports natifs Freqtrade ni d'effectuer un dry-run prolongé : le backtest ne reproduit pas un véritable slippage intrabougie.
+
 ## 9. Observation sur sept jours
 
 Créer dans Coolify une tâche planifiée toutes les cinq minutes avec la commande suivante :

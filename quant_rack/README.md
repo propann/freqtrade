@@ -75,7 +75,7 @@ Lancer ensuite exactement un backtest borné :
 scripts/researchctl run baseline --timerange 20260101-20260630 --confirm RESEARCH
 ```
 
-Le service Compose `strategy-lab` ne démarre jamais avec le bot normal. `researchctl` le crée pour le travail demandé, refuse un second job concurrent, puis `docker compose run --rm` le supprime. Chaque expérience conserve le profil, la période, l'empreinte de la stratégie, la durée, le résultat et les logs sous `user_data/research/`.
+Le service Compose `strategy-lab` ne démarre jamais avec le bot normal. `researchctl` le crée pour le travail demandé, refuse un second job concurrent, puis `docker compose run --rm` le supprime. Chaque expérience conserve le profil, la période, l'empreinte de la stratégie, la durée, le résultat et les logs sous `user_data/research/`. Les backtests utilisent le répertoire d'export natif actuel de Freqtrade et conservent son archive ZIP reproductible ; l'ancien nom de fichier personnalisé, désormais déprécié, n'est plus utilisé.
 
 Valider ensuite la stratégie dans le même atelier et sous le même verrou :
 
@@ -84,6 +84,20 @@ scripts/researchctl validate baseline --timerange 20260101-20260630 --confirm VA
 ```
 
 Cette commande enchaîne découverte, backtest avec protections, détection du biais d'anticipation et analyse récursive. Le CSV lookahead est contrôlé automatiquement et bloque la suite si un biais est signalé. Le résultat récursif reste volontairement `review_required` : Freqtrade fournit des écarts par indicateur dont le seuil acceptable dépend des signaux. Lire `recursive.stdout.log` avant toute promotion, puis effectuer un test hors échantillon et un dry-run prolongé. `scripts/strategy-check.sh` n'est plus qu'un raccourci compatible vers cette commande centralisée ; son premier argument est désormais l'identifiant du profil.
+
+## Garde hors échantillon
+
+Choisir la date de séparation avant d'ajuster la stratégie, puis lancer deux backtests séquentiels avec les mêmes paramètres :
+
+```bash
+scripts/researchctl oos baseline \
+  --timerange 20250101-20260101 \
+  --split-date 20251001 \
+  --fee 0.001 \
+  --confirm OOS
+```
+
+Chaque côté de la séparation doit couvrir au moins 30 jours. La partie inconnue doit atteindre les seuils du profil : 20 trades, profit positif, profit factor d'au moins 1,05, expectancy positive et drawdown maximal de 20 %. `--fee` est le ratio appliqué par côté de transaction ; il doit refléter un scénario prudent et est enregistré avec les rapports. Cette garde ne modélise pas un véritable slippage intrabougie : un succès reste suivi d'un dry-run prolongé.
 
 ## Mesure des indicateurs
 

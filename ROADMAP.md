@@ -78,7 +78,7 @@ On ne crée pas un nouveau moteur d'indicateurs. Les stratégies continuent d'ut
 | LAB-02 | P0 — Terminé | Conteneur backtest jetable avec limites | Service Compose à profil, CPU/RAM/PID bornés et `run --rm` |
 | LAB-03 | P1 | Hyperopt opt-in uniquement | Paquet et processus absents du moteur live |
 | LAB-04 | P1 — Terminé | Registre des expériences | Profil, commit, hashes stratégie/config, période, durée, verdicts, sorties et logs enregistrés |
-| LAB-05 | P0 | Garde anti-surapprentissage | Validation hors échantillon et frais/slippage inclus |
+| LAB-05 | P0 — En validation | Garde anti-surapprentissage | Split OOS, frais explicites, seuils bloquants et archives codés ; slippage réel à éprouver en dry-run |
 
 ## P6 — Observabilité et budgets
 
