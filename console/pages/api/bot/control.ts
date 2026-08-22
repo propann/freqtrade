@@ -111,7 +111,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!verifyOwnerPassword(req.body?.confirmPassword) || req.body?.confirmation !== 'CONFIRMER') {
       return res.status(403).json({ success: false, message: 'Confirmation propriétaire requise' });
     }
-    const endpoints: Record<string, string> = { start: '/start', pause: '/pause', reload: '/reload_config' };
+    const endpoints: Record<string, string> = { start: '/start', stopbuy: '/stopbuy', reload: '/reload_config' };
     const action = typeof req.body?.action === 'string' ? req.body.action : '';
     const endpoint = endpoints[action];
     if (!endpoint) return res.status(400).json({ success: false, message: 'Action refusée' });

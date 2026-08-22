@@ -63,9 +63,14 @@ export function applyRuntimeSecretsUpdate(current: RuntimeSecrets, input: Runtim
   const telegramChatId = boundedString(input.telegramChatId, 'Chat Telegram', 64);
   const authorizedRaw = boundedString(input.telegramAuthorizedUsers, 'Utilisateurs Telegram', 512);
 
+  const replacingExchangeKey = Boolean(exchangeKey);
+  const replacingExchangeSecret = Boolean(exchangeSecret);
+  if (replacingExchangeKey !== replacingExchangeSecret) {
+    throw new Error('Une rotation exchange exige la nouvelle clé et le nouveau secret ensemble.');
+  }
   const exchange = {
-    key: exchangeKey || current.exchange.key,
-    secret: exchangeSecret || current.exchange.secret,
+    key: replacingExchangeKey ? exchangeKey! : current.exchange.key,
+    secret: replacingExchangeSecret ? exchangeSecret! : current.exchange.secret,
     password: exchangePassword || current.exchange.password,
     uid: exchangeUid || current.exchange.uid,
   };
@@ -73,7 +78,7 @@ export function applyRuntimeSecretsUpdate(current: RuntimeSecrets, input: Runtim
     throw new Error('La clé et le secret exchange doivent être fournis ensemble et contenir au moins 8 caractères.');
   }
 
-  const authorizedUsers = authorizedRaw === undefined
+  const authorizedUsers = authorizedRaw === undefined || authorizedRaw === ''
     ? current.telegram.authorized_users
     : authorizedRaw.split(/[\s,;]+/).filter(Boolean).map((item) => {
       if (!INTEGER_PATTERN.test(item)) throw new Error('Les utilisateurs Telegram doivent être des identifiants numériques.');
