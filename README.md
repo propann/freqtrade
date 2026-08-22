@@ -1,6 +1,6 @@
 # Quant Core
 
-Console de pilotage Freqtrade destinée à un déploiement Docker/Coolify. Le dépôt ne contient plus qu'une seule interface : une page Next.js sobre et responsive dans `console/`.
+Quant Core est une console personnelle destinée à un déploiement Docker/Coolify. Le dépôt ne contient plus qu'une seule interface : une page Next.js sobre et responsive dans `console/`. Sa porte d'entrée reste volontairement neutre ; les détails du système n'apparaissent qu'après connexion.
 
 > État réel : la console lit l'état du moteur Freqtrade via son réseau Docker privé. Positions, soldes, profits, configuration, santé, ressources et logs ne possèdent aucun repli fictif. Les commandes restent volontairement verrouillées jusqu'à la phase d'activation auditée et réversible.
 
@@ -43,9 +43,8 @@ Le port REST Freqtrade n'est pas publié sur l'hôte. Seule la console est publi
 ## Variables obligatoires
 
 - `FREQTRADE_USERNAME` / `FREQTRADE_PASSWORD` : compte REST du moteur Freqtrade.
-- `FREQTRADE_ADMIN_USER` / `FREQTRADE_ADMIN_PASSWORD` : accès à la console.
+- `FREQTRADE_ADMIN_USER` / `FREQTRADE_ADMIN_PASSWORD` : compte personnel unique de la console.
 - `FREQTRADE_JWT_SECRET` : secret aléatoire d'au moins 32 octets.
-- `FREQTRADE_PIN_CODE` : optionnel ; vide désactive l'authentification par PIN.
 - `EXCHANGE_API_KEY` / `EXCHANGE_API_SECRET` : optionnels en dry-run, à stocker uniquement comme secrets serveur/Coolify.
 - `TELEGRAM_ENABLED`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` et `TELEGRAM_AUTHORIZED_USERS` : intégration Telegram native de Freqtrade. Un jeton publié doit être révoqué avant utilisation.
 - `OBS_CPU_WARN_PCT`, `OBS_RAM_WARN_PCT` et `OBS_EXCHANGE_ERROR_WARN_COUNT` : seuils initiaux du collecteur léger ; ne les ajuster qu'après la fenêtre de sept jours.

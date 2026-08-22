@@ -23,7 +23,6 @@ SECRET_FIELDS = {
     "EXCHANGE_API_SECRET",
     "TELEGRAM_BOT_TOKEN",
     "FREQTRADE_ADMIN_PASSWORD",
-    "FREQTRADE_PIN_CODE",
     "FREQTRADE_JWT_SECRET",
 }
 REQUIRED_FIELDS = {
@@ -161,14 +160,6 @@ def run_checks(
         report.fail("required_secrets", f"Variables absentes, factices ou trop faibles : {', '.join(sorted(missing_or_weak))}")
     else:
         report.ok("required_secrets", "Identifiants internes présents et suffisamment longs")
-    pin = values.get("FREQTRADE_PIN_CODE", "")
-    if pin and (len(pin) < 6 or not pin.isdigit()):
-        report.fail("console_pin", "Le PIN optionnel doit contenir au moins six chiffres")
-    elif pin:
-        report.ok("console_pin", "PIN optionnel configuré sans être affiché")
-    else:
-        report.ok("console_pin", "Connexion par PIN désactivée")
-
     telegram_on = enabled(values.get("TELEGRAM_ENABLED", "false"))
     telegram_token = values.get("TELEGRAM_BOT_TOKEN", "")
     telegram_chat = values.get("TELEGRAM_CHAT_ID", "")
