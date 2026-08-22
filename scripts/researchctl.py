@@ -8,11 +8,13 @@ import csv
 import fcntl
 import hashlib
 import json
+import math
 import os
 import re
 import subprocess
 import sys
 import time
+import zipfile
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -28,6 +30,7 @@ REGISTRY_PATH = RESEARCH_DIR / "experiments.jsonl"
 COMPOSE_FILE = Path(os.environ.get("QUANT_COMPOSE_FILE", ROOT / "docker-compose.coolify.yml"))
 ENV_FILE = Path(os.environ.get("QUANT_ENV_FILE", ROOT / ".env"))
 TIMERANGE_PATTERN = re.compile(r"^\d{8}(?:-\d{8})?$")
+DATE_PATTERN = re.compile(r"^\d{8}$")
 
 
 class ResearchError(RuntimeError):
@@ -81,6 +84,11 @@ def git_revision() -> str:
 def validate_timerange(value: str) -> str:
     if not TIMERANGE_PATTERN.fullmatch(value):
         raise ResearchError("Timerange attendu : YYYYMMDD ou YYYYMMDD-YYYYMMDD")
+    try:
+        for part in value.split("-"):
+            datetime.strptime(part, "%Y%m%d")
+    except ValueError as exc:
+        raise ResearchError("Date calendaire invalide dans le timerange") from exc
     if "-" in value:
         start, end = value.split("-", 1)
         if start >= end:
@@ -173,6 +181,57 @@ def validation_plan(profile_id: str, timerange: str) -> dict[str, Any]:
     }
 
 
+def oos_policy(item: dict[str, Any]) -> dict[str, float | int]:
+    validation = item.get("validation", {})
+    configured = validation.get("oos", {}) if isinstance(validation, dict) else {}
+    if not isinstance(configured, dict):
+        raise ResearchError("validation.oos doit être un objet")
+    policy: dict[str, float | int] = {
+        "min_trades": configured.get("min_trades", 20),
+        "min_profit_factor": configured.get("min_profit_factor", 1.05),
+        "max_drawdown_account": configured.get("max_drawdown_account", 0.20),
+    }
+    try:
+        policy["min_trades"] = int(policy["min_trades"])
+        policy["min_profit_factor"] = float(policy["min_profit_factor"])
+        policy["max_drawdown_account"] = float(policy["max_drawdown_account"])
+    except (TypeError, ValueError) as exc:
+        raise ResearchError("Seuils validation.oos invalides") from exc
+    if not 1 <= policy["min_trades"] <= 10_000:
+        raise ResearchError("validation.oos.min_trades doit être compris entre 1 et 10000")
+    if not 0 <= policy["min_profit_factor"] <= 10:
+        raise ResearchError("validation.oos.min_profit_factor doit être compris entre 0 et 10")
+    if not 0 < policy["max_drawdown_account"] <= 1:
+        raise ResearchError("validation.oos.max_drawdown_account doit être compris entre 0 et 1")
+    return policy
+
+
+def oos_plan(profile_id: str, timerange: str, split_date: str, fee: float) -> dict[str, Any]:
+    item = profile(profile_id)
+    in_sample, out_of_sample = oos_ranges(timerange, split_date)
+    if not 0 <= fee <= 0.01:
+        raise ResearchError("--fee doit être compris entre 0 et 0.01")
+    strategy_path = ROOT / str(item["strategy_file"])
+    return {
+        "kind": "out_of_sample_validation",
+        "profile": profile_id,
+        "strategy": item["strategy"],
+        "strategy_sha256": sha256(strategy_path),
+        "config_sha256": sha256(CONFIG_PATH) if CONFIG_PATH.is_file() else "missing",
+        "git_commit": git_revision(),
+        "timeframe": item["timeframe"],
+        "timerange": validate_timerange(timerange),
+        "split_date": split_date,
+        "in_sample_timerange": in_sample,
+        "out_of_sample_timerange": out_of_sample,
+        "fee_per_side": fee,
+        "policy": oos_policy(item),
+        "budget": item["budget"],
+        "runner": "docker-compose/strategy-lab",
+        "parallel_jobs": 1,
+    }
+
+
 def bounded_timeout(variable: str, default: int, maximum: int) -> int:
     try:
         value = int(os.environ.get(variable, str(default)))
@@ -203,6 +262,80 @@ def lookahead_has_bias(path: Path) -> bool:
     return False
 
 
+def backtest_report(directory: Path, strategy: str) -> tuple[Path, dict[str, Any]]:
+    candidates: list[tuple[Path, dict[str, Any]]] = []
+    for path in sorted(directory.glob("*.json")):
+        try:
+            payload = read_json(path)
+        except ResearchError:
+            continue
+        if isinstance(payload.get("strategy"), dict) and strategy in payload["strategy"]:
+            candidates.append((path, payload))
+    for path in sorted(directory.glob("*.zip")):
+        try:
+            with zipfile.ZipFile(path) as archive:
+                for member in archive.infolist():
+                    if not member.filename.endswith(".json") or member.file_size > 50_000_000:
+                        continue
+                    payload = json.loads(archive.read(member).decode("utf-8"))
+                    if (
+                        isinstance(payload, dict)
+                        and isinstance(payload.get("strategy"), dict)
+                        and strategy in payload["strategy"]
+                    ):
+                        candidates.append((path, payload))
+                        break
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError, zipfile.BadZipFile):
+            continue
+    if len(candidates) != 1:
+        raise ResearchError(
+            f"Un rapport Freqtrade unique était attendu dans {directory}, trouvé : {len(candidates)}"
+        )
+    return candidates[0]
+
+
+def backtest_metrics(report: dict[str, Any], strategy: str) -> dict[str, float | int]:
+    strategy_data = report.get("strategy", {}).get(strategy)
+    if not isinstance(strategy_data, dict):
+        raise ResearchError(f"Stratégie absente du rapport de backtest : {strategy}")
+    fields = {
+        "total_trades": int,
+        "wins": int,
+        "losses": int,
+        "profit_total": float,
+        "profit_factor": float,
+        "expectancy": float,
+        "max_drawdown_account": float,
+    }
+    metrics: dict[str, float | int] = {}
+    try:
+        for field, converter in fields.items():
+            metrics[field] = converter(strategy_data[field])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ResearchError("Métriques Freqtrade incomplètes ou invalides") from exc
+    if any(isinstance(value, float) and not math.isfinite(value) for value in metrics.values()):
+        raise ResearchError("Métriques Freqtrade non finies")
+    return metrics
+
+
+def oos_ranges(timerange: str, split_date: str) -> tuple[str, str]:
+    timerange = validate_timerange(timerange)
+    if "-" not in timerange or not DATE_PATTERN.fullmatch(split_date):
+        raise ResearchError("OOS exige une période fermée et --split-date au format YYYYMMDD")
+    start, end = timerange.split("-", 1)
+    if not start < split_date < end:
+        raise ResearchError("--split-date doit être strictement à l'intérieur du timerange")
+    try:
+        start_date = datetime.strptime(start, "%Y%m%d")
+        split = datetime.strptime(split_date, "%Y%m%d")
+        end_date = datetime.strptime(end, "%Y%m%d")
+    except ValueError as exc:
+        raise ResearchError("Dates OOS calendaires invalides") from exc
+    if (split - start_date).days < 30 or (end_date - split).days < 30:
+        raise ResearchError("Les périodes in-sample et out-of-sample doivent durer au moins 30 jours")
+    return f"{start}-{split_date}", f"{split_date}-{end}"
+
+
 def run_experiment(profile_id: str, timerange: str, confirmation: str) -> dict[str, Any]:
     if confirmation != "RESEARCH":
         raise ResearchError("Confirmation requise : --confirm RESEARCH")
@@ -215,7 +348,9 @@ def run_experiment(profile_id: str, timerange: str, confirmation: str) -> dict[s
     experiment_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + f"-{profile_id}"
     output_dir = RESEARCH_DIR / experiment_id
     output_dir.mkdir(parents=True, exist_ok=False)
-    relative_output = f"research/{experiment_id}/trades.json"
+    relative_output = f"research/{experiment_id}/backtest-results"
+    backtest_dir = output_dir / "backtest-results"
+    backtest_dir.mkdir()
     command = [
         "docker", "compose", "--env-file", str(ENV_FILE), "-f", str(COMPOSE_FILE),
         "run", "--rm", "--no-deps", "strategy-lab", "backtesting",
@@ -224,7 +359,8 @@ def run_experiment(profile_id: str, timerange: str, confirmation: str) -> dict[s
         "--timeframe", str(plan["timeframe"]),
         "--timerange", str(plan["timerange"]),
         "--export", "trades",
-        "--export-filename", f"/freqtrade/user_data/{relative_output}",
+        "--backtest-directory", f"/freqtrade/user_data/{relative_output}",
+        "--cache", "none",
     ]
     started_at = datetime.now(timezone.utc).isoformat()
     started = time.monotonic()
@@ -234,17 +370,21 @@ def run_experiment(profile_id: str, timerange: str, confirmation: str) -> dict[s
     try:
         completed = subprocess.run(command, cwd=ROOT, text=True, capture_output=True, timeout=timeout, check=False)
         exit_code = completed.returncode
-        (output_dir / "stdout.log").write_text(completed.stdout[-500_000:], encoding="utf-8")
-        (output_dir / "stderr.log").write_text(completed.stderr[-500_000:], encoding="utf-8")
+        (output_dir / "stdout.log").write_text(tail_text(completed.stdout), encoding="utf-8")
+        (output_dir / "stderr.log").write_text(tail_text(completed.stderr), encoding="utf-8")
         result = "success" if exit_code == 0 else "failed"
-        if result == "success" and not (output_dir / "trades.json").is_file():
-            result = "failed"
-            exit_code = 65
-            with (output_dir / "stderr.log").open("a", encoding="utf-8") as handle:
-                handle.write("\nExport Freqtrade absent.\n")
+        if result == "success":
+            try:
+                artifact_path, report = backtest_report(backtest_dir, str(plan["strategy"]))
+                metrics = backtest_metrics(report, str(plan["strategy"]))
+            except ResearchError as exc:
+                result = "failed"
+                exit_code = 65
+                with (output_dir / "stderr.log").open("a", encoding="utf-8") as handle:
+                    handle.write(f"\n{exc}\n")
     except subprocess.TimeoutExpired as exc:
-        (output_dir / "stdout.log").write_text((exc.stdout or "")[-500_000:], encoding="utf-8")
-        (output_dir / "stderr.log").write_text((exc.stderr or "")[-500_000:], encoding="utf-8")
+        (output_dir / "stdout.log").write_text(tail_text(exc.stdout), encoding="utf-8")
+        (output_dir / "stderr.log").write_text(tail_text(exc.stderr), encoding="utf-8")
         result = "timeout"
 
     record = {
@@ -256,6 +396,11 @@ def run_experiment(profile_id: str, timerange: str, confirmation: str) -> dict[s
         "result": result,
         "exit_code": exit_code,
         "output": relative_output,
+        "artifact": (
+            str(artifact_path.relative_to(ROOT / "user_data"))
+            if result == "success" else None
+        ),
+        "metrics": metrics if result == "success" else None,
     }
     (output_dir / "metadata.json").write_text(json.dumps(record, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     append_registry(record)
@@ -359,7 +504,7 @@ def run_validation(profile_id: str, timerange: str, confirmation: str) -> dict[s
         ]),
         ("backtest", [
             "backtesting", *common, "--enable-protections", "--cache", "none",
-            "--breakdown", "month", "year",
+            "--export", "none", "--breakdown", "month", "year",
         ]),
         ("lookahead", [
             "lookahead-analysis", *common,
@@ -445,6 +590,147 @@ def run_validation(profile_id: str, timerange: str, confirmation: str) -> dict[s
     return record
 
 
+def run_oos(
+    profile_id: str, timerange: str, split_date: str, fee: float, confirmation: str
+) -> dict[str, Any]:
+    if confirmation != "OOS":
+        raise ResearchError("Confirmation requise : --confirm OOS")
+    if not CONFIG_PATH.is_file():
+        raise ResearchError(f"Configuration Freqtrade absente : {CONFIG_PATH}")
+    if not COMPOSE_FILE.is_file() or not ENV_FILE.is_file():
+        raise ResearchError("Fichier Compose ou .env absent")
+
+    plan = oos_plan(profile_id, timerange, split_date, fee)
+    experiment_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + f"-{profile_id}-oos"
+    output_dir = RESEARCH_DIR / experiment_id
+    output_dir.mkdir(parents=True, exist_ok=False)
+    docker_prefix = [
+        "docker", "compose", "--env-file", str(ENV_FILE), "-f", str(COMPOSE_FILE),
+        "run", "--rm", "--no-deps", "strategy-lab", "backtesting",
+    ]
+    common = [
+        "--config", "/freqtrade/user_data/config.json",
+        "--strategy", str(plan["strategy"]),
+        "--strategy-path", "/freqtrade/user_data/strategies",
+        "--timeframe", str(plan["timeframe"]),
+        "--enable-protections", "--cache", "none", "--export", "trades",
+        "--fee", str(plan["fee_per_side"]),
+    ]
+    phases = [
+        ("in_sample", str(plan["in_sample_timerange"])),
+        ("out_of_sample", str(plan["out_of_sample_timerange"])),
+    ]
+    timeout = bounded_timeout("QUANT_OOS_TIMEOUT", 3600, 14_400)
+    started_at = datetime.now(timezone.utc).isoformat()
+    started = time.monotonic()
+    phase_results: list[dict[str, Any]] = []
+    phase_metrics: dict[str, dict[str, float | int]] = {}
+    failed = False
+
+    for name, phase_timerange in phases:
+        if failed:
+            phase_results.append({"name": name, "result": "skipped", "exit_code": None})
+            continue
+        phase_started = time.monotonic()
+        phase_dir = output_dir / name
+        phase_dir.mkdir()
+        relative_dir = f"research/{experiment_id}/{name}"
+        stdout_path = output_dir / f"{name}.stdout.log"
+        stderr_path = output_dir / f"{name}.stderr.log"
+        command = [
+            *docker_prefix, *common, "--timerange", phase_timerange,
+            "--backtest-directory", f"/freqtrade/user_data/{relative_dir}",
+        ]
+        artifact: str | None = None
+        metrics: dict[str, float | int] | None = None
+        try:
+            completed = subprocess.run(
+                command, cwd=ROOT, text=True, capture_output=True, timeout=timeout, check=False
+            )
+            exit_code = completed.returncode
+            stdout_path.write_text(tail_text(completed.stdout), encoding="utf-8")
+            stderr_path.write_text(tail_text(completed.stderr), encoding="utf-8")
+            step_result = "completed" if exit_code == 0 else "failed"
+            if step_result == "completed":
+                try:
+                    artifact_path, report = backtest_report(phase_dir, str(plan["strategy"]))
+                    metrics = backtest_metrics(report, str(plan["strategy"]))
+                except ResearchError as exc:
+                    with stderr_path.open("a", encoding="utf-8") as handle:
+                        handle.write(f"\n{exc}\n")
+                    step_result = "failed"
+                    exit_code = 65
+                else:
+                    artifact = str(artifact_path.relative_to(ROOT / "user_data"))
+                    phase_metrics[name] = metrics
+        except subprocess.TimeoutExpired as exc:
+            exit_code = 124
+            stdout_path.write_text(tail_text(exc.stdout), encoding="utf-8")
+            stderr_path.write_text(tail_text(exc.stderr), encoding="utf-8")
+            step_result = "timeout"
+        failed = step_result != "completed"
+        phase_results.append({
+            "name": name,
+            "timerange": phase_timerange,
+            "result": step_result,
+            "exit_code": exit_code,
+            "elapsed_seconds": round(time.monotonic() - phase_started, 3),
+            "artifact": artifact,
+            "metrics": metrics,
+            "stdout": f"research/{experiment_id}/{name}.stdout.log",
+            "stderr": f"research/{experiment_id}/{name}.stderr.log",
+        })
+
+    gate_checks: list[dict[str, Any]] = []
+    result = "failed"
+    if not failed:
+        in_sample = phase_metrics["in_sample"]
+        out_of_sample = phase_metrics["out_of_sample"]
+        policy = plan["policy"]
+        checks = [
+            ("in_sample_profit_positive", in_sample["profit_total"] > 0, in_sample["profit_total"], 0),
+            ("oos_min_trades", out_of_sample["total_trades"] >= policy["min_trades"], out_of_sample["total_trades"], policy["min_trades"]),
+            ("oos_profit_positive", out_of_sample["profit_total"] > 0, out_of_sample["profit_total"], 0),
+            (
+                "oos_profit_factor",
+                (
+                    out_of_sample["profit_factor"] >= policy["min_profit_factor"]
+                    or (out_of_sample["losses"] == 0 and out_of_sample["profit_total"] > 0)
+                ),
+                out_of_sample["profit_factor"],
+                policy["min_profit_factor"],
+            ),
+            ("oos_expectancy_positive", out_of_sample["expectancy"] > 0, out_of_sample["expectancy"], 0),
+            ("oos_max_drawdown", out_of_sample["max_drawdown_account"] <= policy["max_drawdown_account"], out_of_sample["max_drawdown_account"], policy["max_drawdown_account"]),
+        ]
+        gate_checks = [
+            {"name": name, "passed": passed, "actual": actual, "threshold": threshold}
+            for name, passed, actual, threshold in checks
+        ]
+        result = "passed" if all(check["passed"] for check in gate_checks) else "rejected"
+
+    record = {
+        **plan,
+        "experiment_id": experiment_id,
+        "started_at": started_at,
+        "finished_at": datetime.now(timezone.utc).isoformat(),
+        "elapsed_seconds": round(time.monotonic() - started, 3),
+        "result": result,
+        "phases": phase_results,
+        "gate_checks": gate_checks,
+        "review_note": (
+            "Un passage OOS ne modélise pas le slippage réel et ne remplace pas un dry-run prolongé."
+        ),
+    }
+    (output_dir / "metadata.json").write_text(
+        json.dumps(record, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    append_registry(record)
+    if result != "passed":
+        raise ResearchError(f"Validation OOS {experiment_id} terminée avec l'état {result}")
+    return record
+
+
 def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(description="Atelier de recherche Freqtrade éphémère")
     commands = root.add_subparsers(dest="command", required=True)
@@ -464,6 +750,12 @@ def parser() -> argparse.ArgumentParser:
     validate_parser.add_argument("profile")
     validate_parser.add_argument("--timerange", required=True)
     validate_parser.add_argument("--confirm", required=True)
+    oos_parser = commands.add_parser("oos")
+    oos_parser.add_argument("profile")
+    oos_parser.add_argument("--timerange", required=True)
+    oos_parser.add_argument("--split-date", required=True)
+    oos_parser.add_argument("--fee", type=float, required=True)
+    oos_parser.add_argument("--confirm", required=True)
     return root
 
 
@@ -478,9 +770,14 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "benchmark":
             with research_lock():
                 result = run_benchmark(args.profile, args.rows, args.repeats, args.confirm)
-        else:
+        elif args.command == "validate":
             with research_lock():
                 result = run_validation(args.profile, args.timerange, args.confirm)
+        else:
+            with research_lock():
+                result = run_oos(
+                    args.profile, args.timerange, args.split_date, args.fee, args.confirm
+                )
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
     except ResearchError as exc:

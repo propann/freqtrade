@@ -4,7 +4,10 @@ import os
 import subprocess
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
+
+from scripts import researchctl
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
@@ -41,12 +44,11 @@ class ResearchCtlTests(unittest.TestCase):
             "  done\n"
             "fi\n"
             "previous=''\n"
+            "backtest_directory=''\n"
+            "timerange=''\n"
             "for argument in \"$@\"; do\n"
-            "  if [ \"$previous\" = '--export-filename' ]; then\n"
-            "    relative=${argument#/freqtrade/user_data/}\n"
-            "    mkdir -p \"$QUANT_RACK_ROOT/user_data/$(dirname \"$relative\")\"\n"
-            "    echo '{}' > \"$QUANT_RACK_ROOT/user_data/$relative\"\n"
-            "  fi\n"
+            "  [ \"$previous\" = '--backtest-directory' ] && backtest_directory=${argument#/freqtrade/user_data/}\n"
+            "  [ \"$previous\" = '--timerange' ] && timerange=$argument\n"
             "  if [ \"$previous\" = '--output' ]; then\n"
             "    relative=${argument#/freqtrade/user_data/}\n"
             "    mkdir -p \"$QUANT_RACK_ROOT/user_data/$(dirname \"$relative\")\"\n"
@@ -59,6 +61,12 @@ class ResearchCtlTests(unittest.TestCase):
             "  fi\n"
             "  previous=$argument\n"
             "done\n"
+            "if [ -n \"$backtest_directory\" ]; then\n"
+            "  mkdir -p \"$QUANT_RACK_ROOT/user_data/$backtest_directory\"\n"
+            "  profit_total=0.10\n"
+            "  if [ \"${OOS_REJECT:-false}\" = 'true' ] && [ \"$timerange\" = '20260301-20260501' ]; then profit_total=-0.10; fi\n"
+            "  printf '{\"strategy\":{\"TestStrategy\":{\"total_trades\":30,\"wins\":20,\"losses\":10,\"profit_total\":%s,\"profit_factor\":1.50,\"expectancy\":1.0,\"max_drawdown_account\":0.10}}}' \"$profit_total\" > \"$QUANT_RACK_ROOT/user_data/$backtest_directory/result.json\"\n"
+            "fi\n"
             "exit 0\n"
         )
         docker.chmod(0o755)
@@ -93,9 +101,34 @@ class ResearchCtlTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         record = json.loads(result.stdout)
         self.assertEqual(record["result"], "success")
-        self.assertTrue((self.root / "user_data" / record["output"]).is_file())
+        self.assertTrue((self.root / "user_data" / record["output"]).is_dir())
+        self.assertEqual(record["metrics"]["total_trades"], 30)
         registry = (self.root / "user_data" / "research" / "experiments.jsonl").read_text().splitlines()
         self.assertEqual(json.loads(registry[-1])["strategy_sha256"], record["strategy_sha256"])
+
+    def test_reads_native_freqtrade_zip_report(self):
+        directory = self.root / "native-report"
+        directory.mkdir()
+        payload = {
+            "strategy": {
+                "TestStrategy": {
+                    "total_trades": 30,
+                    "wins": 20,
+                    "losses": 10,
+                    "profit_total": 0.1,
+                    "profit_factor": 1.5,
+                    "expectancy": 1.0,
+                    "max_drawdown_account": 0.1,
+                }
+            }
+        }
+        archive = directory / "backtest-result.zip"
+        with zipfile.ZipFile(archive, "w") as handle:
+            handle.writestr("backtest-result.json", json.dumps(payload))
+            handle.writestr("config.json", json.dumps({"strategy": "TestStrategy"}))
+        artifact, report = researchctl.backtest_report(directory, "TestStrategy")
+        self.assertEqual(artifact, archive)
+        self.assertEqual(researchctl.backtest_metrics(report, "TestStrategy")["total_trades"], 30)
 
     def test_run_requires_confirmation(self):
         result = self.run_research("run", "test", "--timerange", "20260101-20260201", "--confirm", "YES")
@@ -106,6 +139,9 @@ class ResearchCtlTests(unittest.TestCase):
         result = self.run_research("plan", "test", "--timerange", "yesterday")
         self.assertEqual(result.returncode, 2)
         self.assertIn("Timerange attendu", result.stderr)
+        invalid_date = self.run_research("plan", "test", "--timerange", "20260230-20260315")
+        self.assertEqual(invalid_date.returncode, 2)
+        self.assertIn("Date calendaire invalide", invalid_date.stderr)
 
     def test_rejects_parallel_job(self):
         lock_path = self.root / "user_data" / "research" / "research.lock"
@@ -183,6 +219,43 @@ class ResearchCtlTests(unittest.TestCase):
             [check["result"] for check in record["validation_checks"]],
             ["completed", "failed", "skipped", "skipped"],
         )
+
+    def test_oos_passes_only_after_two_bounded_backtests(self):
+        result = self.run_research(
+            "oos", "test", "--timerange", "20260101-20260501", "--split-date", "20260301",
+            "--fee", "0.001", "--confirm", "OOS",
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        record = json.loads(result.stdout)
+        self.assertEqual(record["result"], "passed")
+        self.assertEqual([phase["result"] for phase in record["phases"]], ["completed", "completed"])
+        self.assertTrue(all(check["passed"] for check in record["gate_checks"]))
+
+    def test_oos_rejects_weak_unseen_results(self):
+        self.env["OOS_REJECT"] = "true"
+        result = self.run_research(
+            "oos", "test", "--timerange", "20260101-20260501", "--split-date", "20260301",
+            "--fee", "0.001", "--confirm", "OOS",
+        )
+        self.assertEqual(result.returncode, 2)
+        registry = (self.root / "user_data" / "research" / "experiments.jsonl").read_text().splitlines()
+        record = json.loads(registry[-1])
+        self.assertEqual(record["result"], "rejected")
+        self.assertFalse(next(check for check in record["gate_checks"] if check["name"] == "oos_profit_positive")["passed"])
+
+    def test_oos_requires_exact_confirmation_and_long_periods(self):
+        wrong_confirmation = self.run_research(
+            "oos", "test", "--timerange", "20260101-20260501", "--split-date", "20260301",
+            "--fee", "0.001", "--confirm", "YES",
+        )
+        self.assertEqual(wrong_confirmation.returncode, 2)
+        self.assertIn("--confirm OOS", wrong_confirmation.stderr)
+        short_period = self.run_research(
+            "oos", "test", "--timerange", "20260101-20260201", "--split-date", "20260115",
+            "--fee", "0.001", "--confirm", "OOS",
+        )
+        self.assertEqual(short_period.returncode, 2)
+        self.assertIn("au moins 30 jours", short_period.stderr)
 
 
 if __name__ == "__main__":
