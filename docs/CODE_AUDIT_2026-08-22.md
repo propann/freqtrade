@@ -24,6 +24,8 @@ Aucun défaut critique connu ne reste dans notre code applicatif en lecture seul
 | Données | Conforme | État réel uniquement, aucun ticker, bougie, position ou résultat simulé |
 | Journaux | Renforcée | 100 événements maximum, 2 000 caractères par ligne, formes usuelles et valeurs configurées masquées |
 | Réseau | Conforme | Cœur accessible uniquement sur le réseau Docker privé, seule la console peut être publiée |
+| Santé HTTP | Renforcée | Réponse neutre, prérequis d'accès vérifiés, absence de cache et `HEALTHCHECK` natif |
+| En-têtes HTTP | Renforcée | CSP, anti-framing, `nosniff`, référent nul et capteurs désactivés |
 | Secrets | Conforme côté code | Aucun secret collecté par l'UI ; injection Coolify directe au cœur ; préflight sans affichage des valeurs |
 | Rack | Conforme en dry-run | Profils bornés, état public filtré, sauvegarde atomique, verrou, contrôle des positions, santé et rollback |
 | Recherche | Conforme comme atelier | Un job, conteneur jetable, CPU/RAM/PID bornés, timeout, registre et garde OOS |
@@ -40,6 +42,7 @@ Aucun défaut critique connu ne reste dans notre code applicatif en lecture seul
 6. Filtrage et limitation des journaux avant leur arrivée dans le navigateur.
 7. Suppression de quatre lectures internes inutilisées par l'interface et espacement des rafraîchissements.
 8. Mise à jour des métadonnées et documents qui parlaient encore de démonstration, simulation ou SaaS.
+9. Ajout d'une sonde de santé neutre, d'un contrôle Docker et d'en-têtes HTTP défensifs ; requête de connexion bornée à 4 Kio et non mise en cache.
 
 ## Risques restants
 

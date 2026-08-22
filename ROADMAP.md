@@ -45,6 +45,7 @@ Principes non négociables : secrets uniquement côté serveur, dry-run par déf
 | PERF-01 | Terminé | Réduire le trafic périodique de la cabine | 8 requêtes navigateur/minute et 30 lectures internes/minute au régime nominal |
 | DOC-01 | Terminé | Réaligner audit, architecture, contexte et performances | Aucun document actif ne décrit le prototype SaaS comme un composant présent |
 | DEP-01 | Bloqué | Migrer Next.js vers la branche maintenue | Correctif annoncé le 26 août 2026 publié, lockfile régénéré, audit dépendances et CI verts |
+| OPS-01 | Terminé | Ajouter une santé conteneur neutre et des en-têtes défensifs | Route générique, Docker `HEALTHCHECK`, test de prérequis et build vert |
 
 ## P2 — Client Freqtrade en lecture seule
 

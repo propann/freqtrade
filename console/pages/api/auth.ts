@@ -28,7 +28,14 @@ export function isAuthorizedRequest(req: NextApiRequest): boolean {
   return Boolean(token && verifyAuthToken(token));
 }
 
+export const config = {
+  api: {
+    bodyParser: { sizeLimit: '4kb' },
+  },
+};
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  res.setHeader('Cache-Control', 'no-store');
   if (req.method === 'GET') {
     // Check session
     const authHeader = req.headers.authorization;
