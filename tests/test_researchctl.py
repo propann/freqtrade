@@ -25,6 +25,7 @@ class ResearchCtlTests(unittest.TestCase):
             "strategy": "TestStrategy",
             "strategy_file": "strategies/TestStrategy.py",
             "timeframe": "15m",
+            "indicators": ["rsi_14"],
             "budget": {"cpu": 1, "memory_mb": 512, "max_parallel_jobs": 1},
         }))
         (self.root / "docker-compose.coolify.yml").write_text("services: {}\n")
@@ -40,6 +41,11 @@ class ResearchCtlTests(unittest.TestCase):
             "    relative=${argument#/freqtrade/user_data/}\n"
             "    mkdir -p \"$QUANT_RACK_ROOT/user_data/$(dirname \"$relative\")\"\n"
             "    echo '{}' > \"$QUANT_RACK_ROOT/user_data/$relative\"\n"
+            "  fi\n"
+            "  if [ \"$previous\" = '--output' ]; then\n"
+            "    relative=${argument#/freqtrade/user_data/}\n"
+            "    mkdir -p \"$QUANT_RACK_ROOT/user_data/$(dirname \"$relative\")\"\n"
+            "    echo '{\"profile\":\"test\",\"strategy\":\"TestStrategy\",\"timing_ms\":{\"median\":1.2},\"memory\":{\"indicator_bytes\":128}}' > \"$QUANT_RACK_ROOT/user_data/$relative\"\n"
             "  fi\n"
             "  previous=$argument\n"
             "done\n"
@@ -99,6 +105,27 @@ class ResearchCtlTests(unittest.TestCase):
             result = self.run_research("run", "test", "--timerange", "20260101-20260201", "--confirm", "RESEARCH")
         self.assertEqual(result.returncode, 2)
         self.assertIn("déjà en cours", result.stderr)
+
+    def test_benchmark_records_reproducible_metrics(self):
+        result = self.run_research(
+            "benchmark", "test", "--rows", "500", "--repeats", "2", "--confirm", "BENCHMARK"
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        record = json.loads(result.stdout)
+        self.assertEqual(record["kind"], "indicator_benchmark")
+        self.assertEqual(record["dataset"], "deterministic_benchmark_fixture")
+        self.assertEqual(record["metrics"]["timing_ms"]["median"], 1.2)
+        self.assertTrue((self.root / "user_data" / record["output"]).is_file())
+
+    def test_benchmark_requires_exact_confirmation(self):
+        result = self.run_research("benchmark", "test", "--confirm", "YES")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("--confirm BENCHMARK", result.stderr)
+
+    def test_benchmark_rejects_unbounded_workload(self):
+        result = self.run_research("benchmark", "test", "--rows", "100", "--confirm", "BENCHMARK")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("--rows", result.stderr)
 
 
 if __name__ == "__main__":

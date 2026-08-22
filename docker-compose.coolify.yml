@@ -77,6 +77,8 @@ services:
     volumes:
       - ./user_data:/freqtrade/user_data
       - ./strategies:/freqtrade/user_data/strategies:ro
+      - ./scripts:/freqtrade/quant_tools:ro
+      - ./quant_rack:/freqtrade/quant_rack:ro
     networks:
       - quant-network
 

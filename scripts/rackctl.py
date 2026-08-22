@@ -119,6 +119,13 @@ def validate_profile(profile: dict[str, Any], source: Path) -> dict[str, Any]:
         raise RackError(f"Profil {source.name}: indicators doit être une liste non vide")
     if not isinstance(profile["protections"], list):
         raise RackError(f"Profil {source.name}: protections doit être une liste")
+    for field in ("indicators", "protections"):
+        names = profile[field]
+        if any(not isinstance(name, str) or not name.strip() for name in names):
+            raise RackError(f"Profil {source.name}: {field} contient un nom invalide")
+        normalized = [name.strip().casefold() for name in names]
+        if len(normalized) != len(set(normalized)):
+            raise RackError(f"Profil {source.name}: {field} contient un doublon")
     if not isinstance(profile["tools"], dict) or any(value not in TOOL_STATES for value in profile["tools"].values()):
         raise RackError(f"Profil {source.name}: état d'outil invalide")
     budget = profile["budget"]

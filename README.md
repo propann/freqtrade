@@ -75,6 +75,7 @@ scripts/rackctl list
 scripts/rackctl plan baseline
 scripts/rackctl activate baseline
 scripts/researchctl plan baseline --timerange 20260101-20260630
+scripts/researchctl benchmark baseline --rows 10000 --repeats 5 --confirm BENCHMARK
 ```
 
 Depuis le VPS, l'activation vérifiée passe par le réseau privé Docker :

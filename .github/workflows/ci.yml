@@ -18,7 +18,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r orchestrator/requirements-dev.txt
       - name: Lint
-        run: python -m compileall orchestrator
+        run: |
+          python -m compileall orchestrator scripts strategies
+          python scripts/rackctl.py list >/dev/null
       - name: Tests
         run: |
           python -m pytest orchestrator/tests

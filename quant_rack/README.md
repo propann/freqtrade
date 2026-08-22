@@ -68,3 +68,14 @@ scripts/researchctl run baseline --timerange 20260101-20260630 --confirm RESEARC
 ```
 
 Le service Compose `strategy-lab` ne démarre jamais avec le bot normal. `researchctl` le crée pour le travail demandé, refuse un second job concurrent, puis `docker compose run --rm` le supprime. Chaque expérience conserve le profil, la période, l'empreinte de la stratégie, la durée, le résultat et les logs sous `user_data/research/`.
+
+## Mesure des indicateurs
+
+Mesurer le passage `populate_indicators` avec une charge déterministe identique pour chaque stratégie :
+
+```bash
+scripts/researchctl benchmark baseline --rows 10000 --repeats 5 --confirm BENCHMARK
+scripts/researchctl benchmark ichi-v1 --rows 10000 --repeats 5 --confirm BENCHMARK
+```
+
+Le benchmark s'exécute dans le même conteneur éphémère et avec les mêmes quotas que les backtests. Il relève la médiane, le p95, le temps par millier de bougies, la mémoire ajoutée au DataFrame, le pic RSS et les colonnes produites. Le jeu OHLCV est une charge déterministe de comparaison, clairement marquée comme telle : ce n'est ni une donnée de marché ni une mesure de performance financière. Les rapports JSON restent dans `user_data/research/` et servent de référence avant toute mutualisation ou mise en cache.

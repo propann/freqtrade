@@ -113,6 +113,15 @@ class RackCtlTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(json.loads(result.stdout)[0]["id"], "test")
 
+    def test_list_rejects_duplicate_indicators(self):
+        profile_path = self.root / "quant_rack" / "profiles" / "test.json"
+        profile = json.loads(profile_path.read_text())
+        profile["indicators"] = ["rsi_14", "RSI_14"]
+        profile_path.write_text(json.dumps(profile))
+        result = self.run_rack("list")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("indicators contient un doublon", result.stderr)
+
     def test_activate_without_apply_does_not_touch_config(self):
         result = self.run_rack("activate", "test")
         self.assertEqual(result.returncode, 0, result.stderr)

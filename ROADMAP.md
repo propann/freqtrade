@@ -63,11 +63,11 @@ On ne crée pas un nouveau moteur d'indicateurs. Les stratégies continuent d'ut
 
 | ID | Priorité | Action | Critère d'acceptation |
 |---|---|---|---|
-| IND-01 | P0 | Mesurer temps et mémoire par stratégie/paire/bougie | Rapport reproductible sur le VPS cible |
+| IND-01 | P0 — En validation | Mesurer temps et mémoire du passage indicateurs par stratégie et volume de bougies | Benchmark éphémère reproductible codé ; rapports baseline/ichi-v1 à exécuter sur le VPS cible |
 | IND-02 | P1 | Extraire les calculs communs EMA/RSI/ADX/ATR/volume | Parité des signaux sur un jeu OHLCV figé |
 | IND-03 | P1 | Ajouter Ichimoku et Heikin-Ashi au registre optionnel | Chargés uniquement par `ichi-v1` |
 | IND-04 | P2 | Mettre en cache par paire/timeframe/bougie si utile | Gain mesuré supérieur à 15 %, mémoire sous budget |
-| IND-05 | P0 | Refuser les doublons et dépendances lourdes non justifiées | Revue de profil et benchmark obligatoires |
+| IND-05 | P0 — En cours | Refuser les doublons et dépendances lourdes non justifiées | Doublons de profil refusés ; revue de dépendance encore à automatiser |
 
 ## P5 — Atelier de recherche éphémère
 
