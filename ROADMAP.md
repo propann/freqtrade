@@ -32,7 +32,7 @@ Principes non négociables : secrets uniquement côté serveur, dry-run par déf
 | RACK-03 | Terminé | Sauvegarder la configuration avant écriture | Test automatique de sauvegarde réussi |
 | RACK-04 | Terminé | Forcer le dry-run lors d'une application | Test automatique réussi |
 | RACK-05 | Terminé | Exposer l'état du rack en lecture seule | Route authentifiée, volume monté en lecture seule |
-| RACK-06 | En validation | Réparer les jobs Python et console | Deux jobs GitHub Actions verts |
+| RACK-06 | Terminé | Réparer les jobs Python et console | Deux jobs GitHub Actions verts sur l'exécution 107 |
 | RACK-07 | À faire | Exécuter la procédure de pré-déploiement | Checklist du runbook signée par l'opérateur |
 
 ## P2 — Client Freqtrade en lecture seule
