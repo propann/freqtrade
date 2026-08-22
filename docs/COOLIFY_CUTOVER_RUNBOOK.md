@@ -38,6 +38,8 @@ docker compose --env-file .env -f docker-compose.coolify.yml run --rm rack-prefl
 
 Le résultat doit être `status: pass`. Corriger chaque échec avant de construire ou redémarrer un conteneur. Le contrôle refuse notamment les valeurs `change-me`, les secrets faibles ou intégrés à `config.json`, le mode réel, les entrées forcées, les CORS ouverts et toute valeur secrète retrouvée dans un fichier suivi par Git.
 
+Pour la première migration vers le coffre intégré, les variables Exchange et Telegram déjà présentes dans Coolify sont copiées une seule fois dans `user_data/private/runtime-secrets.json`. Après déploiement, ouvrir **Réglages**, vérifier les deux états puis enregistrer les nouvelles clés. Les anciennes variables peuvent être supprimées de Coolify uniquement après cette vérification ; les secrets internes de la console et de l'API restent obligatoires dans Coolify.
+
 Dans un shell du service ou sur une copie exacte du volume :
 
 ```bash
@@ -69,6 +71,7 @@ La commande refuse le live et les positions ouvertes, recharge via l'API native,
 3. Vérifier que seul le service attendu a été remplacé.
 4. Contrôler le démarrage Freqtrade, la stratégie, la timeframe, la pairlist et `dry_run=true`.
 5. Contrôler la console, l'état du rack et la réception d'une notification Telegram de test ne contenant aucun secret.
+6. Ouvrir Réglages, vérifier les statuts Exchange/Telegram et tester `Recharger` avec le mot de passe propriétaire.
 
 La sonde publique ne divulgue aucun composant. Depuis une machine autorisée, elle doit répondre en HTTPS avec `{"status":"ok"}` :
 

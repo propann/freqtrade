@@ -46,6 +46,8 @@ Principes non négociables : secrets uniquement côté serveur, dry-run par déf
 | DOC-01 | Terminé | Réaligner audit, architecture, contexte et performances | Aucun document actif ne décrit le prototype SaaS comme un composant présent |
 | DEP-01 | Bloqué | Migrer Next.js vers la branche maintenue | Correctif annoncé le 26 août 2026 publié, lockfile régénéré, audit dépendances et CI verts |
 | OPS-01 | Terminé | Ajouter une santé conteneur neutre et des en-têtes défensifs | Route générique, Docker `HEALTHCHECK`, test de prérequis et build vert |
+| OPS-02 | En validation | Gérer Exchange et Telegram depuis le coffre personnel | Écriture `0600`, valeurs non relues, rechargement/rollback et CI verts ; validation Coolify requise |
+| OPS-03 | En validation | Exposer les commandes opérationnelles sûres | Démarrer, pause et recharger avec session, origine, mot de passe et confirmation |
 
 ## P2 — Client Freqtrade en lecture seule
 
@@ -144,7 +146,7 @@ Toutes les conditions suivantes sont obligatoires :
 | Date | Décision | Motif |
 |---|---|---|
 | 2026-08-22 | Une seule interface Next.js | Éliminer les portails concurrents et la dette UI |
-| 2026-08-22 | Secrets via variables Coolify | Aucune clé durable dans Git ou le navigateur |
+| 2026-08-22 | Coffre serveur et import Coolify initial | Aucune clé durable dans Git ou relue dans le navigateur ; gestion quotidienne depuis la console |
 | 2026-08-22 | Ne pas amincir le cœur Freqtrade | Les résolveurs et modules optionnels fournissent déjà les frontières utiles |
 | 2026-08-22 | Profils déclaratifs et activation explicite | Réduire la charge sans comportement implicite |
 | 2026-08-22 | PR avant `main` pour le rack | Le déploiement existant peut redémarrer automatiquement |

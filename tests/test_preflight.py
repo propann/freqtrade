@@ -122,6 +122,28 @@ class PreflightTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertNotIn(self.password, result.stdout)
 
+    def test_private_runtime_file_can_replace_exchange_and_telegram_env(self):
+        for key in ("EXCHANGE_API_KEY", "EXCHANGE_API_SECRET", "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID"):
+            self.values[key] = ""
+        self.values["TELEGRAM_ENABLED"] = "false"
+        self.values["TELEGRAM_AUTHORIZED_USERS"] = "[]"
+        self.write_env()
+        runtime_path = self.root / "user_data" / "private" / "runtime-secrets.json"
+        runtime_path.parent.mkdir()
+        runtime_path.write_text(json.dumps({
+            "exchange": {"key": "runtime-exchange-key", "secret": "runtime-exchange-secret"},
+            "telegram": {
+                "enabled": True,
+                "token": "123456789:abcdefghijklmnopqrstuvwxyzABCDE",
+                "chat_id": "123456789",
+                "authorized_users": ["123456789"],
+            },
+        }))
+        result = self.run_preflight(
+            "--runtime-secrets", str(runtime_path), "--require-telegram", "--require-exchange"
+        )
+        self.assertEqual(result.returncode, 0, result.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,6 +1,6 @@
 # Console web (Next.js)
 
-Interface Next.js personnelle de Quant Core. Une porte d'entrée neutre ne révèle ni la nature ni les composants du service ; après connexion, une page unique et responsive montre uniquement l'essentiel : capital, positions, stratégie, rack, outils, ressources, alertes et derniers journaux. Le compte unique remplace les anciens rôles et le raccourci PIN. Son adaptateur serveur interroge le cœur sur le réseau Docker privé avec authentification, timeout, cache court et états dégradés. Aucun secret n'est envoyé au navigateur. Les mutations sont bloquées pendant la phase lecture seule.
+Interface Next.js personnelle de Quant Core. La porte d'entrée compacte ne révèle ni la nature ni les composants du service ; après connexion, une page responsive montre capital, positions, stratégie, rack, outils, ressources, alertes et derniers journaux. Le compte unique remplace les anciens rôles et le raccourci PIN. Son adaptateur serveur interroge le cœur sur le réseau Docker privé avec authentification, timeout, cache court et états dégradés. Le panneau Réglages écrit Exchange et Telegram dans un fichier privé sans jamais relire les valeurs dans le navigateur. Les commandes démarrer, pause et recharger exigent le mot de passe ; aucun ordre forcé n'est exposé.
 
 ## Démarrer en local
 ```bash
@@ -19,4 +19,4 @@ npm run dev
 - synthèse glissante des relevés VPS sur sept jours, incidents et erreurs exchange comptées sans conserver leur texte ;
 - état des outils du rack, sans formulaire de secret ni commande de trading.
 
-L'ancienne interface à onglets, ses graphiques et ses panneaux décoratifs ont été retirés. La session est signée, liée au propriétaire configuré et protégée contre les rafales de tentatives. Les journaux sont bornés et nettoyés côté serveur avant affichage. Les commandes ne seront ajoutées qu'avec confirmation forte, journal d'audit, contrôle santé et rollback. Voir `../ROADMAP.md`.
+L'ancienne interface à onglets, ses graphiques et ses panneaux décoratifs ont été retirés. La session est signée, liée au propriétaire configuré et protégée contre les rafales de tentatives. Les journaux sont bornés et nettoyés côté serveur avant affichage. Les trois commandes opérationnelles disposent d'une confirmation forte ; les futures commandes de trading exigeront en plus un journal d'audit métier et des protections dédiées. Voir `../ROADMAP.md`.

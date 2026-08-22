@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
-import { FreqtradeApiError, freqtradeGet } from './freqtrade-client';
+import { FreqtradeApiError, freqtradeGet, freqtradePost } from './freqtrade-client';
 
 const originalFetch = globalThis.fetch;
 const originalEnvironment = {
@@ -38,6 +38,16 @@ describe('freqtradeGet', () => {
     }) as typeof fetch;
 
     expect(await freqtradeGet<{ status: string }>('/ping')).toEqual({ status: 'pong' });
+  });
+
+  test('sends bounded control calls as POST', async () => {
+    globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+      expect(String(input)).toEndWith('/api/v1/reload_config');
+      expect(init?.method).toBe('POST');
+      expect(init?.headers).toHaveProperty('Authorization');
+      return new Response(JSON.stringify({ status: 'reloading' }), { status: 200 });
+    }) as typeof fetch;
+    expect(await freqtradePost('/reload_config')).toEqual({ status: 'reloading' });
   });
 
   test('classifies authentication failures', async () => {

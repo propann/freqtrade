@@ -88,6 +88,50 @@ export async function freqtradeGet<T>(endpoint: string): Promise<T> {
   }
 }
 
+export async function freqtradePost<T>(endpoint: string, body?: unknown): Promise<T> {
+  if (!endpoint.startsWith('/') || endpoint.startsWith('//')) {
+    throw new FreqtradeApiError('misconfigured', 'Endpoint Freqtrade refusé');
+  }
+
+  const { baseUrl, authorization, timeoutMs } = configuration();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(`${baseUrl}/api/v1${endpoint}`, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        Authorization: authorization,
+        'Content-Type': 'application/json',
+      },
+      body: body === undefined ? undefined : JSON.stringify(body),
+      signal: controller.signal,
+      cache: 'no-store',
+    });
+    if (response.status === 401 || response.status === 403) {
+      throw new FreqtradeApiError('unauthorized', 'Authentification interne Freqtrade refusée', response.status);
+    }
+    if (!response.ok) {
+      throw new FreqtradeApiError('unavailable', `Freqtrade répond HTTP ${response.status}`, response.status);
+    }
+    const raw = await response.text();
+    if (!raw) return {} as T;
+    try {
+      return JSON.parse(raw) as T;
+    } catch {
+      throw new FreqtradeApiError('invalid_response', 'Réponse Freqtrade invalide');
+    }
+  } catch (error) {
+    if (error instanceof FreqtradeApiError) throw error;
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new FreqtradeApiError('timeout', 'Délai de réponse Freqtrade dépassé');
+    }
+    throw new FreqtradeApiError('unavailable', 'Moteur Freqtrade injoignable');
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export function publicFreqtradeError(error: unknown) {
   if (error instanceof FreqtradeApiError) return { code: error.code, message: error.message };
   return { code: 'unavailable' as const, message: 'Moteur Freqtrade indisponible' };

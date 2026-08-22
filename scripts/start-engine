@@ -1,0 +1,10 @@
+#!/bin/sh
+set -eu
+
+runtime_file=${QUANT_RUNTIME_SECRETS_PATH:-/freqtrade/user_data/private/runtime-secrets.json}
+python /opt/quant/scripts/runtime_secrets.py "$runtime_file"
+
+exec freqtrade trade \
+  --config /freqtrade/user_data/config.json \
+  --config "$runtime_file" \
+  --db-url sqlite:////freqtrade/user_data/tradesv3.sqlite

@@ -141,9 +141,23 @@ def run_checks(
     require_telegram: bool,
     require_exchange: bool,
     process_env: bool = False,
+    runtime_secrets_path: Path | None = None,
 ) -> dict[str, Any]:
     values = dict(os.environ) if process_env else parse_env(env_path)
     config = read_config(config_path)
+    if runtime_secrets_path and runtime_secrets_path.exists():
+        runtime = read_config(runtime_secrets_path)
+        runtime_exchange = runtime.get("exchange") if isinstance(runtime.get("exchange"), dict) else {}
+        runtime_telegram = runtime.get("telegram") if isinstance(runtime.get("telegram"), dict) else {}
+        values.update({
+            "EXCHANGE_API_KEY": str(runtime_exchange.get("key") or values.get("EXCHANGE_API_KEY", "")),
+            "EXCHANGE_API_SECRET": str(runtime_exchange.get("secret") or values.get("EXCHANGE_API_SECRET", "")),
+            "TELEGRAM_ENABLED": str(runtime_telegram.get("enabled", values.get("TELEGRAM_ENABLED", "false"))),
+            "TELEGRAM_BOT_TOKEN": str(runtime_telegram.get("token") or values.get("TELEGRAM_BOT_TOKEN", "")),
+            "TELEGRAM_CHAT_ID": str(runtime_telegram.get("chat_id") or values.get("TELEGRAM_CHAT_ID", "")),
+        })
+        if "authorized_users" in runtime_telegram:
+            values["TELEGRAM_AUTHORIZED_USERS"] = json.dumps(runtime_telegram["authorized_users"])
     report = Report()
 
     if process_env:
@@ -248,6 +262,7 @@ def parser() -> argparse.ArgumentParser:
     command = argparse.ArgumentParser(description="Préflight Coolify/Freqtrade sans exposition de secret")
     command.add_argument("--env-file", type=Path, default=ROOT / ".env")
     command.add_argument("--config", type=Path, default=ROOT / "user_data" / "config.json")
+    command.add_argument("--runtime-secrets", type=Path, default=ROOT / "user_data" / "private" / "runtime-secrets.json")
     command.add_argument("--require-telegram", action="store_true")
     command.add_argument("--require-exchange", action="store_true")
     command.add_argument("--process-env", action="store_true", help="Contrôler les variables injectées par Coolify")
@@ -258,7 +273,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
     try:
         result = run_checks(
-            args.env_file, args.config, args.require_telegram, args.require_exchange, args.process_env
+            args.env_file, args.config, args.require_telegram, args.require_exchange, args.process_env,
+            args.runtime_secrets,
         )
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0 if result["status"] == "pass" else 2

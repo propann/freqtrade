@@ -3,13 +3,18 @@ import crypto from 'crypto';
 
 import { createSessionToken, verifySessionToken } from '../../lib/auth-session';
 import { clearLoginFailures, loginAllowance, recordLoginFailure } from '../../lib/login-guard';
+import { accessIsReady } from '../../lib/runtime-health';
 
 const ADMIN_USERNAME = process.env.FREQTRADE_ADMIN_USER || '';
 const ADMIN_PASSWORD = process.env.FREQTRADE_ADMIN_PASSWORD || '';
 const JWT_SECRET = process.env.FREQTRADE_JWT_SECRET || '';
 
 function authIsConfigured(): boolean {
-  return Boolean(ADMIN_USERNAME && ADMIN_PASSWORD && JWT_SECRET.length >= 32);
+  return accessIsReady(process.env);
+}
+
+export function verifyOwnerPassword(password: unknown): boolean {
+  return authIsConfigured() && typeof password === 'string' && safeEqual(password, ADMIN_PASSWORD);
 }
 
 function safeEqual(left: string, right: string): boolean {

@@ -6,13 +6,13 @@ Ce logiciel pilote potentiellement un moteur de trading. Une fausse réussite, u
 
 - aucun identifiant, mot de passe ou JWT de secours n'est accepté par le code ;
 - l'authentification refuse de démarrer si les variables requises manquent ;
-- les routes conservées de contrôle et de logs exigent une session valide ; les anciennes routes de faux backtest et de collecte d'identifiants ont été supprimées ;
+- les routes de contrôle, réglages et logs exigent une session valide ; les anciennes routes de faux backtest ont été supprimées ;
 - le cookie de session est `HttpOnly`, `SameSite=Strict` et `Secure` en production ;
 - le jeton signé est lié au propriétaire configuré, borné à sept jours et vérifié en temps constant ;
 - huit échecs de connexion sur quinze minutes déclenchent un verrou temporaire local ;
 - le port REST Freqtrade n'est pas publié par le Compose ;
 - l'exemple `.env.example` ne contient que des valeurs factices.
-- les clés exchange et Telegram sont injectées dans Freqtrade depuis les secrets Coolify et ne transitent pas par Next.js.
+- les clés exchange et Telegram sont écrites côté serveur dans un second fichier privé `0600`, jamais renvoyées au navigateur et restaurées si le moteur refuse le rechargement ;
 - les journaux publics sont limités et filtrés côté serveur pour les formes usuelles de secrets et les valeurs configurées.
 - les réponses ajoutent CSP, anti-framing, `nosniff`, politique de référent stricte et désactivation des capteurs inutiles ; la route d'authentification est `no-store` et bornée à 4 Kio ;
 - la sonde de santé ne révèle ni composant, ni version, ni détail de configuration.
@@ -20,15 +20,15 @@ Ce logiciel pilote potentiellement un moteur de trading. Une fausse réussite, u
 ## Limites critiques restantes
 
 - Next.js `14.2.3` est ancien et inférieur au correctif `14.2.25` d'un avis critique ; migrer vers la branche maintenue incluant la publication de sécurité annoncée pour le 26 août 2026 avant exposition publique ;
-- la sécurité au repos dépend du coffre de secrets de la plateforme de déploiement ; la console refuse de collecter les clés ;
+- le fichier privé doit rester en `0600` et sur un volume sauvegardé/chiffré côté hôte ; Freqtrade doit pouvoir lire les secrets en clair au moment de l'exécution ;
 - le limiteur de connexion vit en mémoire et convient à l'instance unique actuelle, pas à plusieurs réplicas ;
-- les routes actuelles sont uniquement en lecture ; toute future mutation exigera un jeton CSRF dédié ;
+- les mutations vérifient l'origine exacte, la session, le mot de passe courant et une confirmation explicite ; les ordres forcés ne sont pas exposés ;
 - la console est connectée au moteur réel mais n'est pas encore validée sur le VPS et ne doit pas passer en live ;
 - le proxy TLS et la restriction d'accès doivent être configurés dans Coolify ou sur l'hôte.
 
 ## Avant capital réel
 
-1. Brancher les secrets Coolify, Docker secrets ou un coffre dédié sans les faire transiter par le navigateur.
+1. Saisir les nouvelles clés uniquement sur le domaine HTTPS dans Réglages, vérifier le fichier privé `0600` et chiffrer les sauvegardes du volume.
 2. Mettre à niveau Next.js vers une branche maintenue après la publication du correctif annoncé et refaire tests, lint et build.
 3. Tester le verrouillage temporaire derrière le proxy Coolify et surveiller les réponses `429`.
 4. Ajouter protection CSRF et confirmation renforcée avant toute mutation future.

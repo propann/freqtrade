@@ -2,7 +2,7 @@
 
 Quant Core est une console personnelle destinée à un déploiement Docker/Coolify. Le dépôt ne contient plus qu'une seule interface : une page Next.js sobre et responsive dans `console/`. Sa porte d'entrée reste volontairement neutre ; les détails du système n'apparaissent qu'après connexion.
 
-> État réel : la console lit l'état du moteur Freqtrade via son réseau Docker privé. Positions, soldes, profits, configuration, santé, ressources et logs ne possèdent aucun repli fictif. Les commandes restent volontairement verrouillées jusqu'à la phase d'activation auditée et réversible.
+> État réel : la console lit l'état du moteur Freqtrade via son réseau Docker privé. Positions, soldes, profits, configuration, santé, ressources et logs ne possèdent aucun repli fictif. Les commandes opérationnelles `démarrer`, `pause` et `recharger` exigent la session et une nouvelle confirmation du mot de passe ; les ordres forcés restent absents.
 
 > Blocage sécurité : la migration de Next.js `14.2.3` vers la branche maintenue doit intégrer le correctif de sécurité annoncé pour le 26 août 2026 avant exposition publique ou capital réel. En attendant, conserver la console derrière le contrôle d'accès Coolify et le TLS.
 
@@ -10,7 +10,7 @@ Quant Core est une console personnelle destinée à un déploiement Docker/Cooli
 
 | Dossier | Rôle | Présence au repos |
 |---|---|---|
-| `console/` | Porte d'entrée, cabine et adaptateur serveur en lecture seule | Oui |
+| `console/` | Porte d'entrée, supervision, coffre et commandes opérationnelles bornées | Oui |
 | `quant_rack/` | Profils légers : stratégie, indicateurs, protections et budget | Fichiers uniquement |
 | `strategies/` | Stratégies locales soumises aux portes de validation | Chargée selon le profil |
 | `scripts/` | Activation, observation, préflight et recherche reproductible | À la demande |
@@ -45,18 +45,24 @@ docker compose --env-file .env -f docker-compose.coolify.yml up -d --build
 
 Le port REST Freqtrade n'est pas publié sur l'hôte. Seule la console est publiée, sur `127.0.0.1:3000` par défaut. Pour Coolify, définir `CONSOLE_BIND_ADDRESS=0.0.0.0` si la plateforme doit joindre directement le conteneur via le port hôte.
 
-La console fournit `GET /api/health` pour Docker et Coolify. La réponse reste volontairement générique (`ok` ou `unavailable`) et devient saine seulement lorsque l'accès personnel est correctement configuré. L'image vérifie cette route toutes les 30 secondes.
+La console fournit `GET /api/health` pour Docker et Coolify. La réponse reste volontairement générique (`ok` ou `unavailable`) et devient saine seulement lorsque l'accès personnel est correctement configuré avec des valeurs non factices. L'image vérifie cette route toutes les 30 secondes.
+
+## Régler Exchange et Telegram
+
+Après connexion, ouvrir l'icône **Réglages**. La page accepte la clé et le secret de l'exchange actif, sa passphrase optionnelle, puis le jeton, le chat ID et les utilisateurs autorisés Telegram. Confirmer avec le mot de passe de la console : le fichier privé est écrit avec le mode `0600`, le moteur recharge sa configuration et l'ancienne version est restaurée si le rechargement échoue.
+
+Les valeurs ne sont jamais relues dans le navigateur : l'interface affiche seulement `configuré` ou `absent`. Au premier déploiement de cette version, les anciennes variables Coolify `EXCHANGE_API_*` et `TELEGRAM_*` sont importées une fois si elles existent. Elles peuvent ensuite être supprimées de Coolify après vérification de l'état `configuré`. Le fichier actif est `user_data/private/runtime-secrets.json`, répertoire déjà exclu de Git avec tout `user_data/`.
 
 ## Variables obligatoires
 
 - `FREQTRADE_USERNAME` / `FREQTRADE_PASSWORD` : compte REST du moteur Freqtrade.
 - `FREQTRADE_ADMIN_USER` / `FREQTRADE_ADMIN_PASSWORD` : compte personnel unique de la console.
 - `FREQTRADE_JWT_SECRET` : secret aléatoire d'au moins 32 octets.
-- `EXCHANGE_API_KEY` / `EXCHANGE_API_SECRET` : optionnels en dry-run, à stocker uniquement comme secrets serveur/Coolify.
-- `TELEGRAM_ENABLED`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` et `TELEGRAM_AUTHORIZED_USERS` : intégration Telegram native de Freqtrade. Un jeton publié doit être révoqué avant utilisation.
+- `EXCHANGE_API_KEY` / `EXCHANGE_API_SECRET` / `EXCHANGE_API_PASSWORD` / `EXCHANGE_API_UID` : import initial optionnel vers le coffre ; après le premier démarrage, utiliser Réglages.
+- `TELEGRAM_ENABLED`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` et `TELEGRAM_AUTHORIZED_USERS` : import initial optionnel. Un jeton publié doit être révoqué avant utilisation.
 - `OBS_CPU_WARN_PCT`, `OBS_RAM_WARN_PCT` et `OBS_EXCHANGE_ERROR_WARN_COUNT` : seuils initiaux du collecteur léger ; ne les ajuster qu'après la fenêtre de sept jours.
 
-La console est accessible depuis plusieurs ordinateurs via son domaine HTTPS avec le même compte opérateur. Les clés exchange et Telegram restent côté serveur : les variables `FREQTRADE__...` surchargent la configuration Freqtrade au démarrage et ne sont jamais renvoyées au navigateur.
+La console est accessible depuis plusieurs ordinateurs via son domaine HTTPS avec le même compte opérateur. Les clés exchange et Telegram restent côté serveur dans le second fichier de configuration privé recommandé par Freqtrade et ne sont jamais renvoyées au navigateur.
 
 Générer un secret robuste :
 
