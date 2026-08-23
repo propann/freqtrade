@@ -1,3 +1,13 @@
+# Deploiement autonome : tout le code vit dans les images, seule la donnee
+# vit dans le volume `quant_user_data`. Aucun montage de chemin relatif, donc
+# aucune dependance a la facon dont l'orchestrateur pose le depot sur disque.
+
+x-rack-image: &rack-image
+  image: quant-core/rack:local
+  build:
+    context: .
+    dockerfile: Dockerfile.rack
+
 services:
   trading-terminal:
     build:
@@ -22,8 +32,17 @@ services:
       RACK_AGENT_URL: http://rack-agent:9191
       RACK_AGENT_TOKEN: ${QUANT_RACK_AGENT_TOKEN:?QUANT_RACK_AGENT_TOKEN is required}
     volumes:
-      - ./user_data:/app/user_data:ro
-      - ./user_data/private:/app/user_data/private
+      # La console lit tout user_data mais n'ecrit que dans private/ : c'est
+      # ce qui l'empeche de toucher config.json meme si elle est compromise.
+      - type: volume
+        source: quant_user_data
+        target: /app/user_data
+        read_only: true
+      - type: volume
+        source: quant_user_data
+        target: /app/user_data/private
+        volume:
+          subpath: private
     cpus: ${CONSOLE_CPU_LIMIT:-0.5}
     mem_limit: ${CONSOLE_MEMORY_LIMIT:-512m}
     depends_on:
@@ -33,7 +52,10 @@ services:
       - quant-network
 
   freqtrade-engine:
-    image: freqtradeorg/freqtrade:stable
+    image: quant-core/engine:local
+    build:
+      context: .
+      dockerfile: Dockerfile.engine
     container_name: quantapex-freqtrade-core
     restart: unless-stopped
     environment:
@@ -60,23 +82,16 @@ services:
     mem_limit: ${FREQTRADE_MEMORY_LIMIT:-1024m}
     pids_limit: ${FREQTRADE_PIDS_LIMIT:-256}
     volumes:
-      - ./user_data:/freqtrade/user_data
-      - ./strategies:/freqtrade/user_data/strategies:ro
-      - ./scripts:/opt/quant/scripts:ro
-    entrypoint: ["/bin/sh", "/opt/quant/scripts/start-engine"]
+      - quant_user_data:/freqtrade/user_data
     networks:
       - quant-network
 
-  # Always-on, private-network-only bridge between the console and rackctl.
-  # Never add a `ports:` mapping here -- see scripts/rack_agent.py for why
-  # this exists instead of mounting the Docker socket or scripts/ + a
-  # writable user_data straight into trading-terminal.
+  # Toujours demarre, jamais publie, joignable seulement depuis quant-network.
+  # Voir scripts/rack_agent.py pour la raison d'etre de ce pont de privilege.
   rack-agent:
-    image: python:3.12-alpine
+    <<: *rack-image
     container_name: quantapex-rack-agent
     restart: unless-stopped
-    working_dir: /workspace
-    entrypoint: ["python3", "/workspace/scripts/rack_agent.py"]
     environment:
       FREQTRADE_API_URL: http://freqtrade-engine:8080
       FREQTRADE_USERNAME: ${FREQTRADE_USERNAME:?FREQTRADE_USERNAME is required}
@@ -89,10 +104,7 @@ services:
     mem_limit: ${RACK_AGENT_MEMORY_LIMIT:-96m}
     pids_limit: 32
     volumes:
-      - ./scripts:/workspace/scripts:ro
-      - ./quant_rack:/workspace/quant_rack:ro
-      - ./strategies:/workspace/strategies:ro
-      - ./user_data:/workspace/user_data
+      - quant_user_data:/workspace/user_data
     depends_on:
       - freqtrade-engine
     networks:
@@ -100,7 +112,11 @@ services:
 
   strategy-lab:
     profiles: ["research"]
-    image: freqtradeorg/freqtrade:stable
+    image: quant-core/engine:local
+    build:
+      context: .
+      dockerfile: Dockerfile.engine
+    entrypoint: ["/bin/sh"]
     environment:
       TZ: UTC
       OPENBLAS_NUM_THREADS: "1"
@@ -111,17 +127,13 @@ services:
     mem_limit: ${RESEARCH_MEMORY_LIMIT:-1024m}
     pids_limit: ${RESEARCH_PIDS_LIMIT:-256}
     volumes:
-      - ./user_data:/freqtrade/user_data
-      - ./strategies:/freqtrade/user_data/strategies:ro
-      - ./scripts:/freqtrade/quant_tools:ro
-      - ./quant_rack:/freqtrade/quant_rack:ro
+      - quant_user_data:/freqtrade/user_data
     networks:
       - quant-network
 
   rack-operator:
+    <<: *rack-image
     profiles: ["operator"]
-    image: python:3.12-alpine
-    working_dir: /workspace
     entrypoint: ["python3", "/workspace/scripts/rackctl.py"]
     environment:
       FREQTRADE_API_URL: http://freqtrade-engine:8080
@@ -132,17 +144,13 @@ services:
     mem_limit: ${RACK_OPERATOR_MEMORY_LIMIT:-128m}
     pids_limit: 64
     volumes:
-      - ./scripts:/workspace/scripts:ro
-      - ./quant_rack:/workspace/quant_rack:ro
-      - ./strategies:/workspace/strategies:ro
-      - ./user_data:/workspace/user_data
+      - quant_user_data:/workspace/user_data
     networks:
       - quant-network
 
   rack-observer:
+    <<: *rack-image
     profiles: ["observe"]
-    image: python:3.12-alpine
-    working_dir: /workspace
     entrypoint: ["python3", "/workspace/scripts/observectl.py"]
     environment:
       FREQTRADE_API_URL: http://freqtrade-engine:8080
@@ -155,25 +163,23 @@ services:
     mem_limit: ${OBSERVER_MEMORY_LIMIT:-64m}
     pids_limit: 32
     volumes:
-      - ./scripts:/workspace/scripts:ro
-      - ./user_data:/workspace/user_data
+      - quant_user_data:/workspace/user_data
     networks:
       - quant-network
 
   rack-preflight:
+    <<: *rack-image
     profiles: ["operator"]
-    image: python:3.12-alpine
-    working_dir: /workspace/repository
     entrypoint:
       - python3
-      - /workspace/repository/scripts/preflight.py
+      - /workspace/scripts/preflight.py
       - --process-env
       - --config
-      - /workspace/repository/user_data/config.json
+      - /workspace/user_data/config.json
       - --runtime-secrets
-      - /workspace/repository/user_data/private/runtime-secrets.json
+      - /workspace/user_data/private/runtime-secrets.json
     environment:
-      QUANT_RACK_ROOT: /workspace/repository
+      QUANT_RACK_ROOT: /workspace
       FREQTRADE_USERNAME: ${FREQTRADE_USERNAME:?FREQTRADE_USERNAME is required}
       FREQTRADE_PASSWORD: ${FREQTRADE_PASSWORD:?FREQTRADE_PASSWORD is required}
       FREQTRADE_API_JWT_SECRET: ${FREQTRADE_API_JWT_SECRET:?FREQTRADE_API_JWT_SECRET is required}
@@ -191,7 +197,10 @@ services:
     mem_limit: 64m
     pids_limit: 32
     volumes:
-      - .:/workspace/repository:ro
+      - quant_user_data:/workspace/user_data
+
+volumes:
+  quant_user_data:
 
 networks:
   quant-network:

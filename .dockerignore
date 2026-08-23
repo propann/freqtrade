@@ -5,3 +5,6 @@ node_modules
 **/node_modules
 user_data
 *.log
+
+# Collection de recherche : jamais dans une image qui execute du code.
+strategies-library/

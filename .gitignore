@@ -13,3 +13,10 @@ __pycache__/
 # Node build artifacts
 **/node_modules/
 **/.next/
+
+# Collection de strategies de recherche, non validees, hors versionnement.
+strategies-library/
+
+# Journaux exportes depuis Coolify.
+deployment-*.txt
+*-logs-*.txt

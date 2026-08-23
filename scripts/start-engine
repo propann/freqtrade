@@ -1,10 +1,23 @@
 #!/bin/sh
 set -eu
 
+user_data=/freqtrade/user_data
+mkdir -p "$user_data/private" "$user_data/strategies" "$user_data/data" "$user_data/logs"
+
+# Premier demarrage sur un volume vide : on pose la configuration dry-run de
+# reference. Ensuite le fichier appartient a l'operateur et n'est plus touche.
+if [ ! -f "$user_data/config.json" ]; then
+  cp /opt/quant/config_examples/quantcore.dry-run.json "$user_data/config.json"
+  echo "start-engine: configuration dry-run initiale posee"
+fi
+
+# Les strategies suivent toujours l'image, donc le commit deploye.
+cp /opt/quant/strategies/*.py "$user_data/strategies/"
+
 runtime_file=${QUANT_RUNTIME_SECRETS_PATH:-/freqtrade/user_data/private/runtime-secrets.json}
 python /opt/quant/scripts/runtime_secrets.py "$runtime_file"
 
 exec freqtrade trade \
-  --config /freqtrade/user_data/config.json \
+  --config "$user_data/config.json" \
   --config "$runtime_file" \
   --db-url sqlite:////freqtrade/user_data/tradesv3.sqlite

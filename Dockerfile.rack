@@ -1,0 +1,11 @@
+# Outils du rack : rack_agent, rackctl, observectl, researchctl, preflight.
+# QUANT_RACK_ROOT vaut /workspace, donc scripts/ quant_rack/ strategies/ et
+# user_data/ doivent se trouver cote a cote sous ce prefixe.
+FROM python:3.12-alpine
+
+WORKDIR /workspace
+COPY scripts/ /workspace/scripts/
+COPY quant_rack/ /workspace/quant_rack/
+COPY strategies/ /workspace/strategies/
+
+ENTRYPOINT ["python3", "/workspace/scripts/rack_agent.py"]

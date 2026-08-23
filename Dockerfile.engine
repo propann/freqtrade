@@ -1,0 +1,15 @@
+# Moteur Freqtrade officiel, augmente du code du rack.
+# Le code vient de l'image (donc du commit deploye), jamais d'un montage :
+# un bind mount relatif arrive vide chez la plupart des orchestrateurs.
+FROM freqtradeorg/freqtrade:stable
+
+USER root
+COPY scripts/ /opt/quant/scripts/
+COPY quant_rack/ /opt/quant/quant_rack/
+COPY strategies/ /opt/quant/strategies/
+COPY config_examples/ /opt/quant/config_examples/
+RUN chmod -R a+rX /opt/quant \
+ && chmod a+x /opt/quant/scripts/start-engine
+USER ftuser
+
+ENTRYPOINT ["/bin/sh", "/opt/quant/scripts/start-engine"]
