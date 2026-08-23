@@ -1,6 +1,12 @@
 # Deploiement autonome : tout le code vit dans les images, seule la donnee
 # vit dans le volume `quant_user_data`. Aucun montage de chemin relatif, donc
 # aucune dependance a la facon dont l'orchestrateur pose le depot sur disque.
+#
+# Aucun `networks:` explicite : Compose place tous les services sur le reseau
+# par defaut du projet, ce qui suffit a la resolution par nom de service et
+# garde le port 8080 du moteur hors de l'hote. Un reseau nomme faisait choisir
+# a Traefik une IP qu'il ne pouvait pas joindre, d'ou des `no available server`
+# intermittents derriere le proxy Coolify.
 
 x-rack-image: &rack-image
   image: quant-core/rack:local
@@ -48,8 +54,6 @@ services:
     depends_on:
       - freqtrade-engine
       - rack-agent
-    networks:
-      - quant-network
 
   freqtrade-engine:
     image: quant-core/engine:local
@@ -83,8 +87,6 @@ services:
     pids_limit: ${FREQTRADE_PIDS_LIMIT:-256}
     volumes:
       - quant_user_data:/freqtrade/user_data
-    networks:
-      - quant-network
 
   # Toujours demarre, jamais publie, joignable seulement depuis quant-network.
   # Voir scripts/rack_agent.py pour la raison d'etre de ce pont de privilege.
@@ -107,8 +109,6 @@ services:
       - quant_user_data:/workspace/user_data
     depends_on:
       - freqtrade-engine
-    networks:
-      - quant-network
 
   strategy-lab:
     profiles: ["research"]
@@ -128,8 +128,6 @@ services:
     pids_limit: ${RESEARCH_PIDS_LIMIT:-256}
     volumes:
       - quant_user_data:/freqtrade/user_data
-    networks:
-      - quant-network
 
   rack-operator:
     <<: *rack-image
@@ -145,8 +143,6 @@ services:
     pids_limit: 64
     volumes:
       - quant_user_data:/workspace/user_data
-    networks:
-      - quant-network
 
   rack-observer:
     <<: *rack-image
@@ -164,8 +160,6 @@ services:
     pids_limit: 32
     volumes:
       - quant_user_data:/workspace/user_data
-    networks:
-      - quant-network
 
   rack-preflight:
     <<: *rack-image
@@ -201,7 +195,3 @@ services:
 
 volumes:
   quant_user_data:
-
-networks:
-  quant-network:
-    driver: bridge
