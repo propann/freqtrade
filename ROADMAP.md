@@ -1,6 +1,6 @@
 # Feuille de route Quant Core
 
-Mise à jour : 22 août 2026. Ce document est le tableau de suivi de référence. Une tâche n'est terminée que lorsque son critère de sortie est vérifié et lié à un commit ou une PR.
+Mise à jour : 23 août 2026. Ce document est le tableau de suivi de référence. Une tâche n'est terminée que lorsque son critère de sortie est vérifié et lié à un commit ou une PR.
 
 ## Objectif
 
@@ -34,7 +34,7 @@ Principes non négociables : secrets uniquement côté serveur, dry-run par déf
 | RACK-05 | Terminé | Exposer l'état du rack en lecture seule | Route authentifiée, volume monté en lecture seule |
 | RACK-06 | Terminé | Réparer les jobs Python et console | Deux jobs GitHub Actions verts sur l'exécution 107 |
 | RACK-07 | À faire | Exécuter la procédure de pré-déploiement | Checklist du runbook signée par l'opérateur |
-| RACK-08 | Terminé | Automatiser le contrôle des secrets et du mode avant démarrage | Préflight sans valeur secrète, dépôt monté en lecture seule, mode réel refusé |
+| RACK-08 | Terminé | Automatiser le contrôle des secrets et du mode avant démarrage | Préflight sans valeur secrète, code exécuté depuis son image, mode réel refusé ; scan Git à lancer depuis le dépôt |
 
 | ID | État | Action | Critère d'acceptation |
 |---|---|---|---|
@@ -154,6 +154,8 @@ Toutes les conditions suivantes sont obligatoires :
 | 2026-08-22 | Un seul propriétaire, un seul compte | Supprimer les rôles et accès alternatifs sans retirer la sécurité de session |
 | 2026-08-22 | Supprimer la couche SaaS résiduelle | Éviter deux produits, deux plans de contrôle et une CI sans rapport avec l'usage réel |
 | 2026-08-22 | Rafraîchir selon le rythme utile | Une stratégie 15 min n'a pas besoin d'une pluie d'appels toutes les cinq secondes |
+| 2026-08-23 | Code dans les images, donnée dans un volume | Les montages de chemins relatifs arrivaient vides sur Coolify ; le code suit désormais le commit déployé |
+| 2026-08-23 | Collection de recherche hors du dépôt | 349 stratégies non validées n'ont rien à faire dans une image qui exécute du code |
 
 ## Rythme de suivi
 

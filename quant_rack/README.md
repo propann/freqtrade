@@ -25,7 +25,7 @@ Avant toute première mise en route avec les secrets Coolify :
 docker compose --env-file .env -f docker-compose.coolify.yml run --rm rack-preflight --require-telegram --require-exchange
 ```
 
-`rack-preflight` est éphémère et monte le dépôt en lecture seule. Il ne contacte ni Telegram ni l'exchange et n'affiche jamais les valeurs contrôlées.
+`rack-preflight` est éphémère et exécute le code de son image. Il ne contacte ni Telegram ni l'exchange et n'affiche jamais les valeurs contrôlées. N'ayant plus le dépôt sous la main, il ne peut pas exécuter le scan des secrets dans les fichiers suivis par Git : lancer `python3 scripts/preflight.py` depuis le dépôt pour ce contrôle-là.
 
 Sélectionner un profil sans toucher au moteur :
 

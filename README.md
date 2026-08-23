@@ -34,14 +34,15 @@ Puis ouvrir `http://localhost:3000`.
 
 ## Déploiement Docker / Coolify
 
-1. Créer `user_data/config.json` avec une configuration Freqtrade valide et une stratégie réellement présente dans `user_data/strategies/`.
-2. Copier `.env.example` vers `.env`, puis remplacer tous les secrets.
-3. Valider et démarrer :
+1. Copier `.env.example` vers `.env`, puis remplacer tous les secrets.
+2. Valider et démarrer :
 
 ```bash
 docker compose --env-file .env -f docker-compose.coolify.yml config
 docker compose --env-file .env -f docker-compose.coolify.yml up -d --build
 ```
+
+Aucun chemin du dépôt n'est monté dans les conteneurs : `scripts/`, `quant_rack/` et `strategies/` vivent dans les images, donc dans le commit déployé. Seule la donnée persiste, dans le volume `quant_user_data`. Au premier démarrage sur un volume vide, `scripts/start-engine` y pose la configuration dry-run de `config_examples/` et recopie les stratégies depuis l'image ; ensuite `user_data/config.json` appartient à l'opérateur et n'est plus écrasé.
 
 Le port REST Freqtrade n'est pas publié sur l'hôte. Seule la console est publiée, sur `127.0.0.1:3000` par défaut. Pour Coolify, définir `CONSOLE_BIND_ADDRESS=0.0.0.0` si la plateforme doit joindre directement le conteneur via le port hôte.
 
