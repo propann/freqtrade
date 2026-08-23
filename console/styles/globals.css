@@ -164,6 +164,13 @@ progress::-moz-progress-bar { background: var(--accent); }
 .form-success { margin: 0; color: var(--positive); font-size: 13px; }
 .confirmation-row { display: grid; grid-template-columns: minmax(240px, 1fr) minmax(210px, auto); gap: 12px; align-items: end; }
 .confirmation-row .button { margin: 0; padding: 0 18px; }
+select { width: 100%; height: 48px; padding: 0 14px; border: 1px solid var(--border); border-radius: 10px; outline: none; background: #090e13; color: var(--text); }
+select:hover { border-color: #35404d; }
+select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(140, 227, 192, .1); }
+select:disabled { opacity: .5; cursor: not-allowed; }
+.rack-activate { display: grid; grid-template-columns: 1.3fr 1fr auto; gap: 12px; align-items: end; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
+.rack-activate .button { margin: 0; padding: 0 16px; }
+.rack-activate .form-error, .rack-activate .form-success { grid-column: 1 / -1; }
 .control-row { display: flex; flex-wrap: wrap; gap: 9px; padding-top: 15px; border-top: 1px solid var(--border); }
 .button--secondary { height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 0 14px; border: 1px solid var(--border); background: var(--surface-2); }
 .button--secondary:hover { border-color: #3a4553; }
@@ -197,5 +204,6 @@ footer { display: flex; justify-content: space-between; gap: 16px; padding: 24px
   .login-shell { padding: 22px; }
   .login-card { padding: 27px; }
   .confirmation-row { grid-template-columns: 1fr; }
+  .rack-activate { grid-template-columns: 1fr; }
   footer { flex-direction: column; }
 }

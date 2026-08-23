@@ -88,6 +88,8 @@ type SettingsState = {
   updatedAt: string | null;
 };
 
+type RackProfile = { id: string; label: string; strategy: string; timeframe: string };
+
 const EMPTY_STATE: BotState = {
   dataMode: 'unavailable', status: 'unavailable', version: '—', strategy: '—', timeframe: '—',
   exchange: '—', tradingMode: '—', dryRun: null, walletBalance: 0, profitTotal: 0, profitPct: 0,
@@ -165,6 +167,12 @@ export default function Home() {
   const [settingsBusy, setSettingsBusy] = useState(false);
   const [settingsMessage, setSettingsMessage] = useState('');
   const [settingsError, setSettingsError] = useState('');
+  const [profiles, setProfiles] = useState<RackProfile[]>([]);
+  const [selectedProfile, setSelectedProfile] = useState('');
+  const [activatePassword, setActivatePassword] = useState('');
+  const [activateBusy, setActivateBusy] = useState(false);
+  const [activateMessage, setActivateMessage] = useState('');
+  const [activateError, setActivateError] = useState('');
 
   const logout = useCallback(async () => {
     await fetch('/api/auth', { method: 'DELETE' });
@@ -210,15 +218,17 @@ export default function Home() {
 
   const refreshRack = useCallback(async () => {
     try {
-      const [{ payload: rackState }, { payload: observationState }] = await Promise.all([
-        fetchJson('/api/rack/status'), fetchJson('/api/observability/summary'),
+      const [{ payload: rackState }, { payload: observationState }, { payload: profilesState }] = await Promise.all([
+        fetchJson('/api/rack/status'), fetchJson('/api/observability/summary'), fetchJson('/api/rack/profiles'),
       ]);
       setRack(rackState);
       setObservability(observationState);
+      setProfiles(Array.isArray(profilesState.profiles) ? profilesState.profiles : []);
     } catch (error) {
       if ((error as Error).message !== 'Session expirée') {
         setRack({ status: 'unavailable' });
         setObservability({ status: 'unavailable' });
+        setProfiles([]);
       }
     }
   }, [fetchJson]);
@@ -284,6 +294,23 @@ export default function Home() {
       window.setTimeout(refreshBot, 1200);
     } catch (error) { setSettingsError((error as Error).message); }
     finally { setSettingsBusy(false); }
+  }
+
+  async function activateProfile(event: FormEvent) {
+    event.preventDefault();
+    setActivateBusy(true); setActivateError(''); setActivateMessage('');
+    try {
+      const response = await fetch('/api/rack/activate', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profileId: selectedProfile, confirmPassword: activatePassword, confirmation: 'ACTIVER' }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.message || 'Activation refusée');
+      setRack(payload);
+      setActivateMessage('Profil activé en dry-run.');
+      setActivatePassword('');
+    } catch (error) { setActivateError((error as Error).message); }
+    finally { setActivateBusy(false); }
   }
 
   async function login(event: FormEvent) {
@@ -421,6 +448,22 @@ export default function Home() {
             <div className="panel__head"><div><p className="eyebrow">Configuration active</p><h2>Rack</h2></div><Layers3 size={19} /></div>
             <dl className="facts"><div><dt>Profil</dt><dd>{rack.profile_id || 'Non configuré'}</dd></div><div><dt>Stratégie</dt><dd>{rack.strategy || bot.strategy}</dd></div><div><dt>Timeframe</dt><dd>{rack.timeframe || bot.timeframe}</dd></div><div><dt>Paires max.</dt><dd>{rack.pair_limit ?? bot.maxTrades}</dd></div><div><dt>Budget</dt><dd>{rack.budget ? `${rack.budget.cpu ?? '—'} CPU · ${rack.budget.memory_mb ?? '—'} Mio` : '—'}</dd></div><div><dt>Config appliquée</dt><dd>{rack.config_applied ? 'Oui' : 'Non / inconnue'}</dd></div></dl>
             <div className="tag-list">{rack.indicators?.length ? rack.indicators.map((item) => <span key={item}>{item}</span>) : <span>Aucun registre chargé</span>}</div>
+            <form className="rack-activate" onSubmit={activateProfile}>
+              <label>Profil à activer
+                <select value={selectedProfile} onChange={(event) => setSelectedProfile(event.target.value)} disabled={!profiles.length}>
+                  <option value="">{profiles.length ? 'Choisir…' : 'Aucun profil disponible'}</option>
+                  {profiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.label} · {profile.timeframe}</option>)}
+                </select>
+              </label>
+              <label>Mot de passe
+                <input type="password" autoComplete="current-password" value={activatePassword} onChange={(event) => setActivatePassword(event.target.value)} />
+              </label>
+              <button className="button button--secondary" disabled={activateBusy || !selectedProfile || !activatePassword}>
+                {activateBusy ? 'Activation…' : 'Activer (dry-run)'}
+              </button>
+              {activateError && <p className="form-error" role="alert">{activateError}</p>}
+              {activateMessage && <p className="form-success" role="status">{activateMessage}</p>}
+            </form>
           </section>
 
           <section className="panel">

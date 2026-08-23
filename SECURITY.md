@@ -15,7 +15,8 @@ Ce logiciel pilote potentiellement un moteur de trading. Une fausse réussite, u
 - les clés exchange et Telegram sont écrites côté serveur dans un second fichier privé `0600`, jamais renvoyées au navigateur et restaurées si le moteur refuse le rechargement ;
 - les journaux publics sont limités et filtrés côté serveur pour les formes usuelles de secrets et les valeurs configurées.
 - les réponses ajoutent CSP, anti-framing, `nosniff`, politique de référent stricte et désactivation des capteurs inutiles ; la route d'authentification est `no-store` et bornée à 4 Kio ;
-- la sonde de santé ne révèle ni composant, ni version, ni détail de configuration.
+- la sonde de santé ne révèle ni composant, ni version, ni détail de configuration ;
+- l'activation d'un profil rack depuis la console exige session, origine, mot de passe et confirmation, comme les autres mutations ; l'agent qui l'exécute (`rack-agent`) n'est jamais publié, exige son propre jeton porteur et ne fait que rejouer les garde-fous déjà présents dans `rackctl` (dry-run obligatoire, refus si positions ouvertes, sauvegarde et retour arrière automatique, journal d'audit).
 
 ## Limites critiques restantes
 
@@ -23,6 +24,7 @@ Ce logiciel pilote potentiellement un moteur de trading. Une fausse réussite, u
 - le fichier privé doit rester en `0600` et sur un volume sauvegardé/chiffré côté hôte ; Freqtrade doit pouvoir lire les secrets en clair au moment de l'exécution ;
 - le limiteur de connexion vit en mémoire et convient à l'instance unique actuelle, pas à plusieurs réplicas ;
 - les mutations vérifient l'origine exacte, la session, le mot de passe courant et une confirmation explicite ; les ordres forcés ne sont pas exposés ;
+- l'ajout de `rack-agent` élargit ce qu'une console compromise peut atteindre : elle peut désormais déclencher un changement de stratégie/timeframe (toujours en dry-run, toujours refusé si des positions sont ouvertes). Ce n'est pas encore éprouvé sur le VPS cible — à couvrir explicitement pendant la fenêtre d'observation avant tout capital réel ;
 - la console est connectée au moteur réel mais n'est pas encore validée sur le VPS et ne doit pas passer en live ;
 - le proxy TLS et la restriction d'accès doivent être configurés dans Coolify ou sur l'hôte.
 

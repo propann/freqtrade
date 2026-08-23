@@ -19,6 +19,8 @@ services:
       QUANT_RUNTIME_SECRETS_PATH: /app/user_data/private/runtime-secrets.json
       QUANT_RACK_STATE_PATH: /app/user_data/rack/state.json
       QUANT_OBSERVABILITY_SUMMARY_PATH: /app/user_data/observability/summary-168h.json
+      RACK_AGENT_URL: http://rack-agent:9191
+      RACK_AGENT_TOKEN: ${QUANT_RACK_AGENT_TOKEN:?QUANT_RACK_AGENT_TOKEN is required}
     volumes:
       - ./user_data:/app/user_data:ro
       - ./user_data/private:/app/user_data/private
@@ -26,6 +28,7 @@ services:
     mem_limit: ${CONSOLE_MEMORY_LIMIT:-512m}
     depends_on:
       - freqtrade-engine
+      - rack-agent
     networks:
       - quant-network
 
@@ -61,6 +64,37 @@ services:
       - ./strategies:/freqtrade/user_data/strategies:ro
       - ./scripts:/opt/quant/scripts:ro
     entrypoint: ["/bin/sh", "/opt/quant/scripts/start-engine"]
+    networks:
+      - quant-network
+
+  # Always-on, private-network-only bridge between the console and rackctl.
+  # Never add a `ports:` mapping here -- see scripts/rack_agent.py for why
+  # this exists instead of mounting the Docker socket or scripts/ + a
+  # writable user_data straight into trading-terminal.
+  rack-agent:
+    image: python:3.12-alpine
+    container_name: quantapex-rack-agent
+    restart: unless-stopped
+    working_dir: /workspace
+    entrypoint: ["python3", "/workspace/scripts/rack_agent.py"]
+    environment:
+      FREQTRADE_API_URL: http://freqtrade-engine:8080
+      FREQTRADE_USERNAME: ${FREQTRADE_USERNAME:?FREQTRADE_USERNAME is required}
+      FREQTRADE_PASSWORD: ${FREQTRADE_PASSWORD:?FREQTRADE_PASSWORD is required}
+      QUANT_RACK_ACTOR: console-ui
+      QUANT_RACK_AGENT_TOKEN: ${QUANT_RACK_AGENT_TOKEN:?QUANT_RACK_AGENT_TOKEN is required}
+    expose:
+      - "9191"
+    cpus: ${RACK_AGENT_CPU_LIMIT:-0.15}
+    mem_limit: ${RACK_AGENT_MEMORY_LIMIT:-96m}
+    pids_limit: 32
+    volumes:
+      - ./scripts:/workspace/scripts:ro
+      - ./quant_rack:/workspace/quant_rack:ro
+      - ./strategies:/workspace/strategies:ro
+      - ./user_data:/workspace/user_data
+    depends_on:
+      - freqtrade-engine
     networks:
       - quant-network
 

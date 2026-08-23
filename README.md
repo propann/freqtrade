@@ -2,7 +2,7 @@
 
 Quant Core est une console personnelle destinée à un déploiement Docker/Coolify. Le dépôt ne contient plus qu'une seule interface : une page Next.js sobre et responsive dans `console/`. Sa porte d'entrée reste volontairement neutre ; les détails du système n'apparaissent qu'après connexion.
 
-> État réel : la console lit l'état du moteur Freqtrade via son réseau Docker privé. Positions, soldes, profits, configuration, santé, ressources et logs ne possèdent aucun repli fictif. Les commandes opérationnelles `démarrer`, `bloquer les entrées` et `recharger` exigent la session et une nouvelle confirmation du mot de passe ; les ordres forcés restent absents.
+> État réel : la console lit l'état du moteur Freqtrade via son réseau Docker privé. Positions, soldes, profits, configuration, santé, ressources et logs ne possèdent aucun repli fictif. Les commandes opérationnelles `démarrer`, `bloquer les entrées` et `recharger` exigent la session et une nouvelle confirmation du mot de passe ; les ordres forcés restent absents. Le tableau de bord permet aussi d'activer un profil Quant Rack (dry-run uniquement) via `rack-agent`, un service interne dédié qui rejoue les garde-fous de `rackctl` sans donner à la console d'accès direct à la configuration — voir [l'architecture](ARCHITECTURE.md).
 
 > Blocage sécurité : la migration de Next.js `14.2.3` vers la branche maintenue doit intégrer le correctif de sécurité annoncé pour le 26 août 2026 avant exposition publique ou capital réel. En attendant, conserver la console derrière le contrôle d'accès Coolify et le TLS.
 
@@ -58,6 +58,7 @@ Les valeurs ne sont jamais relues dans le navigateur : l'interface affiche seule
 - `FREQTRADE_USERNAME` / `FREQTRADE_PASSWORD` : compte REST du moteur Freqtrade.
 - `FREQTRADE_ADMIN_USER` / `FREQTRADE_ADMIN_PASSWORD` : compte personnel unique de la console.
 - `FREQTRADE_JWT_SECRET` : secret aléatoire d'au moins 32 octets.
+- `QUANT_RACK_AGENT_TOKEN` : jeton porteur partagé uniquement entre la console et `rack-agent` (service interne, jamais publié) ; secret aléatoire d'au moins 32 octets.
 - `EXCHANGE_API_KEY` / `EXCHANGE_API_SECRET` / `EXCHANGE_API_PASSWORD` / `EXCHANGE_API_UID` : import initial optionnel vers le coffre ; après le premier démarrage, utiliser Réglages.
 - `TELEGRAM_ENABLED`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` et `TELEGRAM_AUTHORIZED_USERS` : import initial optionnel. Un jeton publié doit être révoqué avant utilisation.
 - `OBS_CPU_WARN_PCT`, `OBS_RAM_WARN_PCT` et `OBS_EXCHANGE_ERROR_WARN_COUNT` : seuils initiaux du collecteur léger ; ne les ajuster qu'après la fenêtre de sept jours.
