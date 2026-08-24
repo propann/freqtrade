@@ -14,7 +14,18 @@ __pycache__/
 **/node_modules/
 **/.next/
 
-# Collection de strategies de recherche, non validees, hors versionnement.
+# Collection de stratégies de recherche : conserver le catalogue, pas les
+# clones externes, imports volumineux ou sorties générées.
+strategy_library/imports/
+strategy_library/generated/
+strategy_library/support/
+strategy_library/legacy/
+strategy_library/sources/*/
+!strategy_library/README.md
+!strategy_library/CATALOG.md
+!strategy_library/sources/README.md
+
+# Ancien nom conservé pour les installations locales existantes.
 strategies-library/
 
 # Journaux exportes depuis Coolify.
