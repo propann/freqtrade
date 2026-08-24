@@ -16,8 +16,8 @@ décrit dans la conversation si l'intention reste un test à faible capital.
 
 from pandas import DataFrame
 import talib.abstract as ta
+from technical import qtpylib
 from freqtrade.strategy import IStrategy, IntParameter
-from freqtrade.vendor.qtpylib import indicators as qtpylib
 
 
 class GenesisMicro(IStrategy):
@@ -75,8 +75,8 @@ class GenesisMicro(IStrategy):
 
         macd = ta.MACD(dataframe)
         dataframe['macd'] = macd['macd']
-        dataframe['macd_signal'] = macd['macd_signal']
-        dataframe['macd_hist'] = macd['macd_hist']
+        dataframe['macd_signal'] = macd['macdsignal']
+        dataframe['macd_hist'] = macd['macdhist']
 
         dataframe['volume_mean_20'] = dataframe['volume'].rolling(20).mean()
         dataframe['atr'] = ta.ATR(dataframe, timeperiod=14)

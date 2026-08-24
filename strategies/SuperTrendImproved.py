@@ -11,6 +11,7 @@ on long backtests. Left as-is pending a real validation pass; consider
 vectorizing before hyperopt on large timeranges.
 """
 from pandas import DataFrame
+import pandas as pd
 import talib.abstract as ta
 from freqtrade.strategy import IStrategy, IntParameter
 import numpy as np
@@ -63,34 +64,41 @@ class SuperTrendImproved(IStrategy):
         df['basic_lb'] = (df['high'] + df['low']) / 2 - multiplier * df['ATR']
         df['final_ub'] = 0.0
         df['final_lb'] = 0.0
+        final_ub_index = df.columns.get_loc('final_ub')
+        final_lb_index = df.columns.get_loc('final_lb')
         for i in range(st_period, len(df)):
             prev_ub = df['final_ub'].iat[i - 1]
             prev_lb = df['final_lb'].iat[i - 1]
             close_prev = df['close'].iat[i - 1]
             ub = df['basic_ub'].iat[i]
             lb = df['basic_lb'].iat[i]
-            df['final_ub'].iat[i] = ub if ub < prev_ub or close_prev > prev_ub else prev_ub
-            df['final_lb'].iat[i] = lb if lb > prev_lb or close_prev < prev_lb else prev_lb
+            df.iat[i, final_ub_index] = ub if ub < prev_ub or close_prev > prev_ub else prev_ub
+            df.iat[i, final_lb_index] = lb if lb > prev_lb or close_prev < prev_lb else prev_lb
         df['st'] = 0.0
+        st_index = df.columns.get_loc('st')
         for i in range(st_period, len(df)):
             prev_st = df['st'].iat[i - 1]
             close = df['close'].iat[i]
             ub = df['final_ub'].iat[i]
             lb = df['final_lb'].iat[i]
             if prev_st == ub and close <= ub:
-                df['st'].iat[i] = ub
+                df.iat[i, st_index] = ub
             elif prev_st == ub and close > ub:
-                df['st'].iat[i] = lb
+                df.iat[i, st_index] = lb
             elif prev_st == lb and close >= lb:
-                df['st'].iat[i] = lb
+                df.iat[i, st_index] = lb
             elif prev_st == lb and close < lb:
-                df['st'].iat[i] = ub
+                df.iat[i, st_index] = ub
             else:
-                df['st'].iat[i] = 0.0
+                df.iat[i, st_index] = 0.0
         # Direction
         # NOTE: source used the removed `np.NaN` alias (dropped in NumPy 2.x);
         # fixed to `np.nan` so this actually imports/runs.
-        df['stx'] = np.where((df['st'] > 0.0), np.where((df['close'] < df['st']), 'down', 'up'), np.nan)
+        df['stx'] = pd.Series(
+            np.where((df['st'] > 0.0), np.where((df['close'] < df['st']), 'down', 'up'), None),
+            index=df.index,
+            dtype='object',
+        )
         dataframe['stx'] = df['stx']
         # Indicateurs supplémentaires
         dataframe['rsi'] = ta.RSI(dataframe, timeperiod=14)

@@ -21,6 +21,8 @@ strategy_library/generated/
 strategy_library/support/
 strategy_library/legacy/
 strategy_library/sources/*/
+strategy_library/audit_results/*
+!strategy_library/audit_results/.gitignore
 !strategy_library/README.md
 !strategy_library/CATALOG.md
 !strategy_library/sources/README.md

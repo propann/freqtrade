@@ -5,8 +5,8 @@ reviewed in this repo. Treat as a research candidate only.
 """
 from pandas import DataFrame
 import talib.abstract as ta
+from technical import qtpylib
 from freqtrade.strategy import IStrategy, IntParameter, DecimalParameter
-from freqtrade.vendor.qtpylib import indicators as qtpylib
 
 
 class RSIBollingerStrategy(IStrategy):
@@ -49,7 +49,7 @@ class RSIBollingerStrategy(IStrategy):
         dataframe['bb_upper'] = bollinger['upper']
         dataframe['rsi'] = ta.RSI(dataframe, timeperiod=14)
         macd = ta.MACD(dataframe)
-        dataframe['macd_hist'] = macd['macd_hist']
+        dataframe['macd_hist'] = macd['macdhist']
         return dataframe
 
     def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:

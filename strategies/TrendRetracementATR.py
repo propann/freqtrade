@@ -6,8 +6,8 @@ scripts/researchctl (plan / validate / oos) before any dry-run activation.
 """
 from pandas import DataFrame
 import talib.abstract as ta
+from technical import qtpylib
 from freqtrade.strategy import DecimalParameter, IStrategy, IntParameter
-from freqtrade.vendor.qtpylib import indicators as qtpylib
 
 
 class TrendRetracementATR(IStrategy):
@@ -54,8 +54,8 @@ class TrendRetracementATR(IStrategy):
         dataframe["rsi"] = ta.RSI(dataframe, timeperiod=14)
         macd = ta.MACD(dataframe)
         dataframe["macd"] = macd["macd"]
-        dataframe["signal"] = macd["macd_signal"]
-        dataframe["macd_hist"] = macd["macd_hist"]
+        dataframe["signal"] = macd["macdsignal"]
+        dataframe["macd_hist"] = macd["macdhist"]
         # Bande ATR autour de l'EMA50
         dataframe["atr_upper"] = dataframe["ema50"] + self.atr_multiplier.value * dataframe["atr"]
         dataframe["atr_lower"] = dataframe["ema50"] - self.atr_multiplier.value * dataframe["atr"]

@@ -6,9 +6,9 @@ v3 signal interface and avoids indicators that are not part of a decision.
 
 from pandas import DataFrame
 import talib.abstract as ta
+from technical import qtpylib
 
 from freqtrade.strategy import DecimalParameter, IStrategy, IntParameter
-from freqtrade.vendor.qtpylib import indicators as qtpylib
 
 
 class IchiV1Research(IStrategy):

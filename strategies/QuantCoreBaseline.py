@@ -2,9 +2,9 @@
 
 from pandas import DataFrame
 import talib.abstract as ta
+from technical import qtpylib
 
 from freqtrade.strategy import DecimalParameter, IStrategy, IntParameter
-from freqtrade.vendor.qtpylib import indicators as qtpylib
 
 
 class QuantCoreBaseline(IStrategy):

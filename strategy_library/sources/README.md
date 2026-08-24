@@ -25,6 +25,24 @@ out-of-sample validation.
   upstream change is 2021 and none declares V3, so it is migration inspiration only.
 - `freqtrade-strategy-lab/`: recent FreqAI/futures research workspace. Its models
   and runtime dependencies exclude it from the ordinary spot strategy audit.
+- `ceyhanmolla-freqtrade-strategies/`: Turkish V3 collection, pinned locally at
+  `937fefc` (2026-05-23). It contains short-timeframe candidates and therefore
+  requires 1m/5m market data plus realistic fee, latency and slippage checks.
+- `baoyuy-f-d-cn/`: Chinese research collection. It has a mixed structure and
+  is inventory-only until each candidate's Freqtrade interface is confirmed.
+- `nanshan1002-quant-strategies/`: Chinese quantitative research repository;
+  it is not a drop-in Freqtrade strategy set and stays reference-only.
+- `hansen1015-freqtrade-strategy/`: older five-strategy set, retained as
+  migration/reference material rather than an active candidate source.
+- `zevrichards-freqtrade-strategies/`: 16 current candidates (5m and 4h),
+  pinned locally at `9dc9ef2` (2026-08-20). It needs a dedicated multi-timeframe
+  data and configuration audit before any import.
+
+### Incomplete downloads
+
+- `theobrigitte-freqtrade/`: clone interrupted before the repository files were
+  written. It is not inventoried and must be re-cloned into a clean quarantine
+  directory before use.
 
 The official collection itself describes its strategies as starting points,
 not ready-to-use systems. Promotion to `strategies/` therefore requires local
