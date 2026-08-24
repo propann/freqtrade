@@ -161,6 +161,24 @@ services:
     volumes:
       - quant_user_data:/workspace/user_data
 
+  # Mesure passive du chemin d'execution. Lancee par le planificateur, elle ne
+  # passe aucun ordre et n'expose aucun port. Une URL RPC DEX est optionnelle.
+  latency-observer:
+    <<: *rack-image
+    profiles: ["observe"]
+    entrypoint: ["python3", "/workspace/scripts/latencyctl.py"]
+    environment:
+      FREQTRADE_API_URL: http://freqtrade-engine:8080
+      FREQTRADE_USERNAME: ${FREQTRADE_USERNAME:?FREQTRADE_USERNAME is required}
+      FREQTRADE_PASSWORD: ${FREQTRADE_PASSWORD:?FREQTRADE_PASSWORD is required}
+      QUANT_CEX_PROBE_URL: ${QUANT_CEX_PROBE_URL:-https://api.binance.com/api/v3/time}
+      QUANT_DEX_RPC_URL: ${QUANT_DEX_RPC_URL:-}
+    cpus: ${LATENCY_OBSERVER_CPU_LIMIT:-0.10}
+    mem_limit: ${LATENCY_OBSERVER_MEMORY_LIMIT:-64m}
+    pids_limit: 32
+    volumes:
+      - quant_user_data:/workspace/user_data
+
   rack-preflight:
     <<: *rack-image
     profiles: ["operator"]

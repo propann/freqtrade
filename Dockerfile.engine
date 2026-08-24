@@ -4,6 +4,9 @@
 FROM freqtradeorg/freqtrade:stable
 
 USER root
+# Required by the vetted legacy strategies GodStra and Heracles.  Keep this
+# pinned so local research and the future VPS image resolve the same API.
+RUN pip install --no-cache-dir "ta==0.11.0"
 COPY scripts/ /opt/quant/scripts/
 COPY quant_rack/ /opt/quant/quant_rack/
 COPY strategies/ /opt/quant/strategies/

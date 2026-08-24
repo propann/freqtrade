@@ -110,6 +110,17 @@ scripts/researchctl benchmark ichi-v1 --rows 10000 --repeats 5 --confirm BENCHMA
 
 Le benchmark s'exécute dans le même conteneur éphémère et avec les mêmes quotas que les backtests. Il relève la médiane, le p95, le temps par millier de bougies, la mémoire ajoutée au DataFrame, le pic RSS et les colonnes produites. Le jeu OHLCV est une charge déterministe de comparaison, clairement marquée comme telle : ce n'est ni une donnée de marché ni une mesure de performance financière. Les rapports JSON restent dans `user_data/research/` et servent de référence avant toute mutualisation ou mise en cache.
 
+## Latence d'exécution
+
+Le collecteur `latencyctl` est passif : il ne place aucun ordre. Il mesure le trajet HTTP vers le CEX, l'API interne du moteur et, si `QUANT_DEX_RPC_URL` est renseigné, un appel RPC de lecture seule. Les secrets, payloads et URL RPC complètes ne sont pas écrits sur disque.
+
+```bash
+docker compose --env-file .env -f docker-compose.coolify.yml run --rm latency-observer sample
+docker compose --env-file .env -f docker-compose.coolify.yml run --rm latency-observer profile --hours 168
+```
+
+Planifier `sample` toutes les minutes pour un CEX et toutes les 10 à 15 secondes pour un DEX. Le profil `user_data/latency/execution-profile.json` fournit les p50/p95/p99. Il ne déduit volontairement aucun slippage : celui-ci doit être calculé à partir des prix demandés et réellement remplis.
+
 ## Observabilité légère
 
 Un relevé ne démarre aucun démon supplémentaire. Le conteneur rejoint brièvement le réseau privé, interroge cinq endpoints Freqtrade, écrit une ligne sans secret puis disparaît :

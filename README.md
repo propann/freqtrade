@@ -13,7 +13,7 @@ Quant Core est une console personnelle destinée à un déploiement Docker/Cooli
 | `console/` | Porte d'entrée, supervision, coffre et commandes opérationnelles bornées | Oui |
 | `quant_rack/` | Profils légers : stratégie, indicateurs, protections et budget | Fichiers uniquement |
 | `strategies/` | Stratégies locales soumises aux portes de validation | Chargée selon le profil |
-| `scripts/` | Activation, observation, préflight et recherche reproductible | À la demande |
+| `scripts/` | Activation, observation, latence, préflight et recherche reproductible | À la demande |
 | `tests/` | Contrôles des opérations sensibles et des scénarios d'échec | CI uniquement |
 
 Le produit est volontairement mono-propriétaire. Il ne contient plus de tenants, abonnements, facturation, portail client ou orchestrateur multi-instance.
@@ -63,6 +63,8 @@ Les valeurs ne sont jamais relues dans le navigateur : l'interface affiche seule
 - `EXCHANGE_API_KEY` / `EXCHANGE_API_SECRET` / `EXCHANGE_API_PASSWORD` / `EXCHANGE_API_UID` : import initial optionnel vers le coffre ; après le premier démarrage, utiliser Réglages.
 - `TELEGRAM_ENABLED`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` et `TELEGRAM_AUTHORIZED_USERS` : import initial optionnel. Un jeton publié doit être révoqué avant utilisation.
 - `OBS_CPU_WARN_PCT`, `OBS_RAM_WARN_PCT` et `OBS_EXCHANGE_ERROR_WARN_COUNT` : seuils initiaux du collecteur léger ; ne les ajuster qu'après la fenêtre de sept jours.
+- `QUANT_CEX_PROBE_URL` : endpoint public à sonder pour la latence CEX (Binance par défaut).
+- `QUANT_DEX_RPC_URL` : endpoint RPC DEX facultatif ; il est interrogé en lecture seule et son URL complète n'est jamais journalisée.
 
 La console est accessible depuis plusieurs ordinateurs via son domaine HTTPS avec le même compte opérateur. Les clés exchange et Telegram restent côté serveur dans le second fichier de configuration privé recommandé par Freqtrade et ne sont jamais renvoyées au navigateur.
 
@@ -93,7 +95,11 @@ scripts/researchctl benchmark baseline --rows 10000 --repeats 5 --confirm BENCHM
 scripts/researchctl validate baseline --timerange 20260101-20260630 --confirm VALIDATE
 scripts/researchctl oos baseline --timerange 20250101-20260101 --split-date 20251001 --fee 0.001 --confirm OOS
 docker compose --env-file .env -f docker-compose.coolify.yml run --rm rack-observer sample
+docker compose --env-file .env -f docker-compose.coolify.yml run --rm latency-observer sample
+docker compose --env-file .env -f docker-compose.coolify.yml run --rm latency-observer profile --hours 168
 ```
+
+`latency-observer` ne place aucun ordre. Il mesure les percentiles de latence CEX, moteur et RPC DEX dans `user_data/latency/`. Ces mesures doivent compléter les frais et le slippage observé sur de vrais fills ; elles ne suffisent pas à elles seules à rendre un backtest réaliste.
 
 Depuis le VPS, l'activation vérifiée passe par le réseau privé Docker :
 
