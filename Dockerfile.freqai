@@ -1,0 +1,13 @@
+# FreqAI research rack.  This image is intentionally separate from the trading
+# engine: ML dependencies and model files must never alter execution runtime.
+FROM freqtradeorg/freqtrade:stable_freqai
+
+USER root
+RUN pip install --no-cache-dir "ta==0.11.0"
+COPY scripts/ /opt/quant/scripts/
+COPY quant_rack/ /opt/quant/quant_rack/
+COPY config_examples/ /opt/quant/config_examples/
+COPY strategies/ /opt/quant/strategies/
+RUN chmod -R a+rX /opt/quant
+USER ftuser
+ENTRYPOINT ["/bin/sh", "/opt/quant/scripts/start-engine"]

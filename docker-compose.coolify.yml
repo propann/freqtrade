@@ -129,6 +129,56 @@ services:
     volumes:
       - quant_user_data:/freqtrade/user_data
 
+  # FreqAI is deliberately a separate, on-demand research rack. It receives
+  # neither execution secrets nor the trading engine's persistent state.
+  freqai-lab:
+    profiles: ["research"]
+    image: quant-core/freqai:local
+    build:
+      context: .
+      dockerfile: Dockerfile.freqai
+    entrypoint: ["/bin/sh"]
+    environment:
+      TZ: UTC
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+      NUMEXPR_NUM_THREADS: "1"
+    cpus: ${FREQAI_CPU_LIMIT:-1.0}
+    mem_limit: ${FREQAI_MEMORY_LIMIT:-2048m}
+    pids_limit: ${FREQAI_PIDS_LIMIT:-256}
+    volumes:
+      - quant_freqai_data:/freqtrade/user_data
+
+  # Separate FreqAI execution engine. Disabled unless the ai-execution profile
+  # is selected. It starts in dry-run; only the VPS operator may explicitly set
+  # FREQAI_EXECUTION_DRY_RUN=false after the model's validation gate.
+  freqai-execution:
+    profiles: ["ai-execution"]
+    image: quant-core/freqai:local
+    build:
+      context: .
+      dockerfile: Dockerfile.freqai
+    restart: unless-stopped
+    environment:
+      TZ: UTC
+      QUANT_BOOTSTRAP_CONFIG: quantcore.freqai.dry-run.json
+      FREQTRADE__DRY_RUN: ${FREQAI_EXECUTION_DRY_RUN:-true}
+      QUANT_RUNTIME_SECRETS_PATH: /freqtrade/user_data/private/runtime-secrets.json
+      QUANT_BOOTSTRAP_EXCHANGE_KEY: ${FREQAI_EXCHANGE_API_KEY:-}
+      QUANT_BOOTSTRAP_EXCHANGE_SECRET: ${FREQAI_EXCHANGE_API_SECRET:-}
+      QUANT_BOOTSTRAP_EXCHANGE_PASSWORD: ${FREQAI_EXCHANGE_API_PASSWORD:-}
+      QUANT_BOOTSTRAP_EXCHANGE_UID: ${FREQAI_EXCHANGE_API_UID:-}
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+      NUMEXPR_NUM_THREADS: "1"
+    cpus: ${FREQAI_CPU_LIMIT:-1.0}
+    mem_limit: ${FREQAI_MEMORY_LIMIT:-2048m}
+    pids_limit: ${FREQAI_PIDS_LIMIT:-256}
+    volumes:
+      - quant_freqai_runtime:/freqtrade/user_data
+
   rack-operator:
     <<: *rack-image
     profiles: ["operator"]
@@ -213,3 +263,5 @@ services:
 
 volumes:
   quant_user_data:
+  quant_freqai_data:
+  quant_freqai_runtime:

@@ -4,6 +4,11 @@ Static screening only: a strategy is not promoted for trading until it passes
 the project's backtest, resource benchmark, lookahead, recursive and
 out-of-sample checks.
 
+All entries are retained as research references, including rejected ones.  A
+rejected long may motivate a separately specified inverse hypothesis, but is
+never inverted mechanically or activated without a dedicated futures/margin
+risk model. See `docs/STRATEGY_RETENTION_POLICY.md`.
+
 ## Resource gate
 
 The catalogue records deterministic indicator timing, dataframe memory growth
@@ -24,13 +29,13 @@ These active strategies use the current V3 entry/exit interface and do not
 declare an additional third-party strategy package beyond the normal Freqtrade
 stack:
 
-- CustomStoplossWithPSAR, GenesisMicro, GenesisRelic, HumanConfluenceStrategy
+- CustomStoplossWithPSAR, GenesisMicro
 - MatrixBugScalper, RSIBollingerStrategy, SuperTrendImproved, TrendRetracementATR
 - GodStra, Heracles, hlhb, mabStra, MultiMa, Supertrend, TrendRiderStrategy
 - Strategy001 through Strategy005, Strategy001_custom_exit, SwingHighToSky and
   the remaining V3 reference candidates.
 
-## Excluded by current annual spot audit
+## Rejected parameterisations in the current annual spot audit
 
 - `Bandtastic`: -79.2% return and 82.5% drawdown.
 - `Diamond`: -25.78% return and 29.57% drawdown.
@@ -38,6 +43,19 @@ stack:
 - `QuantCoreBaseline`: -14.2% return; retain only as a development baseline.
 - `FixedRiskRewardLoss`: compatibility repaired, then -42.18% return with
   42.18% drawdown over 3 trades; reject.
+- `CnStrongTrendStrategy` (Chinese-source import): -25.71% return, 28.19%
+  drawdown, 358 trades and profit factor 0.60. The exit logic closes losing
+  positions too eagerly; reject this parameterisation.
+- `CnTrendPullbackStrategy` (Chinese-source import): -44.22% return, 44.68%
+  drawdown, 1,005 trades and profit factor 0.44. Reject this parameterisation.
+- `GenesisRelic`: repaired to use a valid 15m-entry/4h-regime timeframe layout;
+  -3.30% return, 3.30% drawdown and 12 trades. Reject this parameterisation.
+- `MultiTimeframeRsiStrategy` (`multi_tf.py`): renamed from an underscore class
+  name so the Freqtrade resolver can run it; -33.15% return, 39.16% drawdown,
+  289 trades and profit factor 0.66. Reject this parameterisation.
+- `MatrixBugScalper`: first annual 1m audit produced 5,903 trades, -98.66%
+  return, 98.66% drawdown and profit factor 0.51. Reject; the source's assumed
+  low-cost limit fills are not evidence of a viable strategy.
 - `AlmgrenChrissStrategy`, `TWAPStrategy`: short strategies, outside the Binance
   spot profile.
 
@@ -69,6 +87,8 @@ Additional negative annual results (same five-pair Binance spot sample):
 - `GenesisMicro` and `SuperTrendImproved`: compatibility repaired and annual
   test completed, but neither produced a trade. Keep as inactive research
   references until their signal design is reviewed.
+- `HumanConfluenceStrategy`: repaired to use a valid 15m-entry/1h-trend layout,
+  but generated no trade in the annual sample. Keep as an inactive reference.
 - `NostalgiaForInfinityX7` (external quarantine, 2025-08-24 to 2026-08-24):
   +1.61%, 2.59% drawdown and profit factor 1.60, but only 5 trades. This is
   statistically inconclusive; do not activate or award a performance rating.
@@ -78,7 +98,7 @@ Additional negative annual results (same five-pair Binance spot sample):
 These use optional packages and should only be tested after their dependencies
 are confirmed in the `strategy-lab` image:
 
-- `multi_tf.py`, `PatternRecognition.py`, `PowerTower.py`, `UniversalMACD.py`
+- `PatternRecognition.py`, `PowerTower.py`, `UniversalMACD.py`
   (`pandas_ta` and/or `technical`)
 - `sample_strategy.py` (`technical`)
 

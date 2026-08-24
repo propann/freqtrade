@@ -2,12 +2,16 @@
 set -eu
 
 user_data=/freqtrade/user_data
+bootstrap_config=${QUANT_BOOTSTRAP_CONFIG:-quantcore.dry-run.json}
+case "$bootstrap_config" in
+  */*|*..*) echo "start-engine: nom de configuration invalide" >&2; exit 2 ;;
+esac
 mkdir -p "$user_data/private" "$user_data/strategies" "$user_data/data" "$user_data/logs"
 
 # Premier demarrage sur un volume vide : on pose la configuration dry-run de
 # reference. Ensuite le fichier appartient a l'operateur et n'est plus touche.
 if [ ! -f "$user_data/config.json" ]; then
-  cp /opt/quant/config_examples/quantcore.dry-run.json "$user_data/config.json"
+  cp "/opt/quant/config_examples/$bootstrap_config" "$user_data/config.json"
   echo "start-engine: configuration dry-run initiale posee"
 fi
 
