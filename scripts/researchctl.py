@@ -11,6 +11,7 @@ import json
 import math
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -116,6 +117,93 @@ def append_registry(payload: dict[str, Any]) -> None:
         handle.write(json.dumps(payload, ensure_ascii=False, sort_keys=True) + "\n")
         handle.flush()
         os.fsync(handle.fileno())
+
+
+def directory_size(path: Path) -> int:
+    """Return the size of regular files below a research experiment."""
+    total = 0
+    for candidate in path.rglob("*"):
+        try:
+            if candidate.is_file() and not candidate.is_symlink():
+                total += candidate.stat().st_size
+        except OSError:
+            continue
+    return total
+
+
+def retention_plan(keep_days: int, max_total_mb: int, keep_last: int) -> dict[str, Any]:
+    if not 7 <= keep_days <= 3650:
+        raise ResearchError("--keep-days doit être compris entre 7 et 3650")
+    if not 128 <= max_total_mb <= 1024 * 1024:
+        raise ResearchError("--max-total-mb doit être compris entre 128 et 1048576")
+    if not 1 <= keep_last <= 10000:
+        raise ResearchError("--keep-last doit être compris entre 1 et 10000")
+
+    now = time.time()
+    experiments: list[dict[str, Any]] = []
+    if RESEARCH_DIR.is_dir():
+        for candidate in RESEARCH_DIR.iterdir():
+            try:
+                if not candidate.is_dir() or candidate.is_symlink():
+                    continue
+                modified = candidate.stat().st_mtime
+            except OSError:
+                continue
+            experiments.append({
+                "path": candidate,
+                "modified_at": datetime.fromtimestamp(modified, timezone.utc).isoformat(),
+                "age_days": round((now - modified) / 86400, 2),
+                "bytes": directory_size(candidate),
+            })
+
+    experiments.sort(key=lambda item: str(item["modified_at"]), reverse=True)
+    protected = experiments[:keep_last]
+    removable = experiments[keep_last:]
+    max_bytes = max_total_mb * 1024 * 1024
+    total_bytes = sum(int(item["bytes"]) for item in experiments)
+    selected: list[dict[str, Any]] = []
+    remaining_bytes = total_bytes
+    for item in sorted(removable, key=lambda value: str(value["modified_at"])):
+        expired = float(item["age_days"]) >= keep_days
+        over_budget = remaining_bytes > max_bytes
+        if not expired and not over_budget:
+            continue
+        selected.append(item)
+        remaining_bytes -= int(item["bytes"])
+
+    def public(item: dict[str, Any]) -> dict[str, Any]:
+        return {key: value for key, value in item.items() if key != "path"} | {
+            "experiment": item["path"].name,
+        }
+
+    return {
+        "kind": "research_retention",
+        "keep_days": keep_days,
+        "keep_last": keep_last,
+        "max_total_mb": max_total_mb,
+        "total_bytes": total_bytes,
+        "remaining_bytes": remaining_bytes,
+        "protected_experiments": [public(item) for item in protected],
+        "candidates": [public(item) for item in selected],
+        "dry_run": True,
+        "_paths": [item["path"] for item in selected],
+    }
+
+
+def prune_retention(plan: dict[str, Any], confirmation: str | None) -> dict[str, Any]:
+    if confirmation != "PRUNE-RESEARCH":
+        raise ResearchError("La purge exige --confirm PRUNE-RESEARCH")
+    removed: list[str] = []
+    for candidate in plan.pop("_paths", []):
+        if not isinstance(candidate, Path) or candidate.parent != RESEARCH_DIR or candidate.is_symlink():
+            raise ResearchError("Candidat de purge invalide")
+        if candidate.is_dir():
+            shutil.rmtree(candidate)
+            removed.append(candidate.name)
+    plan.pop("_paths", None)
+    plan["dry_run"] = False
+    plan["removed_experiments"] = removed
+    return plan
 
 
 def experiment_plan(profile_id: str, timerange: str) -> dict[str, Any]:
@@ -756,6 +844,12 @@ def parser() -> argparse.ArgumentParser:
     oos_parser.add_argument("--split-date", required=True)
     oos_parser.add_argument("--fee", type=float, required=True)
     oos_parser.add_argument("--confirm", required=True)
+    retention_parser = commands.add_parser("retention")
+    retention_parser.add_argument("--keep-days", type=int, default=90)
+    retention_parser.add_argument("--max-total-mb", type=int, default=2048)
+    retention_parser.add_argument("--keep-last", type=int, default=10)
+    retention_parser.add_argument("--prune", action="store_true")
+    retention_parser.add_argument("--confirm")
     return root
 
 
@@ -773,6 +867,13 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "validate":
             with research_lock():
                 result = run_validation(args.profile, args.timerange, args.confirm)
+        elif args.command == "retention":
+            with research_lock():
+                result = retention_plan(args.keep_days, args.max_total_mb, args.keep_last)
+                if args.prune:
+                    result = prune_retention(result, args.confirm)
+                else:
+                    result.pop("_paths", None)
         else:
             with research_lock():
                 result = run_oos(

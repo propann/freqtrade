@@ -65,7 +65,7 @@ Aucun défaut critique connu ne reste dans le chemin de supervision. Les nouvell
 ### Faibles
 
 - les conteneurs ponctuels Python utilisent l'utilisateur par défaut de leur image ; leurs montages et profils limitent déjà leur portée, mais un UID dédié serait un durcissement supplémentaire ;
-- la conservation et la rotation des rapports de recherche restent à définir après mesure du disque réel.
+- les rapports de recherche sont bornés à 90 jours et 2 Gio, avec conservation des 10 derniers essais ; la purge reste volontairement confirmée par l'opérateur après sauvegarde.
 
 ## Décision de passage
 

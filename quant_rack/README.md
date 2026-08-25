@@ -110,6 +110,22 @@ scripts/researchctl benchmark ichi-v1 --rows 10000 --repeats 5 --confirm BENCHMA
 
 Le benchmark s'exécute dans le même conteneur éphémère et avec les mêmes quotas que les backtests. Il relève la médiane, le p95, le temps par millier de bougies, la mémoire ajoutée au DataFrame, le pic RSS et les colonnes produites. Le jeu OHLCV est une charge déterministe de comparaison, clairement marquée comme telle : ce n'est ni une donnée de marché ni une mesure de performance financière. Les rapports JSON restent dans `user_data/research/` et servent de référence avant toute mutualisation ou mise en cache.
 
+## Rétention des rapports
+
+Les rapports de recherche sont conservés 90 jours, avec au moins les 10 expériences les plus récentes préservées. Le volume cible est de 2 Gio. La commande est d'abord strictement en lecture seule :
+
+```bash
+scripts/researchctl retention
+```
+
+Elle indique les expériences candidates, sans supprimer de fichier. Après avoir vérifié une sauvegarde du volume `user_data`, la purge est volontairement explicite :
+
+```bash
+scripts/researchctl retention --prune --confirm PRUNE-RESEARCH
+```
+
+Seuls les répertoires directs d'expériences sous `user_data/research/` peuvent être supprimés. Le registre `experiments.jsonl`, le verrou et les données de trading ne sont jamais concernés.
+
 ## Latence d'exécution
 
 Le collecteur `latencyctl` est passif : il ne place aucun ordre. Il mesure le trajet HTTP vers le CEX, l'API interne du moteur et, si `QUANT_DEX_RPC_URL` est renseigné, un appel RPC de lecture seule. Les secrets, payloads et URL RPC complètes ne sont pas écrits sur disque.

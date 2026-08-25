@@ -257,6 +257,51 @@ class ResearchCtlTests(unittest.TestCase):
         self.assertEqual(short_period.returncode, 2)
         self.assertIn("au moins 30 jours", short_period.stderr)
 
+    def test_retention_is_read_only_and_preserves_recent_experiments(self):
+        research = self.root / "user_data" / "research"
+        old = research / "old-experiment"
+        recent = research / "recent-experiment"
+        old.mkdir(parents=True)
+        recent.mkdir()
+        (old / "result.zip").write_bytes(b"old")
+        (recent / "result.zip").write_bytes(b"recent")
+        old_time = 1_700_000_000
+        os.utime(old, (old_time, old_time))
+
+        result = self.run_research("retention", "--keep-days", "7", "--keep-last", "1")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        report = json.loads(result.stdout)
+        self.assertTrue(report["dry_run"])
+        self.assertEqual([item["experiment"] for item in report["candidates"]], ["old-experiment"])
+        self.assertTrue(old.is_dir())
+        self.assertTrue(recent.is_dir())
+
+    def test_retention_prune_requires_confirmation_and_only_removes_candidates(self):
+        research = self.root / "user_data" / "research"
+        old = research / "old-experiment"
+        recent = research / "recent-experiment"
+        old.mkdir(parents=True)
+        recent.mkdir()
+        (old / "result.zip").write_bytes(b"old")
+        (recent / "result.zip").write_bytes(b"recent")
+        old_time = 1_700_000_000
+        os.utime(old, (old_time, old_time))
+
+        rejected = self.run_research("retention", "--keep-days", "7", "--keep-last", "1", "--prune")
+        self.assertEqual(rejected.returncode, 2)
+        self.assertTrue(old.is_dir())
+
+        result = self.run_research(
+            "retention", "--keep-days", "7", "--keep-last", "1", "--prune",
+            "--confirm", "PRUNE-RESEARCH",
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        report = json.loads(result.stdout)
+        self.assertFalse(report["dry_run"])
+        self.assertEqual(report["removed_experiments"], ["old-experiment"])
+        self.assertFalse(old.exists())
+        self.assertTrue(recent.is_dir())
+
 
 if __name__ == "__main__":
     unittest.main()

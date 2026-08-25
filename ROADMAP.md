@@ -56,7 +56,7 @@ Principes non négociables : secrets uniquement côté serveur, dry-run par déf
 | WATCH-01 | En cours | Revoir chaque semaine les avis Next.js, Bun/Node et les dépendances console | Version corrigée documentée, lockfile régénéré, build et smoke test verts avant fusion |
 | WATCH-02 | Terminé | Épingler l'image Freqtrade à une version validée et suivre ses avis | Freqtrade 2026.7 épinglé par digest dans les images moteur/FreqAI ; reconstruction et chargement des 41 stratégies validés |
 | WATCH-03 | À faire | Tester la restauration complète `user_data` et SQLite sur le VPS | Restauration chronométrée, bot redémarré en dry-run et rapport sans secret archivé |
-| WATCH-04 | À faire | Définir la rétention/rotation des rapports d'audit et de recherche | Durée, volume maximal, purge contrôlée et sauvegarde documentés |
+| WATCH-04 | Terminé | Définir la rétention/rotation des rapports d'audit et de recherche | 90 jours, plafond de 2 Gio, conservation des 10 dernières expériences, bilan lecture seule et purge confirmée documentés |
 | COPILOT-01 | À faire | Concevoir un pont IA multi-fournisseurs pour l'atelier stratégie | BYO-key dans le coffre privé, contexte assaini, aucun ordre/secret/transfert implicite |
 | COPILOT-02 | À faire | Encadrer les actions proposées par le Strategy Copilot | Brouillon versionné, confirmation humaine, analyse lookahead/recursive/OOS obligatoire avant activation |
 
