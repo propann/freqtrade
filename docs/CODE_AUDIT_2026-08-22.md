@@ -4,7 +4,7 @@
 
 Le dépôt forme désormais un seul produit mono-propriétaire : une cabine Next.js, un cœur officiel isolé et un rack d'outils ponctuels. Le portail historique, l'infrastructure AWS, puis les derniers restes SaaS (tenants, abonnements, PayPal, quotas, modèles multi-clients et orchestrateur FastAPI) ont été supprimés.
 
-Aucun défaut critique connu ne reste dans le chemin de supervision. Les nouvelles mutations sont limitées aux réglages privés et aux commandes démarrer, bloquer les entrées et recharger, avec origine, session, mot de passe et confirmation. Une dette critique de dépendance subsiste toutefois : Next.js `14.2.3` est inférieur à `14.2.25`, version corrigée pour l'avis Middleware CVSS 9.1. L'application n'utilise actuellement aucun middleware Next.js ni App Router, ce qui réduit les chemins concernés, mais ne transforme pas une version ancienne en version saine. Next.js annonce en plus une publication critique le 26 août 2026 pour ses branches maintenues. L'exposition publique et le trading réel restent donc bloqués jusqu'à cette migration, la rotation des secrets, la validation Coolify, les résultats hors échantillon et sept jours d'observation.
+Aucun défaut critique connu ne reste dans le chemin de supervision. Les nouvelles mutations sont limitées aux réglages privés et aux commandes démarrer, bloquer les entrées et recharger, avec origine, session, mot de passe et confirmation. La dette Next.js signalée dans cet audit a été résolue par la migration vers `15.5.21`, version corrigée de la branche 15 au moment du suivi de sécurité. L'exposition publique et le trading réel restent conditionnés à la rotation des secrets, la validation Coolify, les résultats hors échantillon et sept jours d'observation.
 
 ## Périmètre et méthode
 
@@ -71,4 +71,4 @@ Aucun défaut critique connu ne reste dans le chemin de supervision. Les nouvell
 
 Le code peut continuer en déploiement personnel et en dry-run. Le passage réel reste bloqué tant que le préflight, la rotation des secrets, le rollback, la fenêtre OOS et l'observation de sept jours ne sont pas validés sur la machine cible.
 
-Références officielles : [avis Middleware GHSA-f82v-jwr5-mffw](https://github.com/vercel/next.js/security/advisories/GHSA-f82v-jwr5-mffw), [publication de sécurité Next.js annoncée pour le 26 août 2026](https://nextjs.org/blog).
+Références officielles : [avis Next.js](https://github.com/vercel/next.js/security/advisories), [correctif 15.5.21 pour GHSA-p9j2-gv94-2wf4](https://github.com/vercel/next.js/security/advisories/GHSA-p9j2-gv94-2wf4).

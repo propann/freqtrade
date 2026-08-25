@@ -20,9 +20,7 @@ const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   output: 'standalone',
-  experimental: {
-    outputFileTracingRoot: require('path').join(__dirname, '../'),
-  },
+  outputFileTracingRoot: require('path').join(__dirname, '../'),
   async headers() {
     return [{
       source: '/:path*',
