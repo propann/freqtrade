@@ -1,6 +1,6 @@
 # Feuille de route Quant Core
 
-Mise à jour : 23 août 2026. Ce document est le tableau de suivi de référence. Une tâche n'est terminée que lorsque son critère de sortie est vérifié et lié à un commit ou une PR.
+Mise à jour : 25 août 2026. Ce document est le tableau de suivi de référence. Une tâche n'est terminée que lorsque son critère de sortie est vérifié et lié à un commit ou une PR.
 
 ## Objectif
 
@@ -44,10 +44,21 @@ Principes non négociables : secrets uniquement côté serveur, dry-run par déf
 | SEC-02 | Terminé | Filtrer les journaux avant affichage | Secrets usuels et configurés masqués, lignes bornées et tests unitaires |
 | PERF-01 | Terminé | Réduire le trafic périodique de la cabine | 8 requêtes navigateur/minute et 30 lectures internes/minute au régime nominal |
 | DOC-01 | Terminé | Réaligner audit, architecture, contexte et performances | Aucun document actif ne décrit le prototype SaaS comme un composant présent |
-| DEP-01 | Bloqué | Migrer Next.js vers la branche maintenue | Correctif annoncé le 26 août 2026 publié, lockfile régénéré, audit dépendances et CI verts |
+| DEP-01 | Terminé | Migrer Next.js vers une branche corrigée | Next.js 15.5.21, lockfile régénéré, build/lint/type-check et smoke test Docker validés (`ac83100`) |
 | OPS-01 | Terminé | Ajouter une santé conteneur neutre et des en-têtes défensifs | Route générique, Docker `HEALTHCHECK`, test de prérequis et build vert |
 | OPS-02 | En validation | Gérer Exchange et Telegram depuis le coffre personnel | Écriture `0600`, valeurs non relues, rechargement/rollback et CI verts ; validation Coolify requise |
 | OPS-03 | En validation | Exposer les commandes opérationnelles sûres | Démarrer, bloquer les entrées et recharger avec session, origine, mot de passe et confirmation |
+
+## Veille sécurité et évolutions
+
+| ID | État | Action | Critère d'acceptation |
+|---|---|---|---|
+| WATCH-01 | En cours | Revoir chaque semaine les avis Next.js, Bun/Node et les dépendances console | Version corrigée documentée, lockfile régénéré, build et smoke test verts avant fusion |
+| WATCH-02 | Terminé | Épingler l'image Freqtrade à une version validée et suivre ses avis | Freqtrade 2026.7 épinglé par digest dans les images moteur/FreqAI ; reconstruction et chargement des 41 stratégies validés |
+| WATCH-03 | À faire | Tester la restauration complète `user_data` et SQLite sur le VPS | Restauration chronométrée, bot redémarré en dry-run et rapport sans secret archivé |
+| WATCH-04 | À faire | Définir la rétention/rotation des rapports d'audit et de recherche | Durée, volume maximal, purge contrôlée et sauvegarde documentés |
+| COPILOT-01 | À faire | Concevoir un pont IA multi-fournisseurs pour l'atelier stratégie | BYO-key dans le coffre privé, contexte assaini, aucun ordre/secret/transfert implicite |
+| COPILOT-02 | À faire | Encadrer les actions proposées par le Strategy Copilot | Brouillon versionné, confirmation humaine, analyse lookahead/recursive/OOS obligatoire avant activation |
 
 ## P2 — Client Freqtrade en lecture seule
 
@@ -135,7 +146,8 @@ Toutes les conditions suivantes sont obligatoires :
 |---|---|---|---|
 | Auto-déploiement Coolify lors d'une fusion | Critique | Fusion uniquement pendant une fenêtre contrôlée | Ouvert |
 | Secret Telegram divulgué dans une conversation | Critique | Révocation et rotation avant déploiement | Bloquant opérateur |
-| Next.js 14.2.3 hors branche maintenue | Critique | Migration après le correctif annoncé du 26 août 2026 ; accès amont obligatoire jusque-là | Bloquant exposition publique/live |
+| Avis de sécurité Next.js et dépendances console | Élevé | Veille hebdomadaire, version corrigée, lockfile et build contrôlés | WATCH-01 en cours |
+| Image Freqtrade flottante ou mise à jour non contrôlée | Élevé | Digests testés dans les Dockerfiles ; mise à jour uniquement via WATCH-02 | Couvert |
 | Console connectée mais non validée sur le VPS | Élevé | P2 doit être observée en dry-run sur Coolify | En validation |
 | Positions réelles durant un redémarrage | Critique | Vérifier mode et positions avant action | Ouvert |
 | Surcharge petit VPS par la recherche | Élevé | Recherche éphémère, une tâche, quotas | Couvert par conception |
@@ -156,6 +168,9 @@ Toutes les conditions suivantes sont obligatoires :
 | 2026-08-22 | Rafraîchir selon le rythme utile | Une stratégie 15 min n'a pas besoin d'une pluie d'appels toutes les cinq secondes |
 | 2026-08-23 | Code dans les images, donnée dans un volume | Les montages de chemins relatifs arrivaient vides sur Coolify ; le code suit désormais le commit déployé |
 | 2026-08-23 | Collection de recherche hors du dépôt | 349 stratégies non validées n'ont rien à faire dans une image qui exécute du code |
+| 2026-08-25 | Next.js 15.5.21 et veille de dépendances | Corriger la base de sécurité sans migration React inutile ; garder un contrôle récurrent |
+| 2026-08-25 | Images Freqtrade épinglées par digest | Rendre les builds moteur et FreqAI reproductibles, après vérification du chargement des 41 stratégies |
+| 2026-08-25 | Strategy Copilot BYO-key, sans exécution | Assister la recherche sans stocker de clés fournisseur ni contourner les portes de validation |
 
 ## Rythme de suivi
 

@@ -1,7 +1,8 @@
 # Moteur Freqtrade officiel, augmente du code du rack.
 # Le code vient de l'image (donc du commit deploye), jamais d'un montage :
 # un bind mount relatif arrive vide chez la plupart des orchestrateurs.
-FROM freqtradeorg/freqtrade:stable
+# Pinned digest: update deliberately through the dependency-watch procedure.
+FROM freqtradeorg/freqtrade:stable@sha256:50720a4af314a812be2cfbf5cc6331c63e9332b06f3f4372241f54bc61a35486
 
 USER root
 # Required by the vetted legacy strategies GodStra and Heracles.  Keep this

@@ -49,7 +49,7 @@ Aucun défaut critique connu ne reste dans le chemin de supervision. Les nouvell
 
 ### Élevés — portes opérationnelles
 
-- Next.js doit migrer vers la branche maintenue intégrant le correctif annoncé le 26 août 2026 ; régénérer le lockfile et refaire la CI, sans mise à jour partielle improvisée ;
+- maintenir une veille hebdomadaire sur Next.js, Bun, Node.js et les dépendances de la console ; toute mise à niveau devra régénérer le lockfile et repasser les contrôles de déploiement ;
 - l'image `freqtradeorg/freqtrade:stable` flotte ; pinner une version testée avant le capital réel ;
 - tout jeton Telegram déjà publié doit être révoqué et remplacé dans Coolify ;
 - les deux stratégies sont des candidates de recherche, pas des promesses de rendement ;
