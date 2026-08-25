@@ -19,6 +19,12 @@ a model-specific validation plan. A strategy only moves from this rack to a
 dry-run candidate after reproducible backtest, lookahead, recursive and
 out-of-sample checks.
 
+`config_examples/quantcore.freqai.dry-run.json` is the reference CPU profile.
+It is dry-run only and explicitly defines same-side limit pricing for entries
+and exits. Its first bounded smoke backtest trained LightGBM successfully at
+one CPU and 2 GB RAM; this validates the rack only, never the model's trading
+performance.
+
 ## Execution rack
 
 `freqai-execution` is a separate Freqtrade/FreqAI engine that can execute the

@@ -34,6 +34,10 @@ class FreqaiCpuStrategy(IStrategy):
 
     def set_freqai_targets(self, dataframe: DataFrame, metadata: dict, **kwargs) -> DataFrame:
         horizon = self.freqai_info["feature_parameters"]["label_period_candles"]
+        # FreqAI expands a wide feature frame before requesting labels.  Copy
+        # once here to defragment it, avoiding repeated pandas block inserts
+        # during the rolling training windows.
+        dataframe = dataframe.copy()
         dataframe["&-return"] = dataframe["close"].shift(-horizon) / dataframe["close"] - 1
         return dataframe
 
