@@ -1,6 +1,6 @@
 # Feuille de route Quant Core
 
-Mise à jour : 25 août 2026. Ce document est le tableau de suivi de référence. Une tâche n'est terminée que lorsque son critère de sortie est vérifié et lié à un commit ou une PR.
+Mise à jour : 26 août 2026. Ce document est le tableau de suivi de référence. Une tâche n'est terminée que lorsque son critère de sortie est vérifié et lié à un commit ou une PR.
 
 ## Objectif
 
@@ -44,7 +44,7 @@ Principes non négociables : secrets uniquement côté serveur, dry-run par déf
 | SEC-02 | Terminé | Filtrer les journaux avant affichage | Secrets usuels et configurés masqués, lignes bornées et tests unitaires |
 | PERF-01 | Terminé | Réduire le trafic périodique de la cabine | 8 requêtes navigateur/minute et 30 lectures internes/minute au régime nominal |
 | DOC-01 | Terminé | Réaligner audit, architecture, contexte et performances | Aucun document actif ne décrit le prototype SaaS comme un composant présent |
-| DEP-01 | Terminé | Migrer Next.js vers une branche corrigée | Next.js 15.5.21, lockfile régénéré, build/lint/type-check et smoke test Docker validés (`ac83100`) |
+| DEP-01 | Terminé | Migrer Next.js vers une branche corrigée | Next.js 15.5.24 Maintenance LTS, lockfile régénéré, tests/lint/build et tests du cœur validés |
 | OPS-01 | Terminé | Ajouter une santé conteneur neutre et des en-têtes défensifs | Route générique, Docker `HEALTHCHECK`, test de prérequis et build vert |
 | OPS-02 | En validation | Gérer Exchange et Telegram depuis le coffre personnel | Écriture `0600`, valeurs non relues, rechargement/rollback et CI verts ; validation Coolify requise |
 | OPS-03 | En validation | Exposer les commandes opérationnelles sûres | Démarrer, bloquer les entrées et recharger avec session, origine, mot de passe et confirmation |
@@ -171,6 +171,7 @@ Toutes les conditions suivantes sont obligatoires :
 | 2026-08-25 | Next.js 15.5.21 et veille de dépendances | Corriger la base de sécurité sans migration React inutile ; garder un contrôle récurrent |
 | 2026-08-25 | Images Freqtrade épinglées par digest | Rendre les builds moteur et FreqAI reproductibles, après vérification du chargement des 41 stratégies |
 | 2026-08-25 | Strategy Copilot BYO-key, sans exécution | Assister la recherche sans stocker de clés fournisseur ni contourner les portes de validation |
+| 2026-08-26 | Correctif Next.js 15.5.24 Maintenance LTS | Appliquer la publication de sécurité d'août sans migration React ni changement fonctionnel |
 
 ## Rythme de suivi
 
