@@ -4,8 +4,8 @@ Quant Core est une console personnelle destinée à un déploiement Docker/Cooli
 
 > État réel : la console lit l'état du moteur Freqtrade via son réseau Docker privé. Positions, soldes, profits, configuration, santé, ressources et logs ne possèdent aucun repli fictif. Les commandes opérationnelles `démarrer`, `bloquer les entrées` et `recharger` exigent la session et une nouvelle confirmation du mot de passe ; les ordres forcés restent absents. Le tableau de bord permet aussi d'activer un profil Quant Rack (dry-run uniquement) via `rack-agent`, un service interne dédié qui rejoue les garde-fous de `rackctl` sans donner à la console d'accès direct à la configuration — voir [l'architecture](ARCHITECTURE.md).
 
-> Sécurité console : Next.js est verrouillé sur `15.5.21`, version corrigée de
-> la branche 15 pour les avis de sécurité recensés pendant l'audit. Conserver
+> Sécurité console : Next.js est verrouillé sur `15.5.24`, version Maintenance LTS
+> qui inclut la publication de sécurité du 25 août 2026. Conserver
 > malgré tout le contrôle d'accès Coolify et le TLS, puis réévaluer les avis à
 > chaque mise à jour de dépendance.
 

@@ -20,7 +20,7 @@ Ce logiciel pilote potentiellement un moteur de trading. Une fausse réussite, u
 
 ## Limites critiques restantes
 
-- Next.js `14.2.3` est ancien et inférieur au correctif `14.2.25` d'un avis critique ; migrer vers la branche maintenue incluant la publication de sécurité annoncée pour le 26 août 2026 avant exposition publique ;
+- Next.js est verrouillé sur `15.5.24`, version Maintenance LTS qui corrige les deux vulnérabilités critiques publiées le 25 août 2026 ; conserver le contrôle d'accès en amont et appliquer les prochains correctifs de sécurité avant exposition publique ;
 - le fichier privé doit rester en `0600` et sur un volume sauvegardé/chiffré côté hôte ; Freqtrade doit pouvoir lire les secrets en clair au moment de l'exécution ;
 - le limiteur de connexion vit en mémoire et convient à l'instance unique actuelle, pas à plusieurs réplicas ;
 - les mutations vérifient l'origine exacte, la session, le mot de passe courant et une confirmation explicite ; les ordres forcés ne sont pas exposés ;
@@ -31,14 +31,14 @@ Ce logiciel pilote potentiellement un moteur de trading. Une fausse réussite, u
 ## Avant capital réel
 
 1. Saisir les nouvelles clés uniquement sur le domaine HTTPS dans Réglages, vérifier le fichier privé `0600` et chiffrer les sauvegardes du volume.
-2. Mettre à niveau Next.js vers une branche maintenue après la publication du correctif annoncé et refaire tests, lint et build.
+2. Maintenir Next.js sur une branche LTS corrigée et refaire tests, lint et build à chaque publication de sécurité.
 3. Tester le verrouillage temporaire derrière le proxy Coolify et surveiller les réponses `429`.
 4. Ajouter protection CSRF et confirmation renforcée avant toute mutation future.
 5. Tester les permissions de chaque route et les scénarios d'échec réseau.
 6. Exiger une confirmation renforcée pour `force_exit`, `exit_all` et tout passage hors dry-run.
 7. Faire relire le chemin d'exécution par une seconde personne.
 
-Références : [avis critique Middleware](https://github.com/vercel/next.js/security/advisories/GHSA-f82v-jwr5-mffw) et [calendrier de sécurité Next.js](https://nextjs.org/blog).
+Références : [publication de sécurité d'août 2026](https://nextjs.org/blog/august-2026-security-release), [version Next.js 15.5.24](https://github.com/vercel/next.js/releases/tag/v15.5.24) et [avis de sécurité Next.js](https://github.com/vercel/next.js/security/advisories).
 
 Tout jeton collé dans un chat, une issue ou un log doit être révoqué puis remplacé avant déploiement.
 
