@@ -32,6 +32,8 @@ services:
       FREQTRADE_ADMIN_USER: ${FREQTRADE_ADMIN_USER:?FREQTRADE_ADMIN_USER is required}
       FREQTRADE_ADMIN_PASSWORD: ${FREQTRADE_ADMIN_PASSWORD:?FREQTRADE_ADMIN_PASSWORD is required}
       FREQTRADE_JWT_SECRET: ${FREQTRADE_JWT_SECRET:?FREQTRADE_JWT_SECRET is required}
+      # MU-TH-UR protège l'accès au portail sur le réseau local.
+      QUANT_TRUST_LAN: ${QUANT_TRUST_LAN:-false}
       QUANT_RUNTIME_SECRETS_PATH: /app/user_data/private/runtime-secrets.json
       QUANT_RACK_STATE_PATH: /app/user_data/rack/state.json
       QUANT_OBSERVABILITY_SUMMARY_PATH: /app/user_data/observability/summary-168h.json
@@ -52,10 +54,27 @@ services:
     cpus: ${CONSOLE_CPU_LIMIT:-0.5}
     mem_limit: ${CONSOLE_MEMORY_LIMIT:-512m}
     depends_on:
-      - freqtrade-engine
-      - rack-agent
+      quant-userdata-init:
+        condition: service_completed_successfully
+
+  # Prépare le coffre de configuration pour que la console reste disponible
+  # même lorsque le moteur de trading est arrêté.
+  quant-userdata-init:
+    image: alpine:3.22
+    container_name: quantapex-userdata-init
+    restart: "no"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        mkdir -p /user_data/private /user_data/strategies /user_data/data
+        /user_data/logs /user_data/rack /user_data/observability
+        && chown -R 1000:1000 /user_data
+        && chmod 700 /user_data/private
+    volumes:
+      - quant_user_data:/user_data
 
   freqtrade-engine:
+    profiles: ["trading-engine"]
     image: quant-core/engine:local
     build:
       context: .
@@ -92,6 +111,7 @@ services:
   # Voir scripts/rack_agent.py pour la raison d'etre de ce pont de privilege.
   rack-agent:
     <<: *rack-image
+    profiles: ["trading-engine"]
     container_name: quantapex-rack-agent
     restart: unless-stopped
     environment:

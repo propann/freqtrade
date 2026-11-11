@@ -148,6 +148,7 @@ function Metric({ label, value, detail, tone = 'neutral', icon }: {
 }
 
 export default function Home() {
+  const apiPath = useCallback((path: string) => `/quant${path}`, []);
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
   const [credentials, setCredentials] = useState({ username: '', password: '' });
   const [authError, setAuthError] = useState('');
@@ -175,23 +176,23 @@ export default function Home() {
   const [activateError, setActivateError] = useState('');
 
   const logout = useCallback(async () => {
-    await fetch('/api/auth', { method: 'DELETE' });
+    await fetch(apiPath('/api/auth'), { method: 'DELETE' });
     setAuthenticated(false);
     setBot(EMPTY_STATE);
     setRack({ status: 'not_configured' });
     setObservability({ status: 'not_configured' });
     setLogs([]);
-  }, []);
+  }, [apiPath]);
 
   const fetchJson = useCallback(async (url: string) => {
-    const response = await fetch(url, { cache: 'no-store' });
+    const response = await fetch(apiPath(url), { cache: 'no-store' });
     if (response.status === 401) {
       await logout();
       throw new Error('Session expirée');
     }
     const payload = await response.json();
     return { response, payload };
-  }, [logout]);
+  }, [apiPath, logout]);
 
   const refreshBot = useCallback(async () => {
     setLoading(true);
@@ -244,7 +245,7 @@ export default function Home() {
   }, [fetchJson]);
 
   useEffect(() => {
-    fetch('/api/auth').then((response) => response.json()).then((data) => setAuthenticated(Boolean(data.authenticated)))
+    fetch(apiPath('/api/auth')).then((response) => response.json()).then((data) => setAuthenticated(Boolean(data.authenticated)))
       .catch(() => setAuthenticated(false));
   }, []);
 
@@ -264,14 +265,14 @@ export default function Home() {
     event.preventDefault();
     setSettingsBusy(true); setSettingsError(''); setSettingsMessage('');
     try {
-      const response = await fetch('/api/settings', {
+      const response = await fetch(apiPath('/api/settings'), {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...settingsForm, confirmation: 'APPLIQUER' }),
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.message || 'Réglages refusés');
       setSettings(payload);
-      setSettingsMessage('Réglages enregistrés et rechargés.');
+      setSettingsMessage(payload.message || 'Réglages enregistrés.');
       setSettingsForm((current) => ({
         ...current, exchangeKey: '', exchangeSecret: '', exchangePassword: '', exchangeUid: '',
         telegramToken: '', telegramChatId: '', telegramAuthorizedUsers: '', confirmPassword: '',
@@ -284,7 +285,7 @@ export default function Home() {
   async function control(action: 'start' | 'stopbuy' | 'reload') {
     setSettingsBusy(true); setSettingsError(''); setSettingsMessage('');
     try {
-      const response = await fetch('/api/bot/control', {
+      const response = await fetch(apiPath('/api/bot/control'), {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action, confirmPassword: settingsForm.confirmPassword, confirmation: 'CONFIRMER' }),
       });
@@ -300,7 +301,7 @@ export default function Home() {
     event.preventDefault();
     setActivateBusy(true); setActivateError(''); setActivateMessage('');
     try {
-      const response = await fetch('/api/rack/activate', {
+      const response = await fetch(apiPath('/api/rack/activate'), {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ profileId: selectedProfile, confirmPassword: activatePassword, confirmation: 'ACTIVER' }),
       });
@@ -318,7 +319,7 @@ export default function Home() {
     setAuthBusy(true);
     setAuthError('');
     try {
-      const response = await fetch('/api/auth', {
+      const response = await fetch(apiPath('/api/auth'), {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(credentials),
       });
       const data = await response.json();
