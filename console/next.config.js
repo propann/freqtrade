@@ -17,6 +17,7 @@ const contentSecurityPolicy = [
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  basePath: '/quant',
   reactStrictMode: true,
   poweredByHeader: false,
   output: 'standalone',

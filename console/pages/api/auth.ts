@@ -9,6 +9,10 @@ const ADMIN_USERNAME = process.env.FREQTRADE_ADMIN_USER || '';
 const ADMIN_PASSWORD = process.env.FREQTRADE_ADMIN_PASSWORD || '';
 const JWT_SECRET = process.env.FREQTRADE_JWT_SECRET || '';
 
+function trustedLanAccess(): boolean {
+  return process.env.QUANT_TRUST_LAN === 'true';
+}
+
 function authIsConfigured(): boolean {
   return accessIsReady(process.env);
 }
@@ -28,6 +32,7 @@ export function verifyAuthToken(token: string): boolean {
 }
 
 export function isAuthorizedRequest(req: NextApiRequest): boolean {
+  if (trustedLanAccess()) return true;
   const authHeader = req.headers.authorization;
   const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : req.cookies.quant_session;
   return Boolean(token && verifyAuthToken(token));
@@ -42,6 +47,9 @@ export const config = {
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   res.setHeader('Cache-Control', 'no-store');
   if (req.method === 'GET') {
+    if (trustedLanAccess()) {
+      return res.status(200).json({ authenticated: true, user: ADMIN_USERNAME, trustedLan: true });
+    }
     // Check session
     const authHeader = req.headers.authorization;
     const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : req.cookies['quant_session'];
