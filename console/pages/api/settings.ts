@@ -45,8 +45,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     previous = await readRuntimeSecrets();
     const next = applyRuntimeSecretsUpdate(previous, req.body || {});
     await writeRuntimeSecrets(next);
-    await freqtradePost('/reload_config');
-    return res.status(200).json({ success: true, ...(await runtimeSecretsStatus()), message: 'Réglages appliqués' });
+    let pendingRestart = false;
+    try {
+      await freqtradePost('/reload_config');
+    } catch (error) {
+      if (error instanceof FreqtradeApiError && error.code === 'unavailable' && error.status === undefined) {
+        pendingRestart = true;
+      } else {
+        throw error;
+      }
+    }
+    return res.status(200).json({
+      success: true,
+      ...(await runtimeSecretsStatus()),
+      pendingRestart,
+      message: pendingRestart ? 'Réglages enregistrés. Le moteur les chargera à son prochain démarrage.' : 'Réglages appliqués',
+    });
   } catch (error) {
     if (previous) {
       await writeRuntimeSecrets(previous).catch(() => undefined);
